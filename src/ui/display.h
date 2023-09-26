@@ -5,20 +5,10 @@
 /**
  * Callback to reuse action with approve/reject in step FLOW.
  */
-typedef void (*action_validate_cb)(bool);
+typedef int (*action_validate_cb)(bool);
 
-/**
- * Display address on the device and ask confirmation to export.
- *
- * @return 0 if success, negative integer otherwise.
- *
- */
-int ui_display_address(void);
+int ui_display_add_seed_command(void);
 
-/**
- * Display transaction information on the device and ask confirmation to sign.
- *
- * @return 0 if success, negative integer otherwise.
- *
- */
-int ui_display_transaction(void);
+int ui_display_add_member_command(void);
+
+int ui_display_add_member_confirmed(void);

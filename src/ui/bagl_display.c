@@ -38,18 +38,29 @@
 #include "../menu.h"
 
 static action_validate_cb g_validate_callback;
-static char g_amount[30];
-static char g_address[43];
+int add_member_confirm(void);
+int add_seed_callback(bool confirm);
+
+static action_validate_cb g_validate_callback;
+
+static int ui_display_add_member(bool approve) {
+    if (approve) {
+        add_member_confirm();
+    } else {
+        io_send_sw(SW_DENY);
+    }
+    return 0;
+}
+
+UX_STEP_CB(ux_display_member_confirmed_step, nn, ui_menu_main(), {"Wallet sync", "activated"});
+
+// FLOW to display add member:
+// #1 screen: eye icon + "Confirm Address"
+UX_FLOW(ux_display_member_confirmed_flow, &ux_display_member_confirmed_step);
 
 // Step with icon and text
-UX_STEP_NOCB(ux_display_confirm_addr_step, pn, {&C_icon_eye, "Confirm Address"});
-// Step with title/text for address
-UX_STEP_NOCB(ux_display_address_step,
-             bnnn_paging,
-             {
-                 .title = "Address",
-                 .text = g_address,
-             });
+UX_STEP_NOCB(ux_display_confirm_member_step, pnn, {NULL, "Activate Wallet sync", NULL});
+
 // Step with approve button
 UX_STEP_CB(ux_display_approve_step,
            pb,
@@ -67,51 +78,48 @@ UX_STEP_CB(ux_display_reject_step,
                "Reject",
            });
 
-// FLOW to display address:
+// FLOW to display add member:
 // #1 screen: eye icon + "Confirm Address"
 // #2 screen: display address
 // #3 screen: approve button
 // #4 screen: reject button
-UX_FLOW(ux_display_pubkey_flow,
-        &ux_display_confirm_addr_step,
-        &ux_display_address_step,
+UX_FLOW(ux_display_add_member_flow,
+        &ux_display_confirm_member_step,
         &ux_display_approve_step,
         &ux_display_reject_step);
 
-int ui_display_address() {
+int ui_display_add_member_command(void) {
+    g_validate_callback = &ui_display_add_member;
+    ux_flow_init(0, ux_display_add_member_flow, NULL);
     return 0;
 }
 
-// Step with icon and text
-UX_STEP_NOCB(ux_display_review_step,
-             pnn,
-             {
-                 &C_icon_eye,
-                 "Review",
-                 "Transaction",
-             });
-// Step with title/text for amount
-UX_STEP_NOCB(ux_display_amount_step,
-             bnnn_paging,
-             {
-                 .title = "Amount",
-                 .text = g_amount,
-             });
+int ui_display_add_member_confirmed(void) {
+    ux_flow_init(0, ux_display_member_confirmed_flow, NULL);
+    return 0;
+}
 
-// FLOW to display transaction information:
-// #1 screen : eye icon + "Review Transaction"
-// #2 screen : display amount
-// #3 screen : display destination address
-// #4 screen : approve button
-// #5 screen : reject button
-UX_FLOW(ux_display_transaction_flow,
-        &ux_display_review_step,
-        &ux_display_address_step,
-        &ux_display_amount_step,
+int ui_display_add_seed(bool approve) {
+    add_seed_callback(approve);
+    ui_menu_main();
+    return 0;
+}
+
+UX_STEP_NOCB(ux_display_confirm_seed_step, nn, {"Create a new", "sync group"});
+
+// FLOW to display add seed:
+// #1 screen: eye icon + "Confirm Address"
+// #2 screen: display address
+// #3 screen: approve button
+// #4 screen: reject button
+UX_FLOW(ux_display_add_seed_flow,
+        &ux_display_confirm_seed_step,
         &ux_display_approve_step,
         &ux_display_reject_step);
 
-int ui_display_transaction() {
+int ui_display_add_seed_command(void) {
+    g_validate_callback = &ui_display_add_seed;
+    ux_flow_init(0, ux_display_add_seed_flow, NULL);
     return 0;
 }
 
