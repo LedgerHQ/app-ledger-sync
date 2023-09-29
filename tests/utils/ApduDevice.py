@@ -162,9 +162,16 @@ class Device:
 
         return (iv, issuer)
 
-    def signCommand(transport: BackendInterface, command):
-        response = transport.exchange(Device.CLA, Device.INS_SIGN_BLOCK,
-                                      Device.ParseStreamMode.Command, Device.OutputDataMode.none, command)
+    def signCommand(transport: BackendInterface, command, automation=None):
+        if not automation:
+            response = transport.exchange(
+                Device.CLA, Device.INS_SIGN_BLOCK, Device.ParseStreamMode.Command, Device.OutputDataMode.none, command)
+        else:
+            with transport.exchange_async(Device.CLA, Device.INS_SIGN_BLOCK, Device.ParseStreamMode.Command, Device.OutputDataMode.none, command):
+                automation.navigator.navigate_and_compare(automation.root_path,
+                                                          automation.test_name, automation.instructions,
+                                                          screen_change_after_last_instruction=False)
+            response = transport.last_async_response
         return response.data
 
     def finalizeSignature(transport: BackendInterface):
@@ -335,10 +342,34 @@ class PublicKey:
         self.public_key = public_key
 
 
+class Automation:
+    def __init__(self, navigator: Navigator, root_path: Path = Path.cwd(), test_name: str = None, instructions: list = None):
+        self.navigator = navigator
+        self.root_path = root_path
+        self.test_name = test_name
+        self.instructions = instructions
+
+    def update(self, automation):
+        self.navigator = automation.navigator
+        self.root_path = automation.root_path
+        self.test_name = automation.test_name
+        self.instructions = automation.instructions
+
+
 class ApduDevice(device):
-    def __init__(self, transport: BackendInterface):  # Replace 'Any' with the actual type for the Transport class
+    # Replace 'Any' with the actual type for the Transport class
+    def __init__(self, transport: BackendInterface, navigator: Navigator = None):
         self.transport = transport
         self.session_key_pair = Crypto.randomKeyPair()
+        if navigator:
+            self.automation = Automation(navigator)
+        else:
+            self.automation = None
+
+    def update_automation(self, automation: Automation):
+        if not self.automation:
+            self.automation = Automation(automation.navigator)
+        self.automation.update(automation)
 
     def is_public_key_available(self):
         return False
@@ -497,8 +528,10 @@ class ApduDevice(device):
         for command_index in range(len(block_to_sign.commands)):
             # Pass the trusted param allowing the command to the device
             # If we have no trusted param, we need explicit approval
-            tp = Device.signCommand(
-                self.transport, CommandStreamEncoder.encodeCommand(block_to_sign, command_index))
+
+            tp = Device.signCommand(self.transport, CommandStreamEncoder.encodeCommand(
+                block_to_sign, command_index), self.automation)
+            self.automation = None
             trusted_properties.append(Device.parse_trusted_properties(
                 block_to_sign.commands[command_index], tp))
             # print(Crypto.to_hex(trusted_properties[0].trustedMember))
@@ -523,5 +556,5 @@ class ApduDevice(device):
         return block_to_sign
 
 
-def createApduDevice(transport: BackendInterface):
-    return ApduDevice(transport)
+def createApduDevice(transport: BackendInterface, navigator: Navigator = None):
+    return ApduDevice(transport, navigator)
