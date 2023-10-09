@@ -45,7 +45,7 @@ int handler_sign_block(buffer_t *cdata, uint8_t mode) {
             return io_send_sw(SW_STREAM_PARSER_INVALID_FORMAT);
         }
         // Returns the issuer public key as trusted property
-        buffer_t buffer = {.ptr = G_context.stream.device_public_key,
+        buffer_t buffer = {.ptr = PIC(G_context.stream.device_public_key),
                            .size = sizeof(G_context.stream.device_public_key),
                            .offset = 0};
         io_init_trusted_property();
