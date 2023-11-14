@@ -1,14 +1,17 @@
-from CommandStream import CommandStream
-import CommandStreamResolver
-from ragger.backend.interface import BackendInterface
-from ApduDevice import Device
-from NobleCrypto import Crypto, DerivationPath
-from Device import createDevice
-from ragger.error import ExceptionRAPDU
-from index import device
-
-from streamTree import StreamTree
 import pytest
+from pathlib import Path
+
+from ragger.error import ExceptionRAPDU
+from ragger.navigator import NavInsID, NavIns, Navigator
+from ragger.backend.interface import BackendInterface
+
+import utils.CommandStreamResolver
+from utils.CommandStream import CommandStream
+from utils.ApduDevice import Device, Automation
+from utils.NobleCrypto import Crypto, DerivationPath
+from utils.Device import createDevice
+from utils.index import device
+from utils.streamTree import StreamTree
 
 ROOT_DERIVATION_PATH = "16'/0'"
 DEFAULT_TOPIC = "c96d450545ff2836204c29af291428a5bf740304978f5dfb0b4a261474192851"
@@ -216,8 +219,8 @@ def test_publish_key(backend):
     stream = CommandStream()
 
     # Alice creates the stream and adds Bob
-    stream = stream.edit().seed((Crypto.from_hex(DEFAULT_TOPIC))).add_member(
-        "Bob", bob_public_key, 0xFFFFFFFF, True).issue(alice)
+    stream = stream.edit().seed((Crypto.from_hex(DEFAULT_TOPIC))).issue(alice)
+    stream = stream.edit().add_member("Bob", bob_public_key, 0xFFFFFFFF, True).issue(alice)
 
     # Bob adds Charlie but doesn't publish key
     stream = stream.edit().add_member("Charlie", charlie_public_key, 0xFFFFFFFF, False).issue(bob)
@@ -243,7 +246,8 @@ def test_publish_key_to_non_member(backend):
     with pytest.raises(ExceptionRAPDU):
         stream = stream.edit().publish_key(charlie_public_key).issue(alice)
 
-# Alice seeds once and signs. Alice seeds once more creating a new block should fail.
+    with pytest.raises(ExceptionRAPDU):
+        stream = stream.edit().publish_key(charlie_public_key).issue(alice)
 
 
 def test_seed_twice_by_alice_stream(backend):

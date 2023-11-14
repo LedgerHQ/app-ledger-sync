@@ -1,14 +1,16 @@
 import pytest
 from ragger.error import ExceptionRAPDU
 from ragger.backend.interface import BackendInterface
+from ragger.navigator import NavInsID
 
+from utils.CommandStream import CommandStream
+from utils.NobleCrypto import Crypto
+from utils.CommandBlock import CommandBlock, commands, sign_command_block
+from utils.index import device
+from utils.ApduDevice import Device, Automation
+from utils.CommandStreamEncoder import CommandStreamEncoder
 
-from CommandStream import CommandStream
-from NobleCrypto import Crypto
-from CommandBlock import CommandBlock, commands, sign_command_block
-from index import device
-from ApduDevice import ApduDevice, Device
-from CommandStreamEncoder import CommandStreamEncoder
+from pathlib import Path
 
 DEFAULT_TOPIC = "c96d450545ff2836204c29af291428a5bf740304978f5dfb0b4a261474192851"
 

@@ -2,7 +2,7 @@ from typing import List, Union
 import secrets
 import hashlib
 import copy
-from NobleCrypto import Crypto, DerivationPath
+from .NobleCrypto import Crypto, DerivationPath
 
 
 class Command:
@@ -192,7 +192,7 @@ def sign_command_block(block: CommandBlock, issuer: bytes, secret_key: bytes):
 
 def hash_command_block(block: CommandBlock):
     # Import in function
-    from CommandStreamEncoder import CommandStreamEncoder
+    from .CommandStreamEncoder import CommandStreamEncoder
 
     return Crypto.hash(CommandStreamEncoder.encode([block]))
     # return hashlib.sha256(CommandStreamEncoder.encode([block])).digest()

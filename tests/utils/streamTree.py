@@ -1,8 +1,8 @@
-from indexedTree import IndexedTree
-from NobleCrypto import DerivationPath
-from InterfaceStreamTree import InterfaceStreamTree
-from InterfaceStreamTree import PublishKeyEvent
-from CommandStream import CommandStream
+from .indexedTree import IndexedTree
+from .NobleCrypto import DerivationPath
+from .InterfaceStreamTree import InterfaceStreamTree
+from .InterfaceStreamTree import PublishKeyEvent
+from .CommandStream import CommandStream
 
 
 class ApplicationStreams:

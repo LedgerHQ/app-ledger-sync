@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    from CommandStream import CommandStream
+    from .CommandStream import CommandStream
 
 
 class PublishKeyEvent:

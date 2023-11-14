@@ -1,5 +1,5 @@
-from CommandBlock import CommandBlock, Command, CommandType, commands
-from BigEndian import BigEndian
+from .CommandBlock import CommandBlock, Command, CommandType, commands
+from .BigEndian import BigEndian
 
 
 # Combines the two byte arrays a and b

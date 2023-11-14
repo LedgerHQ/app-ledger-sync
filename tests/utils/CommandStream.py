@@ -1,9 +1,10 @@
-from CommandBlock import commands, hash_command_block, create_command_block, CommandType, Command, CommandBlock
-from CommandStreamResolver import CommandStreamResolver
-from NobleCrypto import Crypto, DerivationPath
 from typing import List
-from Device import SodiumDevice, device
-from InterfaceStreamTree import InterfaceStreamTree
+
+from .CommandBlock import commands, hash_command_block, create_command_block, CommandType, Command, CommandBlock
+from .CommandStreamResolver import CommandStreamResolver
+from .NobleCrypto import Crypto, DerivationPath
+from .Device import SodiumDevice, device
+from .InterfaceStreamTree import InterfaceStreamTree
 
 
 ISSUER_PLACEHOLDER = bytearray([3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,

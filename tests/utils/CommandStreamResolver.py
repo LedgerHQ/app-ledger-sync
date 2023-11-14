@@ -1,6 +1,7 @@
-from NobleCrypto import Crypto
-from CommandBlock import Permissions, hash_command_block, CommandType, verify_command_block, CommandBlock, Command, commands
 from typing import List, cast
+
+from .NobleCrypto import Crypto
+from .CommandBlock import Permissions, hash_command_block, CommandType, verify_command_block, CommandBlock, Command, commands
 
 
 class ResolvedCommandStreamInternals:

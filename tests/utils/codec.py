@@ -1,11 +1,11 @@
-
-from CommandStreamDecoder import TLV as TLVD, CommandStreamDecoder
-from CommandStreamEncoder import TLV as TLVE, CommandStreamEncoder
-from CommandBlock import CommandBlock, commands, create_command_block, Permissions, sign_command_block
-# from Crypto import Crypto
 import unittest
 import random
 import binascii
+
+from .CommandStreamDecoder import TLV as TLVD, CommandStreamDecoder
+from .CommandStreamEncoder import TLV as TLVE, CommandStreamEncoder
+from .CommandBlock import CommandBlock, commands, create_command_block, Permissions, sign_command_block
+# from Crypto import Crypto
 
 
 class TestCommandStream(unittest.TestCase):

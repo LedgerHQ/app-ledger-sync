@@ -1,6 +1,6 @@
-from CommandBlock import CommandBlock, Command, CommandType, commands
-from CommandStreamEncoder import TLVTypes
-from BigEndian import BigEndian
+from .CommandBlock import CommandBlock, Command, CommandType, commands
+from .CommandStreamEncoder import TLVTypes
+from .BigEndian import BigEndian
 
 
 class TLV:

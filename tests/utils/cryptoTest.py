@@ -1,5 +1,5 @@
-from NobleCrypto import Crypto
 import unittest
+from .NobleCrypto import Crypto
 
 
 class TestCommandStream(unittest.TestCase):

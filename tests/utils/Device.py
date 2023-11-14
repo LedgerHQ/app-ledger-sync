@@ -1,6 +1,7 @@
-from NobleCrypto import Crypto
-from CommandBlock import CommandType, sign_command_block, CommandBlock, commands
 from typing import List, cast
+
+from .NobleCrypto import Crypto
+from .CommandBlock import CommandType, sign_command_block, CommandBlock, commands
 
 
 class device:
@@ -48,7 +49,7 @@ class SodiumDevice(device):
         return {'xpriv': xpriv, 'publicKey': encrypted_shared_key['publicKey']}
 
     def sign(self, stream: List[CommandBlock], tree=None):
-        from CommandStreamResolver import CommandStreamResolver
+        from .CommandStreamResolver import CommandStreamResolver
         if len(stream) == 0:
             raise ValueError("Cannot sign an empty stream")
         if len(stream[-1].commands) == 0:

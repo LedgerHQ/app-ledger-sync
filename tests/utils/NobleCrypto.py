@@ -2,7 +2,7 @@
 
 from ecdsa import ecdh, curves, ecdsa
 from Crypto.Util.Padding import pad, unpad
-from hashing import NoHash
+from .hashing import NoHash
 from Crypto.PublicKey import ECC
 from Crypto.Cipher import AES
 from hashlib import md5

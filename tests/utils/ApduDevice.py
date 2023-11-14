@@ -1,10 +1,13 @@
-from CommandStreamDecoder import TLV
-from CommandBlock import CommandType, Command, CommandBlock, commands
-from NobleCrypto import Crypto
-from CommandStream import CommandStream
-from ragger.backend.interface import BackendInterface
+from pathlib import Path
 from typing import List, Union, cast
-from Device import device
+from ragger.backend.interface import BackendInterface
+from ragger.navigator import NavInsID, NavIns, Navigator
+
+from .CommandStreamDecoder import TLV
+from .CommandBlock import CommandType, Command, CommandBlock, commands
+from .NobleCrypto import Crypto
+from .CommandStream import CommandStream
+from .Device import device
 
 
 # from ragger.utils import pack_APDU, RAPDU, Crop
@@ -361,7 +364,7 @@ class ApduDevice(device):
                 f"Stream must contain exactly one block to sign. Found {block_to_sign} blocks to sign.")
 
     def record_trusted_member(self, trusted_params: Device.TrustedParams, public_key, response_data):
-        from CommandStreamDecoder import TLV
+        from .CommandStreamDecoder import TLV
     # Parse an APDU result as TLV and find IV and trusted member data.
     # The data is then assigned to a public key. The parsing must set the
     # public key depending on the current step in the flow (e.g add member
@@ -413,7 +416,7 @@ class ApduDevice(device):
         return Device.set_trusted_member(self.transport, self.get_trusted_member(params, public_key))
 
     def parse_block(self, block: CommandBlock, trusted_params: Device.TrustedParams):
-        from CommandStreamEncoder import CommandStreamEncoder
+        from .CommandStreamEncoder import CommandStreamEncoder
 
         result = None
         # Parse the block header
@@ -470,7 +473,7 @@ class ApduDevice(device):
         return trusted_params
 
     def sign(self, stream: List[CommandBlock], tree):
-        from CommandStreamEncoder import CommandStreamEncoder
+        from .CommandStreamEncoder import CommandStreamEncoder
         session_key = self.session_key_pair
         trusted_properties = []
 
