@@ -395,7 +395,7 @@ int crypto_digest_finalize(crypto_hash_t *hash, uint8_t *digest, uint32_t len) {
 }
 
 int crypto_digest(const uint8_t *data, uint32_t len, uint8_t *digest, uint32_t digest_len) {
-    return cx_hash_sha256(data, len, digest, digest_len) == CX_OK ? CX_OK : C_ERROR;
+    return cx_hash_sha256(data, len, digest, digest_len) != 0 ? CX_OK : C_ERROR;
 }
 
 int crypto_hmac_sha512(uint8_t *key,
