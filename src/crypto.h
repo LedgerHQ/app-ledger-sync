@@ -228,9 +228,8 @@ int crypto_digest_finalize(crypto_hash_t *hash, uint8_t *digest, uint32_t len);
  * @param[in]  len The length of the data.
  * @param[out] digest The buffer to store the digest in.
  * @param[in]  digest_len The length of the digest buffer.
- * @return CX_OK on success, error code otherwise.
  */
-int crypto_digest(const uint8_t *data, uint32_t len, uint8_t *digest, uint32_t digest_len);
+void crypto_digest(const uint8_t *data, uint32_t len, uint8_t *digest, uint32_t digest_len);
 
 /**
  * Computes (a + b) % curve_order.

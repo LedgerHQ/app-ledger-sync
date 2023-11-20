@@ -27,7 +27,6 @@
 #include "buffer.h"
 #include "../handler/get_version.h"
 #include "../handler/get_app_name.h"
-#include "../handler/get_public_key.h"
 #include "../handler/sign_block.h"
 #include "../handler/parse_stream.h"
 #include "../handler/init_signature_flow.h"
@@ -64,7 +63,7 @@ int apdu_dispatcher(const command_t *cmd) {
             buf.ptr = cmd->data;
             buf.size = cmd->lc;
             buf.offset = 0;
-            return handler_get_public_key(&buf);
+            return io_send_sw(SW_WRONG_P1P2);
         case INIT:
             // Initialize the flow for signing a block or accessing the SeedID. The command receives
             // an ephemeral public and generate an ephemeral private key and create a secret. The
