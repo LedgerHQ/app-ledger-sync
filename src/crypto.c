@@ -20,6 +20,7 @@
 #include <stdbool.h>  // bool
 
 #include "crypto.h"
+#include "crypto_helpers.h"
 #include "globals.h"
 
 int crypto_generate_pair(crypto_public_key_t *public_key, crypto_private_key_t *private_key) {
@@ -32,26 +33,11 @@ int crypto_derive_private_key(cx_ecfp_private_key_t *private_key,
                               uint8_t chain_code[static 32],
                               const uint32_t *bip32_path,
                               uint8_t bip32_path_len) {
-    uint8_t raw_private_key[64] = {0};
-    int error = 0;
-
-    // derive the seed with bip32_path
-    error = os_derive_bip32_no_throw(CX_CURVE_256K1,
-                                     bip32_path,
-                                     bip32_path_len,
-                                     raw_private_key,
-                                     chain_code);
-    if (error != CX_OK) {
-        return C_ERROR;
-    }
-    // new private_key from raw
-    error = cx_ecfp_init_private_key_no_throw(CX_CURVE_256K1, raw_private_key, 32, private_key);
-    if (error != CX_OK) {
-        return C_ERROR;
-    }
-    explicit_bzero(&raw_private_key, sizeof(raw_private_key));
-
-    return CX_OK;
+    return bip32_derive_init_privkey_256(CX_CURVE_256K1,
+                                         bip32_path,
+                                         bip32_path_len,
+                                         private_key,
+                                         chain_code);
 }
 
 void crypto_init_public_key(cx_ecfp_private_key_t *private_key,
