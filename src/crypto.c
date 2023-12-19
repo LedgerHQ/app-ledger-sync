@@ -44,13 +44,18 @@ void crypto_init_public_key(cx_ecfp_private_key_t *private_key,
                             cx_ecfp_public_key_t *public_key,
                             uint8_t raw_public_key[static 64]) {
     // generate corresponding public key
-    cx_ecfp_generate_pair_no_throw(CX_CURVE_256K1, public_key, private_key, 1);
+    LEDGER_ASSERT(
+        cx_ecfp_generate_pair_no_throw(CX_CURVE_256K1, public_key, private_key, 1) == CX_OK,
+        "Generate pair error");
     if (raw_public_key != NULL) memmove(raw_public_key, public_key->W + 1, 64);
 }
 
 void crypto_init_private_key(uint8_t raw_private_key[static 32],
                              crypto_private_key_t *private_key) {
-    cx_ecfp_init_private_key_no_throw(CX_CURVE_256K1, raw_private_key, 32, private_key);
+    LEDGER_ASSERT(
+        cx_ecfp_init_private_key_no_throw(CX_CURVE_256K1, raw_private_key, 32, private_key) ==
+            CX_OK,
+        "Private key init failed");
 }
 
 int crypto_compress_public_key(const uint8_t *public_key,
@@ -82,35 +87,36 @@ static int ecpoint_decompress(uint8_t prefix, const uint8_t *raw_x, uint8_t *out
     uint8_t exponent = 3;
     bool is_odd;
     int ret = 0;
+    int err = 0;
 
     BEGIN_TRY {
         TRY {
-            cx_bn_lock(32, 0);
+            err |= cx_bn_lock(32, 0);
 
             // y_square = 0
-            cx_bn_alloc(&y_square, 32);
+            err |= cx_bn_alloc(&y_square, 32);
 
             // y_square_square_root = 0
-            cx_bn_alloc(&y_square_square_root, 32);
+            err |= cx_bn_alloc(&y_square_square_root, 32);
 
             // x = raw_x
-            cx_bn_alloc_init(&x, 32, raw_x, 32);
+            err |= cx_bn_alloc_init(&x, 32, raw_x, 32);
 
             // init p
-            cx_bn_alloc_init(&p, 32, raw_p, sizeof(raw_p));
+            err |= cx_bn_alloc_init(&p, 32, raw_p, sizeof(raw_p));
 
             // init constant to 7
-            cx_bn_alloc_init(&constant, 32, &raw_seven, sizeof(raw_seven));
+            err |= cx_bn_alloc_init(&constant, 32, &raw_seven, sizeof(raw_seven));
 
             // (pow_mod(x, 3, p) + 7) % p
             //  -> y_square = pow_mod(x, 3, p)
-            cx_bn_mod_pow(y_square, x, &exponent, sizeof(exponent), p);
+            err |= cx_bn_mod_pow(y_square, x, &exponent, sizeof(exponent), p);
 
             // -> y_square = y_square + 7
-            cx_bn_add(y_square, y_square, constant);
+            err |= cx_bn_add(y_square, y_square, constant);
 
             // -> y_square = y_square % p
-            cx_bn_reduce(y_square_square_root, y_square, p);
+            err |= cx_bn_reduce(y_square_square_root, y_square, p);
 
             // Swap y_square_square_root and y_square otherwise y_square is equal to 0
             swap = y_square_square_root;
@@ -118,44 +124,45 @@ static int ecpoint_decompress(uint8_t prefix, const uint8_t *raw_x, uint8_t *out
             y_square = swap;
 
             // y = pow_mod(y_square, (p+1)/4, p)
-            cx_bn_destroy(&constant);
-            cx_bn_alloc_init(&constant,
-                             32,
-                             raw_p_plus_one_div_4,
-                             sizeof(raw_p_plus_one_div_4));  // Alloc constant to (p + 1) / 4
+            err |= cx_bn_destroy(&constant);
+            err |= cx_bn_alloc_init(&constant,
+                                    32,
+                                    raw_p_plus_one_div_4,
+                                    sizeof(raw_p_plus_one_div_4));  // Alloc constant to (p + 1) / 4
 
-            cx_bn_mod_pow_bn(y_square_square_root, y_square, constant, p);
+            err |= cx_bn_mod_pow_bn(y_square_square_root, y_square, constant, p);
 
             // Check parity
-            cx_bn_is_odd(y_square_square_root, &is_odd);
+            err |= cx_bn_is_odd(y_square_square_root, &is_odd);
 
             // prefix == "02" and y_square_square_root & 1) or (prefix == "03" and not
             // y_square_square_root & 1
             if ((prefix == 0x02 && is_odd) || (prefix == 0x03 && !is_odd)) {
                 // y_square_square_root = -y_square_square_root % p
-                cx_bn_destroy(&constant);
-                cx_bn_alloc_init(&constant,
-                                 32,
-                                 &raw_zero,
-                                 sizeof(raw_zero));  // Alloc constant to 0
-                cx_bn_mod_sub(y_square, constant, y_square_square_root, p);
+                err |= cx_bn_destroy(&constant);
+                err |= cx_bn_alloc_init(&constant,
+                                        32,
+                                        &raw_zero,
+                                        sizeof(raw_zero));  // Alloc constant to 0
+                err |= cx_bn_mod_sub(y_square, constant, y_square_square_root, p);
                 // APDU_LOG_BN(y_square)
-                cx_bn_export(y_square, out_y, 32);
+                err |= cx_bn_export(y_square, out_y, 32);
             } else {
-                cx_bn_export(y_square_square_root, out_y, 32);
+                err |= cx_bn_export(y_square_square_root, out_y, 32);
             }
         }
         CATCH_OTHER(e) {
             ret = e;
         }
         FINALLY {
-            cx_bn_destroy(&constant);
-            cx_bn_destroy(&y_square_square_root);
-            cx_bn_destroy(&y_square);
-            cx_bn_unlock();
+            err |= cx_bn_destroy(&constant);
+            err |= cx_bn_destroy(&y_square_square_root);
+            err |= cx_bn_destroy(&y_square);
+            err |= cx_bn_unlock();
         }
     }
     END_TRY;
+    LEDGER_ASSERT(err == CX_OK, "Crypto Error");
     return ret;
 }
 
@@ -381,8 +388,8 @@ int crypto_verify_signature(const uint8_t *public_key,
     return cx_ecdsa_verify_no_throw(&pk, digest, sizeof(digest), signature, signature_len);
 }
 
-int crypto_digest_init(crypto_hash_t *hash) {
-    return cx_sha256_init((cx_sha256_t *) hash);
+void crypto_digest_init(crypto_hash_t *hash) {
+    cx_sha256_init((cx_sha256_t *) hash);
 }
 
 int crypto_digest_update(crypto_hash_t *hash, const uint8_t *data, uint32_t len) {
@@ -394,8 +401,8 @@ int crypto_digest_finalize(crypto_hash_t *hash, uint8_t *digest, uint32_t len) {
                                                                                         : C_ERROR;
 }
 
-int crypto_digest(const uint8_t *data, uint32_t len, uint8_t *digest, uint32_t digest_len) {
-    return cx_hash_sha256(data, len, digest, digest_len) != 0 ? CX_OK : C_ERROR;
+void crypto_digest(const uint8_t *data, uint32_t len, uint8_t *digest, uint32_t digest_len) {
+    LEDGER_ASSERT(cx_hash_sha256(data, len, digest, digest_len) != 0, "Crypto digest error");
 }
 
 int crypto_hmac_sha512(uint8_t *key,
@@ -412,29 +419,32 @@ int crypto_ec_add_mod_n(const uint8_t *a, const uint8_t *b, uint8_t *out) {
     cx_bn_t a_bn;
     cx_bn_t b_bn;
     cx_bn_t out_bn;
+    int err = 0;
 
     BEGIN_TRY {
         TRY {
-            cx_bn_lock(32, 0);
-            cx_bn_alloc(&n, 32);
-            cx_ecdomain_parameter_bn(CX_CURVE_256K1, CX_CURVE_PARAM_Order, n);
-            cx_bn_alloc_init(&a_bn, 32, a, 32);
-            cx_bn_alloc_init(&b_bn, 32, b, 32);
-            cx_bn_alloc(&out_bn, 32);
-            cx_bn_mod_add(out_bn, a_bn, b_bn, n);
-            cx_bn_export(out_bn, out, 32);
-            cx_bn_destroy(&a_bn);
-            cx_bn_destroy(&b_bn);
-            cx_bn_destroy(&out_bn);
+            err |= cx_bn_lock(32, 0);
+            err |= cx_bn_alloc(&n, 32);
+            err |= cx_ecdomain_parameter_bn(CX_CURVE_256K1, CX_CURVE_PARAM_Order, n);
+            err |= cx_bn_alloc_init(&a_bn, 32, a, 32);
+            err |= cx_bn_alloc_init(&b_bn, 32, b, 32);
+            err |= cx_bn_alloc(&out_bn, 32);
+            err |= cx_bn_mod_add(out_bn, a_bn, b_bn, n);
+            err |= cx_bn_export(out_bn, out, 32);
+            err |= cx_bn_destroy(&a_bn);
+            err |= cx_bn_destroy(&b_bn);
+            err |= cx_bn_destroy(&out_bn);
         }
         CATCH_OTHER(e) {
             return e;
         }
         FINALLY {
-            cx_bn_unlock();
+            err |= cx_bn_unlock();
         }
     }
     END_TRY;
+
+    LEDGER_ASSERT(err == CX_OK, "Crypto Error");
     return 0;
 }
 
@@ -442,24 +452,26 @@ bool crypto_ec_is_point_on_curve(const uint8_t *private_key) {
     cx_bn_t n;
     cx_bn_t private_key_bn;
     int ret;
+    int err = 0;
 
     BEGIN_TRY {
         TRY {
-            cx_bn_lock(32, 0);
-            cx_bn_alloc(&n, 32);
-            cx_ecdomain_parameter_bn(CX_CURVE_256K1, CX_CURVE_PARAM_Order, n);
-            cx_bn_alloc_init(&private_key_bn, 32, private_key, 32);
-            cx_bn_cmp(private_key_bn, n, &ret);
-            cx_bn_destroy(&private_key_bn);
-            cx_bn_destroy(&n);
+            err |= cx_bn_lock(32, 0);
+            err |= cx_bn_alloc(&n, 32);
+            err |= cx_ecdomain_parameter_bn(CX_CURVE_256K1, CX_CURVE_PARAM_Order, n);
+            err |= cx_bn_alloc_init(&private_key_bn, 32, private_key, 32);
+            err |= cx_bn_cmp(private_key_bn, n, &ret);
+            err |= cx_bn_destroy(&private_key_bn);
+            err |= cx_bn_destroy(&n);
         }
         CATCH_OTHER(e) {
             return e;
         }
         FINALLY {
-            cx_bn_unlock();
+            err |= cx_bn_unlock();
         }
     }
     END_TRY;
+    LEDGER_ASSERT(err == CX_OK, "Crypto Error");
     return ret < 0;
 }

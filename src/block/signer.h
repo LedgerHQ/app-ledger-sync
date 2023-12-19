@@ -18,7 +18,7 @@ typedef enum {
 
 int signer_init(signer_ctx_t *signer);
 
-void signer_reset();
+void signer_reset(void);
 
 /**
  * Parse block header and start computing the digest

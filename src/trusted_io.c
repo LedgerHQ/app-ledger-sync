@@ -10,7 +10,7 @@
 static uint32_t G_trusted_output_len = 0;
 static uint8_t G_trusted_io_buffer[TRUSTED_IO_APDU_BUFFER_SIZE];
 
-void io_init_trusted_property() {
+void io_init_trusted_property(void) {
     G_trusted_output_len = 0;
     // Serialize IV as TLV
     G_trusted_io_buffer[0] = TP_IV;

@@ -10,13 +10,14 @@
 #include "../globals.h"
 #include "bip32.h"
 #include "../common/bip32_derivation.h"
+#include "ledger_assert.h"
 
 int signer_init(signer_ctx_t *signer) {
     crypto_digest_init(&signer->digest);
     return SP_OK;
 }
 
-void signer_reset() {
+void signer_reset(void) {
     PRINTF("RESET SIGNER\n");
     explicit_bzero(&G_context.signer_info, sizeof(G_context.signer_info));
     explicit_bzero(&G_context.stream, sizeof(G_context.stream));
@@ -30,6 +31,9 @@ int signer_parse_block_header(signer_ctx_t *signer, stream_ctx_t *stream, buffer
     (void) signer;
     // Parse the block header
     block_header_t block_header;
+    LEDGER_ASSERT(signer != NULL, "Null signer");
+    LEDGER_ASSERT(stream != NULL, "Null stream");
+
     int err = parse_block_header(data, &block_header);
 
     if (!err) {
