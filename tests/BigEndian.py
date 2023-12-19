@@ -1,5 +1,6 @@
 import struct
 
+
 class BigEndian:
     @staticmethod
     def shortToArray(n: int) -> bytearray:
@@ -20,7 +21,3 @@ class BigEndian:
     @staticmethod
     def arrayToNumber(array: bytearray) -> int:
         return struct.unpack_from(">I", array)[0]
-
-
-    
-

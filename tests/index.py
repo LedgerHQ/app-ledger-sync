@@ -1,9 +1,7 @@
 from Device import createDevice
 from ApduDevice import createApduDevice
 
-class device: 
+
+class device:
     software = createDevice
     apdu = createApduDevice
-
-
-

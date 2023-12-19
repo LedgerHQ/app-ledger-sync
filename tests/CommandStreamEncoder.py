@@ -2,14 +2,16 @@ from CommandBlock import CommandBlock, Command, CommandType, commands
 from BigEndian import BigEndian
 
 
-#Combines the two byte arrays a and b
+# Combines the two byte arrays a and b
 def push(a: bytearray, b: bytearray) -> bytearray:
     c = bytearray(len(a) + len(b))
     c[:len(a)] = a
     c[len(a):] = b
     return c
 
-#Creates a TLV representation in a byte array
+# Creates a TLV representation in a byte array
+
+
 def pushTLV(a: bytearray, t: int, l: int, v: bytearray) -> bytearray:
     c = bytearray(len(a) + 2 + l)
     c[:len(a)] = a
@@ -18,7 +20,7 @@ def pushTLV(a: bytearray, t: int, l: int, v: bytearray) -> bytearray:
     return c
 
 
-#Different TLV types 
+# Different TLV types
 class TLVTypes:
     Null = 0
     VarInt = 1
@@ -28,13 +30,15 @@ class TLVTypes:
     Bytes = 5
     PublicKey = 6
 
-#Different methods to push a TLV Type to a string 
+# Different methods to push a TLV Type to a string
+
+
 class TLV:
     @staticmethod
     def pushString(a: bytearray, b: str) -> bytearray:
         encoded = b.encode()
         return pushTLV(a, 0x04, len(encoded), encoded)
-    
+
     @staticmethod
     def pushByte(a: bytearray, b: int) -> bytearray:
         return pushTLV(a, 0x01, 1, bytearray([b]))
@@ -43,7 +47,6 @@ class TLV:
     def pushInt16(a: bytearray, b: int) -> bytearray:
         bytes = BigEndian.shortToArray(b)
         return pushTLV(a, 0x01, 2, bytes)
-    
 
     @staticmethod
     def pushInt32(a: bytearray, b: int) -> bytearray:
@@ -69,16 +72,16 @@ class TLV:
     @staticmethod
     def pushPublicKey(a: bytearray, b: bytearray) -> bytearray:
         return pushTLV(a, 0x06, len(b), b)
-    
+
     @staticmethod
     def pushDerivationPath(a: bytearray, b: list) -> bytearray:
         bytes = bytearray()
         for i in b:
             bytes = push(bytes, BigEndian.numberToArray(i))
         return TLV.pushBytes(a, bytes)
-    
 
-    #Methods to pack different commands into TLV format 
+    # Methods to pack different commands into TLV format
+
     def packSeed(b: commands.Seed) -> bytearray:
         object_data = bytearray()
         if b.topic:
@@ -92,7 +95,6 @@ class TLV:
         object_data = TLV.pushPublicKey(object_data, b.ephemeral_public_key)
         return object_data
 
-
     def packDerive(b: commands.Derive) -> bytearray:
         object_data = bytearray()
         object_data = TLV.pushDerivationPath(object_data, b.path)
@@ -102,14 +104,12 @@ class TLV:
         object_data = TLV.pushPublicKey(object_data, b.ephemeral_public_key)
         return object_data
 
-
     def packAddMember(b: commands.AddMember) -> bytearray:
         object_data = bytearray()
         object_data = TLV.pushString(object_data, b.name)
         object_data = TLV.pushPublicKey(object_data, b.public_key)
         object_data = TLV.pushInt32(object_data, b.permissions)
         return object_data
-
 
     def packPublishKey(b: commands.PublishKey) -> bytearray:
         object_data = bytearray()
@@ -118,7 +118,6 @@ class TLV:
         object_data = TLV.pushPublicKey(object_data, b.recipient)
         object_data = TLV.pushPublicKey(object_data, b.ephemeral_public_key)
         return object_data
-
 
     def packCloseStream(b: commands.CloseStream) -> bytearray:
         return bytearray()
@@ -158,7 +157,9 @@ class TLV:
         buffer = pushTLV(buffer, command.get_type(), len(object_bytes), object_bytes)
         return buffer
 
-#Different methods to encode a whole command stream into TLV format
+# Different methods to encode a whole command stream into TLV format
+
+
 class CommandStreamEncoder:
     @staticmethod
     def encode(stream: list[CommandBlock]) -> bytearray:
@@ -187,6 +188,7 @@ class CommandStreamEncoder:
             return bytearray()
         return TLV.pushSignature(bytearray(), block.signature)
 
+
 def pack(stream: list[CommandBlock]) -> bytearray:
     buffer = bytearray()
     for block in stream:
@@ -196,5 +198,4 @@ def pack(stream: list[CommandBlock]) -> bytearray:
         buffer = push(buffer, CommandStreamEncoder.encodeSignature(block))
     return buffer
 
-#Done Reviewing, only derivation path missing
-
+# Done Reviewing, only derivation path missing

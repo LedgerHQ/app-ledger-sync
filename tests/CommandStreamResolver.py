@@ -1,6 +1,7 @@
 from NobleCrypto import Crypto
-from CommandBlock import Permissions, hash_command_block, CommandType, verify_command_block, CommandBlock, Command,commands
+from CommandBlock import Permissions, hash_command_block, CommandType, verify_command_block, CommandBlock, Command, commands
 from typing import List, cast
+
 
 class ResolvedCommandStreamInternals:
     def __init__(self):
@@ -19,35 +20,36 @@ class ResolvedCommandStreamInternals:
 
 class CommandStreamResolver:
     @staticmethod
-    def assert_issuer_can_publish(issuer, internals:ResolvedCommandStreamInternals):
+    def assert_issuer_can_publish(issuer, internals: ResolvedCommandStreamInternals):
         if issuer not in internals.members:
             raise ValueError(f"Issuer is not a member of the group at height {internals.height}")
         if internals.permission[Crypto.to_hex(issuer)] & 0x02 == Permissions.KEY_READER:
-            raise ValueError(f"Issuer does not have permission to publish keys at height {internals.height}")
+            raise ValueError(
+                f"Issuer does not have permission to publish keys at height {internals.height}")
         if internals.keys.get(Crypto.to_hex(issuer)) is None and internals.permission[Crypto.to_hex(issuer)] & Permissions.KEY_CREATOR != Permissions.KEY_CREATOR:
             raise ValueError(f"Issuer does not have a key to publish at height {internals.height}")
         if Crypto.to_hex(issuer) not in internals.keys and internals.permission[Crypto.to_hex(issuer)] & Permissions.KEY_CREATOR != Permissions.KEY_CREATOR and len(internals.keys.keys()) > 0:
             raise ValueError(f"Issuer is trying to publish a new key at height {internals.height}")
-        
+
     @staticmethod
-    def assert_issuer_can_add_member(issuer, internals:ResolvedCommandStreamInternals):
+    def assert_issuer_can_add_member(issuer, internals: ResolvedCommandStreamInternals):
         if issuer not in internals.members:
             raise ValueError(f"Issuer is not a member of the group at height {internals.height}")
         if internals.permission[Crypto.to_hex(issuer)] & Permissions.ADD_MEMBER != Permissions.ADD_MEMBER:
-            raise ValueError(f"Issuer does not have permission to add members at height {internals.height}")
-    
-    @staticmethod
-    def assert_stream_is_created(internals:ResolvedCommandStreamInternals):
-        if not internals.is_created:
-            raise ValueError(f"The stream is not created at height {internals.height}")
-        
+            raise ValueError(
+                f"Issuer does not have permission to add members at height {internals.height}")
 
     @staticmethod
-    def replay_command(command:Command , block:CommandBlock, block_hash, height, internals:ResolvedCommandStreamInternals):
+    def assert_stream_is_created(internals: ResolvedCommandStreamInternals):
+        if not internals.is_created:
+            raise ValueError(f"The stream is not created at height {internals.height}")
+
+    @staticmethod
+    def replay_command(command: Command, block: CommandBlock, block_hash, height, internals: ResolvedCommandStreamInternals):
         command_type = command.get_type()
 
         if command_type == CommandType.Seed:
-            command = cast(commands.Seed,command)
+            command = cast(commands.Seed, command)
             internals.is_created = True
             internals.topic = command.topic
             internals.members.append(block.issuer)
@@ -62,7 +64,7 @@ class CommandStreamResolver:
             internals.group_public_key = command.group_key
 
         elif command_type == CommandType.Derive:
-            command = cast(commands.Derive,command)
+            command = cast(commands.Derive, command)
             internals.is_created = True
             internals.members.append(block.issuer)
             internals.permission[Crypto.to_hex(block.issuer)] = Permissions.OWNER
@@ -77,7 +79,7 @@ class CommandStreamResolver:
             internals.derivation_path = command.path
 
         elif command_type == CommandType.AddMember:
-            command = cast(commands.AddMember,command)
+            command = cast(commands.AddMember, command)
             CommandStreamResolver.assert_stream_is_created(internals)
             CommandStreamResolver.assert_issuer_can_add_member(block.issuer, internals)
             internals.members.append(command.public_key)
@@ -85,7 +87,7 @@ class CommandStreamResolver:
             internals.names[Crypto.to_hex(command.public_key)] = command.name
 
         elif command_type == CommandType.PublishKey:
-            command = cast(commands.PublishKey,command)
+            command = cast(commands.PublishKey, command)
             CommandStreamResolver.assert_stream_is_created(internals)
             CommandStreamResolver.assert_issuer_can_publish(block.issuer, internals)
             internals.keys[Crypto.to_hex(command.recipient)] = {
@@ -95,9 +97,9 @@ class CommandStreamResolver:
                 "initializationVector": command.initialization_vector
             }
         return internals
-    
+
     @staticmethod
-    def resolve_block(block:CommandBlock, height, internals:ResolvedCommandStreamInternals):
+    def resolve_block(block: CommandBlock, height, internals: ResolvedCommandStreamInternals):
         # Check signature
         if not verify_command_block(block):
             raise ValueError(f"Invalid block signature at height {height}")
@@ -115,14 +117,15 @@ class CommandStreamResolver:
 
         internals.hashes.append(block_hash)
         return internals
-    
+
     @staticmethod
-    def resolve(stream:List[CommandBlock]):
+    def resolve(stream: List[CommandBlock]):
         internals = ResolvedCommandStreamInternals()
         for height, block in enumerate(stream):
             internals.height = height
             if height > 0 and Crypto.to_hex(block.parent) != Crypto.to_hex(hash_command_block(stream[height - 1])):
-                raise Exception("Command stream has been tampered with (invalid parent hash) at height " + str(height))
+                raise Exception(
+                    "Command stream has been tampered with (invalid parent hash) at height " + str(height))
             if len(block.signature) == 0:
                 break
             internals = CommandStreamResolver.resolve_block(block, height, internals)
@@ -130,7 +133,7 @@ class CommandStreamResolver:
 
 
 class ResolvedCommandStream:
-    def __init__(self, internals:ResolvedCommandStreamInternals):
+    def __init__(self, internals: ResolvedCommandStreamInternals):
         self._internals = internals
 
     def is_created(self):

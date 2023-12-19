@@ -4,10 +4,12 @@ from InterfaceStreamTree import InterfaceStreamTree
 from InterfaceStreamTree import PublishKeyEvent
 from CommandStream import CommandStream
 
+
 class ApplicationStreams:
     def __init__(self, appStream: CommandStream, appRootStream: CommandStream):
         self.appStream = appStream
         self.appRootStream = appRootStream
+
 
 class StreamTreeCreateOpts:
     def __init__(self, topic=None):
@@ -33,14 +35,14 @@ class StreamTree(InterfaceStreamTree):
             if len(path) == 0:
                 return None
             return self.get_publish_key_event(member, path[:-1])
-        
+
         resolved = leaf.get_value().resolve()
         key = resolved.get_encrypted_key(member)
         if not key:
             if len(path) == 0:
                 return None
             return self.get_publish_key_event(member, path[:-1])
-        
+
         return PublishKeyEvent(
             stream=leaf.get_value(),
             encryptedXpriv=key.encryptedXpriv,
@@ -61,22 +63,24 @@ class StreamTree(InterfaceStreamTree):
 
     def create_application_streams(self, owner, application_id):
         raise NotImplementedError("Not implemented")
-    
+
     def share(self, path, owner, member, name, permission):
         indexes = path if isinstance(path, list) else DerivationPath.to_index_array(path)
         stream = self.get_child(indexes) or CommandStream()
-        
+
         if len(stream.blocks) == 0 and len(indexes) > 0:
             root = self.get_root().get_root_hash()
-            stream = stream.edit().derive(indexes).add_member(name, member, permission, True).issue(owner, self, root)
+            stream = stream.edit().derive(indexes).add_member(
+                name, member, permission, True).issue(owner, self, root)
             return self.update(stream)
         elif len(stream.blocks) == 0:
-            raise ValueError("StreamTree.share cannot add a member if the root was not previously created")
+            raise ValueError(
+                "StreamTree.share cannot add a member if the root was not previously created")
         else:
             new_stream = stream.edit().add_member(name, member, permission).issue(owner, self)
             return self.update(new_stream)
 
-    def update(self, stream:CommandStream):
+    def update(self, stream: CommandStream):
         path = stream.get_stream_path()
         if path is None:
             raise ValueError("Stream path cannot be None")
@@ -99,7 +103,7 @@ class StreamTree(InterfaceStreamTree):
             if path is None:
                 raise ValueError("Stream path cannot be None")
             stream_map[path] = stream
-        
+
         root = stream_map.get('')
         if root is None:
             raise ValueError("StreamTree.from requires the root of the tree")
@@ -109,4 +113,3 @@ class StreamTree(InterfaceStreamTree):
             p = DerivationPath.to_index_array(path)
             tree = tree.add_child(p, IndexedTree(stream))
         return StreamTree(tree)
-    
