@@ -1,7 +1,6 @@
-
 /*****************************************************************************
- *   Ledger App Boilerplate.
- *   (c) 2020 Ledger SAS.
+ *   Ledger App Trustchain.
+ *   (c) 2023 Ledger SAS.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -33,7 +32,7 @@ void app_quit(void) {
 void ui_menu_main(void) {
 #define SETTINGS_BUTTON_DISABLED (false)
     nbgl_useCaseHome(APPNAME,
-                     &C_app_boilerplate_64px,
+                     &C_app_trustchain_64px,
                      NULL,
                      SETTINGS_BUTTON_DISABLED,
                      ui_menu_about,

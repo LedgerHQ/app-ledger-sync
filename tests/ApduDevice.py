@@ -351,7 +351,7 @@ class ApduDevice(device):
             return False
 
         app_name = response.data.decode()
-        return app_name == "Boilerplate"  # TODO: change app name
+        return app_name == "Trustchain"
 
     def assert_stream_is_valid(self, stream: List[CommandBlock]):
         block_to_sign = sum(1 for block in stream if len(block.signature) == 0)
