@@ -2,6 +2,7 @@
 #include "write.h"
 #include "../common/tlv.h"
 #include <string.h>
+#include "bip32.h"
 
 #define TLV_HEADER_LEN 2
 

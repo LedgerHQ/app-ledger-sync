@@ -1,6 +1,5 @@
 #include "signer.h"
 #include "block_parser.h"
-#include <string.h>
 #include "cx.h"
 #include "crypto.h"
 #include "io.h"

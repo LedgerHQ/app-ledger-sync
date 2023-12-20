@@ -21,19 +21,9 @@
 #define MAX_APPNAME_LEN 64
 
 /**
- * Maximum transaction length (bytes).
- */
-#define MAX_TRANSACTION_LEN 510
-
-/**
  * Maximum signature length (bytes).
  */
 #define MAX_DER_SIG_LEN 72
-
-/**
- * Exponent used to convert mBOL to BOL unit (N BOL = N * 10^3 mBOL).
- */
-#define EXPONENT_SMALLEST_UNIT 3
 
 /**
  * Hash length (bytes).
@@ -69,11 +59,6 @@
  * Length of initialization vectors used for encryption
  */
 #define IV_LEN 16
-
-/*
- * Max derivation path length
- */
-#define MAX_DERIVATION_PATH_LEN 10
 
 /*
  * Private key length
