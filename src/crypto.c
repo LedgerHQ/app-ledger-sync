@@ -21,7 +21,6 @@
 
 #include "crypto.h"
 #include "globals.h"
-#include "debug.h"
 
 int crypto_generate_pair(crypto_public_key_t *public_key, crypto_private_key_t *private_key) {
     return cx_ecfp_generate_pair_no_throw(CX_CURVE_256K1, public_key, private_key, 0) == CX_OK
@@ -190,7 +189,7 @@ int crypto_decompress_public_key(const uint8_t *compressed_public_key,
 }
 
 int crypto_sign_block(void) {
-    DEBUG_PRINT("crypto_sign_block()\n")
+    PRINTF("crypto_sign_block()\n");
     cx_ecfp_private_key_t private_key = {0};
     uint8_t chain_code[32] = {0};
     uint32_t info = 0;
@@ -207,8 +206,8 @@ int crypto_sign_block(void) {
     if (error != 0) {
         return C_ERROR;
     }
-    DEBUG_LOG_BUF("PUBLIC KEY (SIGN): ", pk.W, pk.W_len);
-    DEBUG_LOG_BUF("HASH TO SIGN (SIGN): ", G_context.stream.last_block_hash, HASH_LEN);
+    PRINTF("PUBLIC KEY (SIGN): %.*H", pk.W_len, pk.W);
+    PRINTF("HASH TO SIGN (SIGN): %.*H", HASH_LEN, G_context.stream.last_block_hash);
     // Sign hash of last block
     sig_len = sizeof(G_context.signer_info.signature);
     error = cx_ecdsa_sign_no_throw(&private_key,
@@ -249,7 +248,7 @@ int crypto_ecdh(const cx_ecfp_private_key_t *private_key,
 int crypto_ephemeral_ecdh(const uint8_t *recipient_public_key,
                           uint8_t *out_ephemeral_public_key,
                           uint8_t *secret) {
-    DEBUG_PRINT("crypto_ephemeral_ecdh()\n")
+    PRINTF("crypto_ephemeral_ecdh()\n");
     // Generate ephemeral keypair
     int ret = 0;
     cx_ecfp_private_key_t ephemeral_private_key;
@@ -374,17 +373,17 @@ int crypto_verify_signature(const uint8_t *public_key,
 
     ret = crypto_decompress_public_key(public_key, raw_public_key);
     if (ret != CX_OK) {
-        DEBUG_PRINT("Failed to decompress public key\n")
+        PRINTF("Failed to decompress public key\n");
         return C_ERROR;
     }
     ret = crypto_digest_finalize(message_hash, digest, sizeof(digest));
     if (ret != CX_OK) {
-        DEBUG_PRINT("Failed to finalize hash\n")
+        PRINTF("Failed to finalize hash\n");
         return C_ERROR;
     }
-    DEBUG_LOG_BUF("PUBLIC KEY: ", raw_public_key, sizeof(raw_public_key));
-    DEBUG_LOG_BUF("HASH TO SIGN: ", digest, HASH_LEN);
-    DEBUG_LOG_BUF("SIGNATURE: ", signature, signature_len);
+    PRINTF("PUBLIC KEY: %.*H\n", sizeof(raw_public_key), raw_public_key);
+    PRINTF("HASH TO SIGN: %.*H\n", HASH_LEN, digest);
+    PRINTF("SIGNATURE: %.*H\n", signature_len, signature);
     ret = cx_ecfp_init_public_key_no_throw(CX_CURVE_256K1,
                                            raw_public_key,
                                            sizeof(raw_public_key),
@@ -392,7 +391,7 @@ int crypto_verify_signature(const uint8_t *public_key,
     if (ret != CX_OK) {
         return C_ERROR;
     }
-    DEBUG_PRINT("Verifying signature\n")
+    PRINTF("Verifying signature\n");
     return cx_ecdsa_verify_no_throw(&pk, digest, sizeof(digest), signature, signature_len);
 }
 

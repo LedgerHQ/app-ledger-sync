@@ -24,7 +24,6 @@
 #include "read.h"
 #include "write.h"
 #include "../crypto.h"
-#include "../debug.h"
 
 bool bip32_path_is_hardened(const uint32_t *bip32_path, size_t bip32_path_len) {
     for (size_t i = 0; i < bip32_path_len; i++) {
@@ -105,7 +104,7 @@ iteration:
     }
     if (!crypto_ec_is_point_on_curve(child_private_key)) {
         index += 1;
-        DEBUG_PRINT("got iteration\n");
+        PRINTF("got iteration\n");
         goto iteration;
     }
     memcpy(child_chain_code, I + 32, 32);

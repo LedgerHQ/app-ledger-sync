@@ -2,7 +2,6 @@
 #include "../globals.h"
 #include "sw.h"
 #include "../crypto.h"
-#include "debug.h"
 
 int handler_init_signature_flow(buffer_t *cdata) {
     crypto_private_key_t private_key;
@@ -20,8 +19,8 @@ int handler_init_signature_flow(buffer_t *cdata) {
     if (crypto_generate_pair(&session_key, &private_key) != C_OK) {
         return io_send_sw(SW_BAD_STATE);
     }
-    DEBUG_PRINT("SESSION PRIVATE KEY: ")
-    DEBUG_PRINT_BUF(private_key.d, 32)
+    PRINTF("SESSION PRIVATE KEY: \n");
+    PRINTF("%.*H\n", 32, private_key.d);
     if ((ret = crypto_ecdh(&private_key,
                            cdata->ptr + cdata->offset,
                            G_context.signer_info.session_encryption_key)) != 0) {
@@ -35,10 +34,10 @@ int handler_init_signature_flow(buffer_t *cdata) {
         return io_send_sw(SW_BAD_STATE);
     }
 
-    DEBUG_PRINT("SESSION PUBLIC KEY: ")
-    DEBUG_PRINT_BUF(G_context.signer_info.session_key, 33);
-    DEBUG_PRINT("SESSION ENCRYPTION KEY: ")
-    DEBUG_PRINT_BUF(G_context.signer_info.session_encryption_key, 32);
+    PRINTF("SESSION PUBLIC KEY: \n");
+    PRINTF("%.*H\n", 32, private_key.d);
+    PRINTF("SESSION ENCRYPTION KEY: \n");
+    PRINTF("%.*H\n", 32, G_context.signer_info.session_encryption_key);
 
     // SeedID initialization
 
@@ -55,7 +54,7 @@ int handler_init_signature_flow(buffer_t *cdata) {
         explicit_bzero(&private_key, sizeof(private_key));
         return io_send_sw(SW_BAD_STATE);
     }
-    DEBUG_LOG_BUF("DEVICE PUBLIC KEY: ", G_context.stream.device_public_key, 33);
+    PRINTF("DEVICE PUBLIC KEY: %.*H\n", 33, G_context.stream.device_public_key);
 
     explicit_bzero(&private_key, sizeof(private_key));
 

@@ -3,7 +3,6 @@
 #include "../block/trusted_properties.h"
 #include "../sw.h"
 #include "../globals.h"
-#include "../debug.h"
 
 #define FLAG_IV_SET     = 1
 #define FLAG_MEMBER_SET = 1 << 1;
@@ -11,7 +10,7 @@
 int handler_set_trusted_member(buffer_t *cdata) {
     // Data are serialized as TLV
     // We only need the IV and member
-    DEBUG_PRINT("handler_set_trusted_member\n");
+    PRINTF("handler_set_trusted_member\n");
     tlv_t tlv;
 
     int member_len = 0;
@@ -54,6 +53,6 @@ int handler_set_trusted_member(buffer_t *cdata) {
                                    &G_context.stream.trusted_member) < 0) {
         return io_send_sw(SW_WRONG_DATA);
     }
-    DEBUG_PRINT("handler_set_trusted_member OK\n");
+    PRINTF("handler_set_trusted_member OK\n");
     return io_send_sw(SW_OK);
 }

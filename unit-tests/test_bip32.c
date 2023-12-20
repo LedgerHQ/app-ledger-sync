@@ -8,7 +8,6 @@
 #include <string.h>
 #include <stdio.h>
 #include "base58.h"
-#include "debug.h"
 #include "bip32.h"
 #include "common/bip32_derivation.h"
 

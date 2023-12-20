@@ -64,10 +64,9 @@ add_library(apdu_parser SHARED $ENV{BOLOS_SDK}/lib_standard_app/parser.c)
 add_library(tlv SHARED ../src/common/tlv.c)
 add_library(block_parser ../src/block/block_parser.c)
 add_library(crypto SHARED ./lib/crypto.c ./lib/hmac_sha2.c ./lib/sha2.c ./lib/bn.c)
-add_library(dbg SHARED ./lib/debug.c)
 
 # LINKAGE
-target_link_libraries(test_bip32 PUBLIC cmocka gcov bip32 read crypto base58 dbg write secp256k1 dbg)
+target_link_libraries(test_bip32 PUBLIC cmocka gcov bip32 read crypto base58 write secp256k1)
 target_link_libraries(test_block_parser PUBLIC 
                       block_parser
                       tlv
@@ -79,7 +78,6 @@ target_link_libraries(test_block_parser PUBLIC
                       write
                       crypto
                       secp256k1
-                      dbg
                       read)
 
 # TESTS DECLARATION

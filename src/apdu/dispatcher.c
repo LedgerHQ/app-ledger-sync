@@ -32,7 +32,6 @@
 #include "../handler/parse_stream.h"
 #include "../handler/init_signature_flow.h"
 #include "../handler/set_trusted_member.h"
-#include "../debug.h"
 
 int apdu_dispatcher(const command_t *cmd) {
     if (cmd->cla != CLA) {

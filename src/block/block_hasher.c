@@ -1,7 +1,6 @@
 #include "block_hasher.h"
 #include "write.h"
 #include "../common/tlv.h"
-#include "../debug.h"
 #include <string.h>
 
 #define TLV_HEADER_LEN 2

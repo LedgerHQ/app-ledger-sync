@@ -33,7 +33,6 @@
 #include "../ui/display.h"
 #include "../helper/send_response.h"
 #include "../constants.h"
-#include "../debug.h"
 
 int handler_get_public_key(buffer_t *cdata) {
     explicit_bzero(&G_context, sizeof(G_context));

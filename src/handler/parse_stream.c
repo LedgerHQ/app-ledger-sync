@@ -3,7 +3,6 @@
 #include "../sw.h"
 #include "../stream/stream.h"
 #include "../block/block_parser.h"
-#include "../debug.h"
 #include "../block/trusted_properties.h"
 #include "../trusted_io.h"
 
@@ -25,7 +24,7 @@ static int handler_parse_command(buffer_t *data, parse_stream_output_mode_t outp
                                     data,
                                     output_data == OUTPUT_MODE_NONE ? NULL : trusted_param_buffer,
                                     output_data ? sizeof(trusted_param_buffer) : 0)) < 0) {
-        DEBUG_PRINT("PARSE COMMAND FAILED\n");
+        PRINTF("PARSE COMMAND FAILED\n");
         return io_send_sw(SW_STREAM_PARSER_INVALID_FORMAT);
     }
 
@@ -55,7 +54,7 @@ static int handler_parse_signature(buffer_t *data) {
 int handler_parse_stream(buffer_t *cdata,
                          parse_stream_mode_t parse_mode,
                          parse_stream_output_mode_t output_mode) {
-    DEBUG_PRINT("PARSE STREAM\n");
+    PRINTF("PARSE STREAM\n");
 
     // If secure flow was not initialized return an error
     if (!IS_SESSION_INITIALIAZED()) {
@@ -90,13 +89,13 @@ int handler_parse_stream(buffer_t *cdata,
 
     // If parse_mode is set to block header and we expected a block header, parse the block header
     if (parse_mode == MODE_PARSE_BLOCK_HEADER) {
-        DEBUG_PRINT("PARSE STREAM HEADER\n");
+        PRINTF("PARSE STREAM HEADER\n");
         return handler_parse_header(cdata);
     }
 
     // If parse_mode is set to command and we expected a command, parse the command
     if (parse_mode == MODE_PARSE_COMMAND) {
-        DEBUG_PRINT("PARSE STREAM COMMAND\n");
+        PRINTF("PARSE STREAM COMMAND\n");
         return handler_parse_command(cdata, output_mode);
     }
 

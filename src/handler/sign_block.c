@@ -16,7 +16,6 @@
 #include "../helper/send_response.h"
 #include "../block/trusted_properties.h"
 #include "sign_block.h"
-#include "../debug.h"
 #include "../block/signer.h"
 #include "../trusted_io.h"
 

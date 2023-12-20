@@ -1,7 +1,6 @@
 #include "block_parser.h"
 #include "../common/tlv.h"
 #include "read.h"
-#include "../debug.h"
 #include "bip32.h"
 
 int parse_block_header(buffer_t *data, block_header_t *out) {
@@ -205,7 +204,7 @@ int parse_block_command(buffer_t *data, block_command_t *out) {
     int read = 0;
 
     if (!tlv_read_next(data, &tlv)) {
-        DEBUG_PRINT("Cannot read command TLV\n");
+        PRINTF("Cannot read command TLV\n");
         return -1;
     }
 
@@ -227,10 +226,10 @@ int parse_block_command(buffer_t *data, block_command_t *out) {
             break;
         case COMMAND_CLOSE_STREAM:
             read = tlv.length;
-            DEBUG_PRINT("Close stream command\n");
+            PRINTF("Close stream command\n");
             break;
         default:
-            DEBUG_PRINT("Close stream command\n");
+            PRINTF("Close stream command\n");
             return BP_ERROR_UNKNOWN_COMMAND;
             break;
     }

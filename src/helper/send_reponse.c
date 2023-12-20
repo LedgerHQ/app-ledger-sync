@@ -24,6 +24,7 @@
 #include "../globals.h"
 #include "../sw.h"
 #include "buffer.h"
+#define MEMBER_SIZE(type, member) (sizeof(((type *) 0)->member))
 
 int helper_send_response_pubkey() {
     return io_send_response_buffer(

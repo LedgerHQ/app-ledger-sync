@@ -2,11 +2,11 @@
 #include "constants.h"
 #include <string.h>
 #include <stdio.h>
-#include "../debug.h"
+#include "os.h"
 
 bool tlv_read_next(buffer_t *buffer, tlv_t *tlv) {
     if (!buffer_can_read(buffer, 2)) {
-        DEBUG_PRINT("Cannot read TLV header\n");
+        PRINTF("Cannot read TLV header\n");
         return false;
     }
 
@@ -14,7 +14,7 @@ bool tlv_read_next(buffer_t *buffer, tlv_t *tlv) {
     buffer_read_u8(buffer, &tlv->length);
 
     if (!buffer_can_read(buffer, tlv->length)) {
-        DEBUG_PRINT("Cannot read TLV value\n");
+        PRINTF("Cannot read TLV value\n");
         return false;
     }
     tlv->value = buffer->ptr + buffer->offset;
