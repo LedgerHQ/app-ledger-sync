@@ -46,6 +46,9 @@ include_directories($ENV{BOLOS_SDK}/lib_standard_app)
 include_directories(.)
 include_directories(./secp256k1/include)
 
+# Add the define for PRINTF as a macro
+add_definitions(-DPRINTF=printf)
+
 # EXECUTABLE DECLARATION
 add_executable(test_bip32 test_bip32.c)
 add_executable(test_block_parser test_block_parser.c)

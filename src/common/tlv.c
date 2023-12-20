@@ -2,7 +2,9 @@
 #include "constants.h"
 #include <string.h>
 #include <stdio.h>
+#ifndef TEST
 #include "os.h"
+#endif
 
 bool tlv_read_next(buffer_t *buffer, tlv_t *tlv) {
     if (!buffer_can_read(buffer, 2)) {
