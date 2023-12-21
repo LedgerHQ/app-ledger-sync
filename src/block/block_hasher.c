@@ -12,32 +12,6 @@ static int write_tl(const uint8_t type, const uint8_t length, uint8_t *out) {
     return 2;
 }
 
-static int write_u8(const uint8_t value, uint8_t *out) {
-    out[0] = value;
-    return sizeof(value);
-}
-
-static int write_u16(const uint16_t value, uint8_t *out) {
-    out[0] = (value >> 8) & 0xFF;
-    out[1] = value & 0xFF;
-    return sizeof(value);
-}
-
-static int write_u32(const uint32_t value, uint8_t *out) {
-    out[0] = (value >> 24) & 0xFF;
-    out[1] = (value >> 16) & 0xFF;
-    out[2] = (value >> 8) & 0xFF;
-    out[3] = value & 0xFF;
-    return sizeof(value);
-}
-
-static int write_bytes(const uint8_t *bytes, const uint8_t length, uint8_t *out) {
-    for (int i = 0; i < length; i++) {
-        out[i] = bytes[i];
-    }
-    return length;
-}
-
 static int write_command_seed(const block_command_t *command, crypto_hash_t *digest) {
     uint8_t buffer[MAX_TOPIC_LEN + 2 + MEMBER_KEY_LEN + IV_LEN + MAX_ENCRYPTED_KEY_LEN +
                    MEMBER_KEY_LEN + TLV_HEADER_LEN * 6 + TLV_HEADER_LEN];
@@ -54,36 +28,40 @@ static int write_command_seed(const block_command_t *command, crypto_hash_t *dig
 
     // Topic
     offset += write_tl(TLV_TYPE_BYTES, command->command.seed.topic_len, buffer + offset);
-    offset +=
-        write_bytes(command->command.seed.topic, command->command.seed.topic_len, buffer + offset);
+    memcpy(buffer + offset, command->command.seed.topic, command->command.seed.topic_len);
+    offset += command->command.seed.topic_len;
 
     // Protocol version
     offset += write_tl(TLV_TYPE_VARINT, 2, buffer + offset);
-    offset += write_u16(command->command.seed.protocol_version, buffer + offset);
+    write_u16_be(buffer, offset, command->command.seed.protocol_version);
+    offset += sizeof(uint16_t);
 
     // Group key
     offset += write_tl(TLV_TYPE_PUBKEY, MEMBER_KEY_LEN, buffer + offset);
-    offset += write_bytes(command->command.seed.group_public_key, MEMBER_KEY_LEN, buffer + offset);
+    memcpy(buffer + offset, command->command.seed.group_public_key, MEMBER_KEY_LEN);
+    offset += MEMBER_KEY_LEN;
 
     // IV
     offset += write_tl(TLV_TYPE_BYTES,
                        sizeof(command->command.seed.initialization_vector),
                        buffer + offset);
-    offset += write_bytes(command->command.seed.initialization_vector,
-                          sizeof(command->command.seed.initialization_vector),
-                          buffer + offset);
+    memcpy(buffer + offset,
+           command->command.seed.initialization_vector,
+           sizeof(command->command.seed.initialization_vector));
+    offset += sizeof(command->command.seed.initialization_vector);
 
     // Encrypted xpriv
     offset +=
         write_tl(TLV_TYPE_BYTES, sizeof(command->command.seed.encrypted_xpriv), buffer + offset);
-    offset += write_bytes(command->command.seed.encrypted_xpriv,
-                          sizeof(command->command.seed.encrypted_xpriv),
-                          buffer + offset);
+    memcpy(buffer + offset,
+           command->command.seed.encrypted_xpriv,
+           sizeof(command->command.seed.encrypted_xpriv));
+    offset += sizeof(command->command.seed.encrypted_xpriv);
 
     // Ephemeral public key
     offset += write_tl(TLV_TYPE_PUBKEY, MEMBER_KEY_LEN, buffer + offset);
-    offset +=
-        write_bytes(command->command.seed.ephemeral_public_key, MEMBER_KEY_LEN, buffer + offset);
+    memcpy(buffer + offset, command->command.seed.ephemeral_public_key, MEMBER_KEY_LEN);
+    offset += MEMBER_KEY_LEN;
 
     buffer[1] =
         offset - 2;  // Set actual length (offset - 2 because offset includes type and length bytes)
@@ -109,33 +87,38 @@ static int write_command_derive(const block_command_t *command, crypto_hash_t *d
                        command->command.derive.path_len * sizeof(uint32_t),
                        buffer + offset);
     for (int i = 0; i < command->command.derive.path_len; i++) {
-        offset += write_u32(command->command.derive.path[i], buffer + offset);
+        write_u32_be(buffer, offset, command->command.derive.path[i]);
+        offset += sizeof(uint32_t);
     }
 
     // Group key
     offset += write_tl(TLV_TYPE_PUBKEY, MEMBER_KEY_LEN, buffer + offset);
-    offset +=
-        write_bytes(command->command.derive.group_public_key, MEMBER_KEY_LEN, buffer + offset);
+    memcpy(buffer + offset, command->command.derive.group_public_key, MEMBER_KEY_LEN);
+    offset += MEMBER_KEY_LEN;
 
     // IV
     offset += write_tl(TLV_TYPE_BYTES,
                        sizeof(command->command.derive.initialization_vector),
                        buffer + offset);
-    offset += write_bytes(command->command.derive.initialization_vector,
-                          sizeof(command->command.derive.initialization_vector),
-                          buffer + offset);
+    memcpy(buffer + offset,
+           command->command.derive.initialization_vector,
+           sizeof(command->command.derive.initialization_vector));
+    offset += sizeof(command->command.derive.initialization_vector);
 
     // Encrypted xpriv
     offset +=
         write_tl(TLV_TYPE_BYTES, sizeof(command->command.derive.encrypted_xpriv), buffer + offset);
-    offset += write_bytes(command->command.derive.encrypted_xpriv,
-                          sizeof(command->command.derive.encrypted_xpriv),
-                          buffer + offset);
+    memcpy(buffer + offset,
+           command->command.derive.encrypted_xpriv,
+           sizeof(command->command.derive.encrypted_xpriv));
+    offset += sizeof(command->command.derive.encrypted_xpriv);
 
     // Ephemeral public key
     offset += write_tl(TLV_TYPE_PUBKEY, MEMBER_KEY_LEN, buffer + offset);
-    offset +=
-        write_bytes(command->command.derive.ephemeral_public_key, MEMBER_KEY_LEN, buffer + offset);
+    memcpy(buffer + offset,
+           command->command.derive.ephemeral_public_key,
+           sizeof(command->command.derive.ephemeral_public_key));
+    offset += sizeof(command->command.derive.ephemeral_public_key);
 
     return crypto_digest_update(digest, buffer, offset);
 }
@@ -155,15 +138,18 @@ static int write_command_add_member(const block_command_t *command, crypto_hash_
 
     // Name
     offset += write_tl(TLV_TYPE_STRING, name_len, buffer + offset);
-    offset += write_bytes((uint8_t *) command->command.add_member.name, name_len, buffer + offset);
+    memcpy(buffer + offset, command->command.add_member.name, name_len);
+    offset += name_len;
 
     // Public key
     offset += write_tl(TLV_TYPE_PUBKEY, MEMBER_KEY_LEN, buffer + offset);
-    offset += write_bytes(command->command.add_member.public_key, MEMBER_KEY_LEN, buffer + offset);
+    memcpy(buffer + offset, command->command.add_member.public_key, MEMBER_KEY_LEN);
+    offset += MEMBER_KEY_LEN;
 
     // Permissions
     offset += write_tl(TLV_TYPE_VARINT, sizeof(uint32_t), buffer + offset);
-    offset += write_u32(command->command.add_member.permissions, buffer + offset);
+    write_u32_be(buffer, offset, command->command.add_member.permissions);
+    offset += sizeof(uint32_t);
 
     return crypto_digest_update(digest, buffer, offset);
 }
@@ -187,24 +173,23 @@ static int write_command_publish_key(const block_command_t *command, crypto_hash
 
     // IV
     offset += write_tl(TLV_TYPE_BYTES, IV_LEN, buffer + offset);
-    offset +=
-        write_bytes(command->command.publish_key.initialization_vector, IV_LEN, buffer + offset);
+    memcpy(buffer + offset, command->command.publish_key.initialization_vector, IV_LEN);
+    offset += IV_LEN;
 
     // Encrypted xpriv
     offset += write_tl(TLV_TYPE_BYTES, MAX_ENCRYPTED_KEY_LEN, buffer + offset);
-    offset += write_bytes(command->command.publish_key.encrypted_xpriv,
-                          MAX_ENCRYPTED_KEY_LEN,
-                          buffer + offset);
+    memcpy(buffer + offset, command->command.publish_key.encrypted_xpriv, MAX_ENCRYPTED_KEY_LEN);
+    offset += MAX_ENCRYPTED_KEY_LEN;
 
     // Recipient public key
     offset += write_tl(TLV_TYPE_PUBKEY, MEMBER_KEY_LEN, buffer + offset);
-    offset += write_bytes(command->command.publish_key.recipient, MEMBER_KEY_LEN, buffer + offset);
+    memcpy(buffer + offset, command->command.publish_key.recipient, MEMBER_KEY_LEN);
+    offset += MEMBER_KEY_LEN;
 
     // Ephemeral public key
     offset += write_tl(TLV_TYPE_PUBKEY, MEMBER_KEY_LEN, buffer + offset);
-    offset += write_bytes(command->command.publish_key.ephemeral_public_key,
-                          MEMBER_KEY_LEN,
-                          buffer + offset);
+    memcpy(buffer + offset, command->command.publish_key.ephemeral_public_key, MEMBER_KEY_LEN);
+    offset += MEMBER_KEY_LEN;
 
     return crypto_digest_update(digest, buffer, offset);
 }
@@ -225,19 +210,23 @@ int block_hash_header(const block_header_t *header, crypto_hash_t *digest) {
 
     // Version
     offset += write_tl(TLV_TYPE_VARINT, 1, buffer + offset);
-    offset += write_u8(header->version, buffer + offset);
+    buffer[offset] = header->version;
+    offset += sizeof(header->version);
 
     // Parent
     offset += write_tl(TLV_TYPE_HASH, HASH_LEN, buffer + offset);
-    offset += write_bytes(header->parent, HASH_LEN, buffer + offset);
+    memcpy(buffer + offset, header->parent, HASH_LEN);
+    offset += HASH_LEN;
 
     // Issuer
     offset += write_tl(TLV_TYPE_PUBKEY, MEMBER_KEY_LEN, buffer + offset);
-    offset += write_bytes(header->issuer, MEMBER_KEY_LEN, buffer + offset);
+    memcpy(buffer + offset, header->issuer, MEMBER_KEY_LEN);
+    offset += MEMBER_KEY_LEN;
 
     // Length
     offset += write_tl(TLV_TYPE_VARINT, 1, buffer + offset);
-    offset += write_u8(header->length, buffer + offset);
+    buffer[offset] = header->length;
+    offset += sizeof(header->length);
     ret = crypto_digest_update(digest, buffer, offset);
     return ret;
 }
@@ -273,7 +262,8 @@ int block_hash_signature(const uint8_t *signature, size_t signature_len, crypto_
 
     // Signature
     offset += write_tl(TLV_TYPE_SIG, signature_len, buffer + offset);
-    offset += write_bytes(signature, signature_len, buffer + offset);
+    memcpy(buffer + offset, signature, signature_len);
+    offset += signature_len;
     ret = crypto_digest_update(digest, buffer, offset);
     return ret;
 }
