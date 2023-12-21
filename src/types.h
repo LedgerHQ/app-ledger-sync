@@ -9,10 +9,6 @@
 #include "stream/stream.h"
 #include "block/signer.h"
 
-#ifdef HAVE_SHA3
-#include <cx.h>
-#endif
-
 /**
  * Enumeration with expected INS of APDU commands.
  */
@@ -48,12 +44,10 @@ typedef enum {
  * Structure for public key context information.
  */
 typedef struct {
-    uint8_t raw_public_key[64];  /// x-coordinate (32), y-coodinate (32)
-    uint8_t chain_code[33];      /// for public key derivation
-    uint8_t compressed_pk[33];   /// compressed public key
+    uint8_t raw_public_key[RAW_PUBLIC_KEY_LENGTH];  /// x-coordinate (32), y-coodinate (32)
+    uint8_t chain_code[MEMBER_KEY_LEN];             /// for public key derivation
+    uint8_t compressed_pk[MEMBER_KEY_LEN];          /// compressed public key
 } pubkey_ctx_t;
-
-#define TRUSTCHAIN_PATH_SIZE 4
 
 /**
  * Structure for global context.

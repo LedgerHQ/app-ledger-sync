@@ -9,6 +9,13 @@
 
 #include "../crypto.h"
 
+#ifndef TEST
+#include "ledger_assert.h"
+#else
+#include <assert.h>
+#define LEDGER_ASSERT(x, y) assert(x)
+#endif
+
 typedef enum {
     STREAM_PARSING_STATE_NONE = 0x00,
     STREAM_PARSING_STATE_BLOCK_HEADER = 0x01,

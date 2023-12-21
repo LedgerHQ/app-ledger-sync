@@ -36,6 +36,7 @@
 #include "../sw.h"
 #include "action/validate.h"
 #include "../menu.h"
+#include "trusted_io.h"
 
 static action_validate_cb g_validate_callback;
 int add_member_confirm(void);

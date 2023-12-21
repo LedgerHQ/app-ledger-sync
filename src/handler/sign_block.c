@@ -31,11 +31,8 @@ int handler_sign_block(buffer_t *cdata, uint8_t mode) {
             return io_send_sw(SW_BAD_STATE);
         }
         // Initialize the signer
-        error = signer_init(&G_context.signer_info);
-        if (error != 0) {
-            signer_reset();
-            return io_send_sw(SW_BAD_STATE);
-        }
+        signer_init(&G_context.signer_info);
+
         // Expects to read a block header (version, issuer, parent...)
         error = signer_parse_block_header(&G_context.signer_info, &G_context.stream, cdata);
 

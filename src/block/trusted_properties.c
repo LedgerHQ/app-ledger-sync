@@ -2,7 +2,6 @@
 #include "../crypto.h"
 #include <string.h>
 #include "../globals.h"
-#include "ledger_assert.h"
 
 // Format is [NONCE][DATA][CHECKSUM]
 

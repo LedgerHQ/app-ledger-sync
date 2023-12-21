@@ -14,16 +14,9 @@
  *  limitations under the License.
  *****************************************************************************/
 
-#include <stdio.h>    // snprintf
-#include <string.h>   // memset, strlen
-#include <stddef.h>   // size_t
-#include <stdint.h>   // uint*_t
-#include <stdbool.h>  // bool
-
-#include "bip32.h"
-#include "read.h"
+#include "types.h"
 #include "write.h"
-#include "../crypto.h"
+#include "constants.h"
 
 bool bip32_path_is_hardened(const uint32_t *bip32_path, size_t bip32_path_len) {
     for (size_t i = 0; i < bip32_path_len; i++) {
@@ -33,12 +26,26 @@ bool bip32_path_is_hardened(const uint32_t *bip32_path, size_t bip32_path_len) {
     }
     return true;
 }
+#include "../crypto.h"
 
-int bip32_derive_xpriv(uint8_t *parent_private_key,
-                       uint8_t *parent_chain_code,
-                       uint32_t index,
-                       uint8_t *child_private_key,
-                       uint8_t *child_chain_code) {
+/**
+ * Derives a private key and chain code from a parent private key. This function only performs
+ * hardened derivation. [Note: this function is not part of crypto.h for unit testing purposes]
+ * @param[in]  parent_private_key The parent private key. The private key must be 32 bytes long.
+ * @param[in]  parent_chain_code The parent chain code. The chain code must be 32 bytes long.
+ * @param[in]  index The index of the child private key to derive. (Note that this index will be
+ * hardened)
+ * @param[out] child_private_key The result of the private key derivation. The buffer must be 32
+ * bytes long.
+ * @param[out] child_chain_code The result of the chain code derivation. The buffer must be 32 bytes
+ * long.
+ * @return 0 on success, error number otherwise.
+ */
+static int bip32_derive_xpriv(uint8_t *parent_private_key,
+                              uint8_t *parent_chain_code,
+                              uint32_t index,
+                              uint8_t *child_private_key,
+                              uint8_t *child_chain_code) {
     // kpar: 32 bytes, parent private key
     // cpar: 32 bytes, parent chain code
     // point(p): returns the coordinate pair resulting from EC point multiplication (repeated
@@ -62,23 +69,28 @@ int bip32_derive_xpriv(uint8_t *parent_private_key,
     // - In case parse256(IL) ≥ n or ki = 0, the resulting key is invalid, and one should proceed
     // with the next value for i. (Note: this has probability lower than 1 in 2^127)
     int ret = 0;
-    uint8_t I[64];
+    uint8_t I[RAW_PUBLIC_KEY_LENGTH];
     union {
-        uint8_t hard[37];  // 0x00 || ser256(kpar) || ser32(i)
+        uint8_t hard[MEMBER_KEY_LEN + 4];  // 0x00 || ser256(kpar) || ser32(i)
         struct {
-            uint8_t compressed_public_key[33 + 4];
+            uint8_t compressed_public_key[MEMBER_KEY_LEN + 4];
             crypto_public_key_t public_key;
-            uint8_t raw_public_key[65];
+            uint8_t raw_public_key[RAW_PUBLIC_KEY_LENGTH + 1];
             crypto_private_key_t private_key;
         } soft;
     } data;
 
+    LEDGER_ASSERT(parent_private_key != NULL, "Null parent_private_key\n");
+    LEDGER_ASSERT(parent_chain_code != NULL, "Null parent_chain_code\n");
+    LEDGER_ASSERT(child_private_key != NULL, "Null child_private_key\n");
+    LEDGER_ASSERT(child_chain_code != NULL, "Null child_chain_code\n");
+
 iteration:
     if (index >= 1u << 31u) {
         data.hard[0] = 0x00;
-        memcpy(data.hard + 1, parent_private_key, 32);
-        write_u32_be(data.hard, 33, index);
-        ret = crypto_hmac_sha512(parent_chain_code, 32, data.hard, sizeof(data.hard), I);
+        memcpy(data.hard + 1, parent_private_key, PRIVATE_KEY_LEN);
+        write_u32_be(data.hard, MEMBER_KEY_LEN, index);
+        ret = crypto_hmac_sha512(parent_chain_code, 32, data.hard, sizeof(data.hard), I, sizeof(I));
         if (ret != 0) {
             return ret;
         }
@@ -92,8 +104,13 @@ iteration:
         if (ret != 0) {
             return ret;
         }
-        write_u32_be(data.soft.compressed_public_key, 33, index);
-        ret = crypto_hmac_sha512(parent_chain_code, 32, data.soft.compressed_public_key, 37, I);
+        write_u32_be(data.soft.compressed_public_key, MEMBER_KEY_LEN, index);
+        ret = crypto_hmac_sha512(parent_chain_code,
+                                 32,
+                                 data.soft.compressed_public_key,
+                                 37,
+                                 I,
+                                 sizeof(I));
         if (ret != 0) {
             return ret;
         }
@@ -121,8 +138,13 @@ int bip32_derive_xpriv_to_path(uint8_t *parent_private_key,
     uint8_t kpar[32];
     uint8_t cpar[32];
 
+    LEDGER_ASSERT(parent_private_key != NULL, "Null parent_private_key\n");
+    LEDGER_ASSERT(parent_chain_code != NULL, "Null parent_chain_code\n");
+    LEDGER_ASSERT(child_private_key != NULL, "Null child_private_key\n");
+    LEDGER_ASSERT(child_chain_code != NULL, "Null child_chain_code\n");
+
     // Copy parent private key and chain code to temporary buffer
-    memcpy(kpar, parent_private_key, 32);
+    memcpy(kpar, parent_private_key, PRIVATE_KEY_LEN);
     memcpy(cpar, parent_chain_code, 32);
 
     for (size_t i = 0; i < path_len; i++) {

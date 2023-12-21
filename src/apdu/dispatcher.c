@@ -71,7 +71,7 @@ int apdu_dispatcher(const command_t *cmd) {
             // ephemeral public key will be shared to the host at the end of the flow when it is
             // approved by the user. P1 is equal to 0x00 P2 is equal to 0x00 Data is equal to the 33
             // bytes of the ephemeral public key
-            if (cmd->lc != 33) {
+            if (cmd->lc != MEMBER_KEY_LEN) {
                 return io_send_sw(SW_WRONG_DATA_LENGTH);
             }
 

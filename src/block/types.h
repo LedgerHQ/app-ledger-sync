@@ -7,6 +7,7 @@
 #include "bip32.h"
 #include "../constants.h"
 #include "../crypto.h"
+#include "../common/tlv.h"
 
 typedef struct {
     uint8_t version;                 // Protocol version of the block
@@ -16,12 +17,12 @@ typedef struct {
 } block_header_t;
 
 typedef enum {
-    COMMAND_SEED = 0x10,
-    COMMAND_ADD_MEMBER = 0x11,
-    COMMAND_PUBLISH_KEY = 0x12,
-    COMMAND_EDIT_MEMBER = 0x14,
-    COMMAND_DERIVE = 0x15,
-    COMMAND_CLOSE_STREAM = 0x13
+    COMMAND_SEED = TLV_TYPE_CREATE_GROUP,
+    COMMAND_ADD_MEMBER = TLV_TYPE_ADD_MEMBER,
+    COMMAND_PUBLISH_KEY = TLV_TYPE_PUBLISH_KEY,
+    COMMAND_EDIT_MEMBER = TLV_TYPE_EDIT_MEMBER,
+    COMMAND_DERIVE = TLV_TYPE_DERIVE,
+    COMMAND_CLOSE_STREAM = TLV_TYPE_CLOSE_STREAM
 } block_command_type_e;
 
 typedef enum {

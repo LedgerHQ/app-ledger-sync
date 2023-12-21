@@ -1,10 +1,12 @@
 #include "block_parser.h"
-#include "../common/tlv.h"
 #include "read.h"
 #include "bip32.h"
 
 int parse_block_header(buffer_t *data, block_header_t *out) {
     tlv_t tlv;
+
+    LEDGER_ASSERT(data != NULL, "Null data\n");
+
     size_t offset = data->offset;
 
     // Read version (1 byte)
@@ -32,6 +34,8 @@ int parse_block_header(buffer_t *data, block_header_t *out) {
 
 static int parse_seed_command(buffer_t *data, block_command_t *out) {
     tlv_t tlv;
+
+    LEDGER_ASSERT(out != NULL, "Null out\n");
 
     // Read the topic
     if (!tlv_read_next(data, &tlv)) {
@@ -78,6 +82,8 @@ static int parse_seed_command(buffer_t *data, block_command_t *out) {
 static int parse_add_member_command(buffer_t *data, block_command_t *out) {
     tlv_t tlv;
 
+    LEDGER_ASSERT(out != NULL, "Null out\n");
+
     // Read member name
     if (!tlv_read_next(data, &tlv)) {
         return BP_UNEXPECTED_TLV;
@@ -109,6 +115,8 @@ static int parse_add_member_command(buffer_t *data, block_command_t *out) {
 static int parse_publish_key_command(buffer_t *data, block_command_t *out) {
     tlv_t tlv;
 
+    LEDGER_ASSERT(out != NULL, "Null out\n");
+
     // Read IV
     if (!tlv_read_next(data, &tlv) ||
         !tlv_read_bytes(&tlv, out->command.publish_key.initialization_vector, IV_LEN)) {
@@ -137,11 +145,16 @@ static int parse_publish_key_command(buffer_t *data, block_command_t *out) {
 }
 
 static int tlv_read_derivation_path(tlv_t *tlv, uint32_t *out, int out_len) {
+    LEDGER_ASSERT(tlv != NULL, "Null tlv\n");
+    LEDGER_ASSERT(out != NULL, "Null out\n");
+
     if (tlv->type != TLV_TYPE_BYTES) {
         return BP_UNEXPECTED_TLV;
     }
+
     int offset = 0;
     int index = 0;
+
     while (offset < tlv->length) {
         if (tlv->length - offset < (int) sizeof(uint32_t)) {
             return BP_UNEXPECTED_TLV;
@@ -158,6 +171,8 @@ static int tlv_read_derivation_path(tlv_t *tlv, uint32_t *out, int out_len) {
 
 static int parse_derive_command(buffer_t *data, block_command_t *out) {
     tlv_t tlv;
+
+    LEDGER_ASSERT(out != NULL, "Null out\n");
 
     // Read path
     if (!tlv_read_next(data, &tlv) ||
@@ -200,6 +215,10 @@ static int parse_derive_command(buffer_t *data, block_command_t *out) {
 
 int parse_block_command(buffer_t *data, block_command_t *out) {
     tlv_t tlv;
+
+    LEDGER_ASSERT(data != NULL, "Null data\n");
+    LEDGER_ASSERT(out != NULL, "Null out\n");
+
     size_t offset = data->offset;
     int read = 0;
 
@@ -210,7 +229,7 @@ int parse_block_command(buffer_t *data, block_command_t *out) {
 
     buffer_t commandBuffer = {.ptr = tlv.value, .offset = 0, .size = tlv.length};
 
-    out->type = tlv.type;
+    out->type = (block_command_type_e) tlv.type;
     switch (tlv.type) {
         case COMMAND_SEED:
             read = parse_seed_command(&commandBuffer, out);

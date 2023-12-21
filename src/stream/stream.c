@@ -18,15 +18,22 @@ void stream_init(stream_ctx_t *ctx) {
 }
 
 static int verify_block_parent_hash(stream_ctx_t *ctx, uint8_t *parent_hash) {
+    LEDGER_ASSERT(ctx != NULL, "Null ctx\n");
+    LEDGER_ASSERT(parent_hash != NULL, "Null parent_hash\n");
+
     if (!ctx->is_created) {
         return 1;
     }
+
     return memcmp(ctx->last_block_hash, parent_hash, HASH_LEN) == 0;
 }
 
 int stream_parse_block_header(stream_ctx_t *ctx, buffer_t *data) {
     block_header_t header;
     int err = 0;
+
+    LEDGER_ASSERT(ctx != NULL, "Null ctx\n");
+
     PRINTF("PARSE BLOCK HEADER 1\n");
     if (ctx->parsing_state != STREAM_PARSING_STATE_BLOCK_HEADER) {
         return SP_ERR_INVALID_STATE;
@@ -58,11 +65,9 @@ int stream_parse_block_header(stream_ctx_t *ctx, buffer_t *data) {
     ctx->parsed_command_count = 0;
 
     // Digest block header
-    err = block_hash_header(&header, &ctx->digest);
+    block_hash_header(&header, &ctx->digest);
     block_hash_header(&header, &ctx->full_block_digest);
-    if (err != 0) {
-        return SP_ERR_FAILED_TO_DIGEST;
-    }
+
     PRINTF("PARSE BLOCK HEADER 6\n");
     // Verify if block parent is right
     if (verify_block_parent_hash(ctx, header.parent) != 1) {
@@ -299,13 +304,15 @@ int stream_parse_signature(stream_ctx_t *ctx, buffer_t *data) {
     (void) ctx;
     uint8_t signature[MAX_DER_SIG_LEN] = {0};
     int signature_len = 0;
+    uint8_t final_digest[HASH_LEN];
 
     signature_len = parse_block_signature(data, signature, sizeof(signature));
-    if (signature_len < 0) {
+    if (signature_len < 0 || signature_len > MAX_DER_SIG_LEN) {
         return SP_ERR_INVALID_STREAM;
     }
+    crypto_digest_finalize(&ctx->digest, final_digest, sizeof(final_digest));
     if (crypto_verify_signature(ctx->current_block_issuer,
-                                &ctx->digest,
+                                final_digest,
                                 signature,
                                 signature_len) != 1) {
         return SP_ERR_INVALID_STREAM;

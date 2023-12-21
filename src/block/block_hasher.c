@@ -7,21 +7,26 @@
 #define TLV_HEADER_LEN 2
 
 static int write_tl(const uint8_t type, const uint8_t length, uint8_t *out) {
+    LEDGER_ASSERT(out != NULL, "Null pointer");
     out[0] = type;
     out[1] = length;
-    return 2;
+    return TLV_HEADER_LEN;
 }
 
-static int write_command_seed(const block_command_t *command, crypto_hash_t *digest) {
+static void write_command_seed(const block_command_t *command, crypto_hash_t *digest) {
     uint8_t buffer[MAX_TOPIC_LEN + 2 + MEMBER_KEY_LEN + IV_LEN + MAX_ENCRYPTED_KEY_LEN +
                    MEMBER_KEY_LEN + TLV_HEADER_LEN * 6 + TLV_HEADER_LEN];
     int offset = 0;
+
+    LEDGER_ASSERT(digest != NULL, "Null pointer");
+    LEDGER_ASSERT(command != NULL, "Null pointer");
+    LEDGER_ASSERT(command->command.seed.topic_len <= MAX_TOPIC_LEN, "Wrong length");
 
     // Compute encoded data length
     // Topic(16 max) + ProtocolVersion(2) + GroupKey(33) + IV(16) + EncryptedSeed(64) +
     // EphemeralPublicKey(33) + 2 * NumberOfFields
     uint8_t length = command->command.seed.topic_len + 2 + MEMBER_KEY_LEN + IV_LEN +
-                     MAX_ENCRYPTED_KEY_LEN + MEMBER_KEY_LEN + 2 * 6;
+                     MAX_ENCRYPTED_KEY_LEN + MEMBER_KEY_LEN + TLV_HEADER_LEN * 6;
 
     // Command type and length
     offset += write_tl(command->type, length, buffer + offset);
@@ -63,15 +68,17 @@ static int write_command_seed(const block_command_t *command, crypto_hash_t *dig
     memcpy(buffer + offset, command->command.seed.ephemeral_public_key, MEMBER_KEY_LEN);
     offset += MEMBER_KEY_LEN;
 
-    buffer[1] =
-        offset - 2;  // Set actual length (offset - 2 because offset includes type and length bytes)
-    return crypto_digest_update(digest, buffer, offset);
+    crypto_digest_update(digest, buffer, offset);
 }
 
-static int write_command_derive(const block_command_t *command, crypto_hash_t *digest) {
+static void write_command_derive(const block_command_t *command, crypto_hash_t *digest) {
     uint8_t buffer[MAX_BIP32_PATH * sizeof(uint32_t) + MEMBER_KEY_LEN + IV_LEN +
                    MAX_ENCRYPTED_KEY_LEN + MEMBER_KEY_LEN + TLV_HEADER_LEN * 5 + TLV_HEADER_LEN];
     int offset = 0;
+
+    LEDGER_ASSERT(digest != NULL, "Null pointer");
+    LEDGER_ASSERT(command != NULL, "Null pointer");
+    LEDGER_ASSERT(command->command.derive.path_len <= MAX_BIP32_PATH, "Wrong length");
 
     // Compute encoded data length
     // Path(max 40) + GroupKey(33) + IV(16) + EncryptedXpriv(64) + EphemeralPublicKey(33) + 2 *
@@ -120,10 +127,10 @@ static int write_command_derive(const block_command_t *command, crypto_hash_t *d
            sizeof(command->command.derive.ephemeral_public_key));
     offset += sizeof(command->command.derive.ephemeral_public_key);
 
-    return crypto_digest_update(digest, buffer, offset);
+    crypto_digest_update(digest, buffer, offset);
 }
 
-static int write_command_add_member(const block_command_t *command, crypto_hash_t *digest) {
+static void write_command_add_member(const block_command_t *command, crypto_hash_t *digest) {
     int offset = 0;
     uint8_t buffer[MAX_NAME_LEN + MEMBER_KEY_LEN + sizeof(uint32_t) + 3 * TLV_HEADER_LEN +
                    TLV_HEADER_LEN];
@@ -132,6 +139,11 @@ static int write_command_add_member(const block_command_t *command, crypto_hash_
     // Compute encoded data length
     // Name(max 100) + PublicKey(33) + Permissions(4)
     uint8_t length = name_len + MEMBER_KEY_LEN + sizeof(uint32_t) + 3 * TLV_HEADER_LEN;
+
+    LEDGER_ASSERT(command != NULL, "Null pointer");
+    LEDGER_ASSERT(digest != NULL, "Null pointer");
+
+    LEDGER_ASSERT(name_len <= MAX_NAME_LEN, "Wrong name length");
 
     // Command type and length
     offset += write_tl(command->type, length, buffer + offset);
@@ -151,22 +163,19 @@ static int write_command_add_member(const block_command_t *command, crypto_hash_
     write_u32_be(buffer, offset, command->command.add_member.permissions);
     offset += sizeof(uint32_t);
 
-    return crypto_digest_update(digest, buffer, offset);
+    crypto_digest_update(digest, buffer, offset);
 }
 
-// static void write_command_edit_member(const block_command_t *command, crypto_hash_t *digest) {
-//     // NOT IMPLEMENTED
-//     (void) command;
-//     (void) digest;
-// }
-
-static int write_command_publish_key(const block_command_t *command, crypto_hash_t *digest) {
+static void write_command_publish_key(const block_command_t *command, crypto_hash_t *digest) {
     int offset = 0;
     uint8_t buffer[TLV_HEADER_LEN + IV_LEN + MAX_ENCRYPTED_KEY_LEN + MEMBER_KEY_LEN +
                    MEMBER_KEY_LEN + 4 * TLV_HEADER_LEN];
 
     // Compute encoded data length
     uint8_t length = sizeof(buffer) - TLV_HEADER_LEN;
+
+    LEDGER_ASSERT(command != NULL, "Null pointer");
+    LEDGER_ASSERT(digest != NULL, "Null pointer");
 
     // Command type and length
     offset += write_tl(command->type, length, buffer + offset);
@@ -191,25 +200,30 @@ static int write_command_publish_key(const block_command_t *command, crypto_hash
     memcpy(buffer + offset, command->command.publish_key.ephemeral_public_key, MEMBER_KEY_LEN);
     offset += MEMBER_KEY_LEN;
 
-    return crypto_digest_update(digest, buffer, offset);
+    crypto_digest_update(digest, buffer, offset);
 }
 
-static int write_command_close_stream(const block_command_t *command, crypto_hash_t *digest) {
+static void write_command_close_stream(const block_command_t *command, crypto_hash_t *digest) {
     uint8_t buffer[TLV_HEADER_LEN];
+
+    LEDGER_ASSERT(command != NULL, "Null pointer");
+    LEDGER_ASSERT(digest != NULL, "Null pointer");
 
     // Command type and length
     write_tl(command->type, 0, buffer);
 
-    return crypto_digest_update(digest, buffer, TLV_HEADER_LEN);
+    crypto_digest_update(digest, buffer, TLV_HEADER_LEN);
 }
 
-int block_hash_header(const block_header_t *header, crypto_hash_t *digest) {
-    int ret = 0;
-    uint8_t buffer[1 + HASH_LEN + MEMBER_KEY_LEN + 1 + 4 * 2];
+void block_hash_header(const block_header_t *header, crypto_hash_t *digest) {
+    uint8_t buffer[1 + HASH_LEN + MEMBER_KEY_LEN + 1 + 4 * TLV_HEADER_LEN];
     int offset = 0;
 
+    LEDGER_ASSERT(header != NULL, "Null pointer");
+    LEDGER_ASSERT(digest != NULL, "Null pointer");
+
     // Version
-    offset += write_tl(TLV_TYPE_VARINT, 1, buffer + offset);
+    offset += write_tl(TLV_TYPE_VARINT, sizeof(header->version), buffer + offset);
     buffer[offset] = header->version;
     offset += sizeof(header->version);
 
@@ -227,43 +241,48 @@ int block_hash_header(const block_header_t *header, crypto_hash_t *digest) {
     offset += write_tl(TLV_TYPE_VARINT, 1, buffer + offset);
     buffer[offset] = header->length;
     offset += sizeof(header->length);
-    ret = crypto_digest_update(digest, buffer, offset);
-    return ret;
+
+    crypto_digest_update(digest, buffer, offset);
 }
 
 int block_hash_command(const block_command_t *command, crypto_hash_t *digest) {
-    int ret = 0;
+    LEDGER_ASSERT(command != NULL, "Null pointer");
+
     switch (command->type) {
         case COMMAND_SEED:
-            ret = write_command_seed(command, digest);
+            write_command_seed(command, digest);
             break;
         case COMMAND_ADD_MEMBER:
-            ret = write_command_add_member(command, digest);
+            write_command_add_member(command, digest);
             break;
         case COMMAND_DERIVE:
-            ret = write_command_derive(command, digest);
+            write_command_derive(command, digest);
             break;
         case COMMAND_CLOSE_STREAM:
-            ret = write_command_close_stream(command, digest);
+            write_command_close_stream(command, digest);
             break;
         case COMMAND_PUBLISH_KEY:
-            ret = write_command_publish_key(command, digest);
+            write_command_publish_key(command, digest);
             break;
         default:
             return BP_ERROR_UNKNOWN_COMMAND;
     }
-    return ret;
+    return 0;
 }
 
-int block_hash_signature(const uint8_t *signature, size_t signature_len, crypto_hash_t *digest) {
-    int ret = 0;
+void block_hash_signature(const uint8_t *signature, size_t signature_len, crypto_hash_t *digest) {
     uint8_t buffer[TLV_HEADER_LEN + MAX_DER_SIG_LEN];
     int offset = 0;
+
+    LEDGER_ASSERT(signature != NULL, "Null pointer");
+    LEDGER_ASSERT(digest != NULL, "Null pointer");
+
+    LEDGER_ASSERT(TLV_HEADER_LEN + signature_len <= TLV_HEADER_LEN + MAX_DER_SIG_LEN,
+                  "Wrong length");
 
     // Signature
     offset += write_tl(TLV_TYPE_SIG, signature_len, buffer + offset);
     memcpy(buffer + offset, signature, signature_len);
     offset += signature_len;
-    ret = crypto_digest_update(digest, buffer, offset);
-    return ret;
+    crypto_digest_update(digest, buffer, offset);
 }

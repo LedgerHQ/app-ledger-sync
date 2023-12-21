@@ -2,6 +2,9 @@
 #pragma once
 
 #include <stdint.h>  // uint*_t
+#include <stddef.h>
+#include <stdio.h>
+#include "constants.h"
 
 #ifndef TEST
 
@@ -15,12 +18,17 @@ typedef cx_ecfp_public_key_t crypto_public_key_t;
 
 #else
 #include <lib/crypto.h>
-#define LEDGER_ASSERT(x) assert(x)
+#include <assert.h>
+#define LEDGER_ASSERT(x, y) assert(x)
 #endif
 
 #define C_IV_LEN 16
 #define C_ERROR  -1
 #define C_OK     CX_OK
+
+static const uint8_t ATTESTATION_KEY[] = {
+    0x97, 0xcf, 0x0c, 0x79, 0xd5, 0x77, 0xc3, 0x48, 0x9e, 0x01, 0x4d, 0x69, 0x80, 0xef, 0xac, 0x5e,
+    0x31, 0x7a, 0x99, 0x59, 0x57, 0xbc, 0xd5, 0xbc, 0x97, 0x24, 0xdc, 0xe6, 0x70, 0x7c, 0x8f, 0xda};
 
 /**
  * Generate a new key pair.
@@ -54,14 +62,16 @@ int crypto_derive_private_key(crypto_private_key_t *private_key,
  * @param[in]  key The key used to compute the HMAC.
  * @param[in]  key_len The length of the key.
  * @param[in]  data The data to compute the HMAC of.
- * @param[in]  data_len The length of the data.
+ * @param[out] hmac The output buffer to store the hmac
+ * @param[out] hmac_length The length of the output buffer.
  * @return 0 on success, error number otherwise.
  */
 int crypto_hmac_sha512(uint8_t *key,
                        uint32_t key_len,
                        uint8_t *data,
                        uint32_t data_len,
-                       uint8_t *hmac);
+                       uint8_t *hmac,
+                       uint8_t hmac_len);
 
 /**
  * Initialize public key given private key.
@@ -99,7 +109,7 @@ int crypto_compress_public_key(const uint8_t *public_key, uint8_t compressed_pub
  * @return 0 on success, error number otherwise.
  */
 int crypto_decompress_public_key(const uint8_t *compressed_public_key,
-                                 uint8_t public_key[static 65]);
+                                 uint8_t public_key[static RAW_PUBLIC_KEY_LENGTH + 1]);
 
 /**
  * Perform ECDH between a private key and a compressed public key.
@@ -195,7 +205,7 @@ int crypto_sign_block(void);
  * @return 1 on success, 0 if the signature doesn't match, error number otherwise.
  */
 int crypto_verify_signature(const uint8_t *public_key,
-                            crypto_hash_t *message_hash,
+                            const uint8_t *digest,
                             uint8_t *signature,
                             size_t signature_len);
 
@@ -210,18 +220,16 @@ void crypto_digest_init(crypto_hash_t *hash);
  * @param[in] hash The hash structure to update.
  * @param[in] data The data to hash.
  * @param[in] len The length of the data.
- * @return CX_OK on success, error code otherwise.
  */
-int crypto_digest_update(crypto_hash_t *hash, const uint8_t *data, uint32_t len);
+void crypto_digest_update(crypto_hash_t *hash, const uint8_t *data, uint32_t len);
 
 /**
  * Finalize the hash and store the digest in the given buffer.
  * @param[in]  hash The hash structure to finalize.
  * @param[out] digest The buffer to store the digest in.
  * @param[in]  len The length of the digest buffer.
- * @return CX_OK on success, error code otherwise.
  */
-int crypto_digest_finalize(crypto_hash_t *hash, uint8_t *digest, uint32_t len);
+void crypto_digest_finalize(crypto_hash_t *hash, uint8_t *digest, uint32_t len);
 
 /**
  * Compute the digest of the given data (single shot flavour).

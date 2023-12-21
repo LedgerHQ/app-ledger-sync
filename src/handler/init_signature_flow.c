@@ -1,3 +1,4 @@
+#include "ledger_assert.h"
 #include "init_signature_flow.h"
 #include "../globals.h"
 #include "sw.h"
@@ -6,9 +7,10 @@
 int handler_init_signature_flow(buffer_t *cdata) {
     crypto_private_key_t private_key;
     crypto_public_key_t session_key;
-    uint8_t derivation_buffer[65] = {0};
+    uint8_t derivation_buffer[RAW_PUBLIC_KEY_LENGTH + 1] = {0};
     int ret;
 
+    LEDGER_ASSERT(cdata != NULL, "Null cdata\n");
     // Reset the context
     signer_reset();
 
@@ -19,8 +21,9 @@ int handler_init_signature_flow(buffer_t *cdata) {
     if (crypto_generate_pair(&session_key, &private_key) != C_OK) {
         return io_send_sw(SW_BAD_STATE);
     }
-    PRINTF("SESSION PRIVATE KEY: \n");
-    PRINTF("%.*H\n", 32, private_key.d);
+
+    PRINTF("SESSION PRIVATE KEY: %.*H\n", 32, private_key.d);
+
     if ((ret = crypto_ecdh(&private_key,
                            cdata->ptr + cdata->offset,
                            G_context.signer_info.session_encryption_key)) != 0) {
@@ -34,10 +37,10 @@ int handler_init_signature_flow(buffer_t *cdata) {
         return io_send_sw(SW_BAD_STATE);
     }
 
-    PRINTF("SESSION PUBLIC KEY: \n");
-    PRINTF("%.*H\n", 32, private_key.d);
-    PRINTF("SESSION ENCRYPTION KEY: \n");
-    PRINTF("%.*H\n", 32, G_context.signer_info.session_encryption_key);
+    PRINTF("SESSION PRIVATE KEY: %.*H\n", sizeof(private_key.d), private_key.d);
+    PRINTF("SESSION ENCRYPTION KEY: %.*H\n",
+           sizeof(G_context.signer_info.session_encryption_key),
+           G_context.signer_info.session_encryption_key);
 
     // SeedID initialization
 
@@ -54,7 +57,9 @@ int handler_init_signature_flow(buffer_t *cdata) {
         explicit_bzero(&private_key, sizeof(private_key));
         return io_send_sw(SW_BAD_STATE);
     }
-    PRINTF("DEVICE PUBLIC KEY: %.*H\n", 33, G_context.stream.device_public_key);
+    PRINTF("DEVICE PUBLIC KEY: %.*H\n",
+           sizeof(G_context.stream.device_public_key),
+           G_context.stream.device_public_key);
 
     explicit_bzero(&private_key, sizeof(private_key));
 

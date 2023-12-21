@@ -65,6 +65,11 @@
  */
 #define PRIVATE_KEY_LEN 32
 
+/*
+ * Raw public key length: x-coordinate (32), y-coodinate (32)
+ */
+#define RAW_PUBLIC_KEY_LENGTH 64
+
 // TODO TO REMOVE instantiated in src/main.c
 
 extern const uint32_t SEED_ID_PATH[2];

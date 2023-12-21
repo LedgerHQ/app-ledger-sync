@@ -1,7 +1,6 @@
 #pragma once
 
 #include "buffer.h"
-#include "cx.h"
 
 /**
  * Handler for SIGN_INIT command.

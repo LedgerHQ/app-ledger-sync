@@ -2,6 +2,13 @@
 
 #include "../stream/stream.h"
 
+#ifndef TEST
+#include "ledger_assert.h"
+#else
+#include <assert.h>
+#define LEDGER_ASSERT(x, y) assert(x)
+#endif
+
 #define TP_CHECKSUM_LEN 4
 #define TP_NONCE_SIZE   4
 #define TP_BUFFER_SIZE_NEW_MEMBER \
