@@ -92,6 +92,7 @@ static int signer_inject_seed(signer_ctx_t *signer, block_command_t *command) {
     // Write private key in xpriv buffer
     memcpy(xpriv, private_key.d, sizeof(private_key.d));
 
+    explicit_bzero(&private_key, sizeof(private_key));
     // Encrypt xpriv
     PRINTF("XPRIV (SEED): %.*H", sizeof(xpriv), xpriv);
     ret = crypto_encrypt(secret,
@@ -136,7 +137,6 @@ static int signer_inject_seed(signer_ctx_t *signer, block_command_t *command) {
     ret = io_push_trusted_property(TP_GROUPKEY, &buffer);
     if (ret != 0) return ret;
 
-    explicit_bzero(&private_key, sizeof(private_key));
 
     // User approval
     // TODO implement user approval
