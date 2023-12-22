@@ -1,3 +1,4 @@
+#include "sw.h"
 #include "signer.h"
 #include "block_parser.h"
 #include "cx.h"
@@ -484,7 +485,7 @@ int signer_parse_command(signer_ctx_t *signer, stream_ctx_t *stream, buffer_t *d
     block_hash_command(&command, &signer->digest);
 
     signer->parsed_command += 1;
-    return 0;
+    return io_send_trusted_property(SW_OK);
 }
 
 int signer_sign_block(signer_ctx_t *signer, stream_ctx_t *stream) {

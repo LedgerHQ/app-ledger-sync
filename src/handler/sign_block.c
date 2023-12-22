@@ -57,7 +57,7 @@ int handler_sign_block(buffer_t *cdata, uint8_t mode) {
         if (error != 0) {
             return io_send_sw(SW_BAD_STATE);
         }
-        return io_send_trusted_property(SW_OK);
+        return 0;
     } else if (mode == MODE_BLOCK_FINALIZE) {
         if (!IS_SESSION_INITIALIAZED()) {
             signer_reset();
