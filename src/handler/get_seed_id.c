@@ -35,11 +35,25 @@
 #include "challenge_parser.h"
 #include "challenge_sign.h"
 
-static challenge_ctx_t challenge_ctx;
+static uint8_t challenge_hash[CX_SHA256_SIZE];
+
+int seed_id_callback(bool approve) {
+    int error;
+
+    if (approve) {
+        error = sign_challenge(challenge_hash);
+        if (error) {
+            return io_send_sw(error);
+        }
+    } else {
+        return io_send_sw(SW_DENY);
+    }
+    return 0;
+}
 
 int handler_get_seed_id(buffer_t* buffer) {
     int error;
-    uint8_t challenge_hash[CX_SHA256_SIZE];
+    challenge_ctx_t challenge_ctx;
     LEDGER_ASSERT(buffer != NULL, "Null pointer");
 
     PRINTF("Parsing buffer\n");
@@ -59,12 +73,7 @@ int handler_get_seed_id(buffer_t* buffer) {
         // return io_send_sw(error);
     }
 
-    // TODO :  error = display_authentification_request();
-
-    error = sign_challenge(challenge_hash);
-    if (error) {
-        return io_send_sw(error);
-    }
+    ui_display_seed_id_command(challenge_ctx.host);
 
     return 0;
 }

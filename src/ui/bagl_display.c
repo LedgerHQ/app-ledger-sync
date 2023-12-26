@@ -37,10 +37,13 @@
 #include "action/validate.h"
 #include "../menu.h"
 #include "trusted_io.h"
+#include "challenge_parser.h"
 
+static uint8_t host[HOST_LENGTH];
 static action_validate_cb g_validate_callback;
 int add_member_confirm(void);
 int add_seed_callback(bool confirm);
+int seed_id_callback(bool confirm);
 
 static action_validate_cb g_validate_callback;
 
@@ -121,6 +124,31 @@ UX_FLOW(ux_display_add_seed_flow,
 int ui_display_add_seed_command(void) {
     g_validate_callback = &ui_display_add_seed;
     ux_flow_init(0, ux_display_add_seed_flow, NULL);
+    return 0;
+}
+
+int ui_display_seed_id(bool approve) {
+    seed_id_callback(approve);
+    ui_menu_main();
+    return 0;
+}
+
+UX_STEP_NOCB(ux_display_confirm_seed_id_step, bnnn_paging, {"SeedId request:", (char*) host});
+
+// FLOW to display seed id:
+// #1 screen: eye icon + "Confirm Address"
+// #2 screen: display address
+// #3 screen: approve button
+// #4 screen: reject button
+UX_FLOW(ux_display_seed_id_flow,
+        &ux_display_confirm_seed_id_step,
+        &ux_display_approve_step,
+        &ux_display_reject_step);
+
+int ui_display_seed_id_command(uint8_t* in_host) {
+    memcpy(host, in_host, sizeof(host));
+    g_validate_callback = &ui_display_seed_id;
+    ux_flow_init(0, ux_display_seed_id_flow, NULL);
     return 0;
 }
 
