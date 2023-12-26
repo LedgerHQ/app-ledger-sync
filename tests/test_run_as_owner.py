@@ -16,10 +16,13 @@ from utils.streamTree import StreamTree
 ROOT_DERIVATION_PATH = "16'/0'"
 DEFAULT_TOPIC = "c96d450545ff2836204c29af291428a5bf740304978f5dfb0b4a261474192851"
 
-valid_seed_instructions = [NavInsID.RIGHT_CLICK, NavInsID.BOTH_CLICK]
-valid_member_instructions = [NavInsID.RIGHT_CLICK, NavInsID.BOTH_CLICK, NavInsID.BOTH_CLICK]
-valid_seed_and_member_instructions = [NavInsID.RIGHT_CLICK, NavInsID.BOTH_CLICK,
-                                      NavInsID.BOTH_CLICK, NavInsID.RIGHT_CLICK, NavInsID.BOTH_CLICK, NavInsID.BOTH_CLICK]
+valid_seed_instructions_nano = [NavInsID.RIGHT_CLICK, NavInsID.BOTH_CLICK]
+valid_seed_instructions_stax = [NavInsID.USE_CASE_CHOICE_CONFIRM]
+valid_member_instructions_nano = [NavInsID.RIGHT_CLICK, NavInsID.BOTH_CLICK, NavInsID.BOTH_CLICK]
+valid_member_instructions_stax = [
+    NavInsID.USE_CASE_CHOICE_CONFIRM, NavInsID.USE_CASE_STATUS_DISMISS]
+valid_seed_and_member_instructions_nano = [NavInsID.RIGHT_CLICK, NavInsID.BOTH_CLICK,
+                                           NavInsID.BOTH_CLICK, NavInsID.RIGHT_CLICK, NavInsID.BOTH_CLICK, NavInsID.BOTH_CLICK]
 
 
 def get_derivation_path(index):
@@ -35,7 +38,11 @@ def bytes_equal(a, b):
     return True
 
 
-def test_basic(backend, navigator, test_name):
+def test_basic(backend, navigator, test_name, firmware):
+    if firmware.device.startswith("nano"):
+        valid_seed_instructions = valid_seed_instructions_nano
+    else:
+        valid_seed_instructions = valid_seed_instructions_stax
     alice = device.apdu(backend)
     seed_automation = Automation(
         navigator, test_name=f"{test_name}_seed", instructions=valid_seed_instructions)
@@ -75,7 +82,13 @@ def test_tree_derive_subtree(backend):
 '''
 
 
-def test_tree_flow(backend, navigator, test_name):
+def test_tree_flow(backend, navigator, test_name, firmware):
+    if firmware.device.startswith("nano"):
+        valid_seed_instructions = valid_seed_instructions_nano
+        valid_member_instructions = valid_member_instructions_nano
+    else:
+        valid_seed_instructions = valid_seed_instructions_stax
+        valid_member_instructions = valid_member_instructions_stax
     alice = device.apdu(backend)
     seed_automation = Automation(
         navigator, test_name=f"{test_name}_seed", instructions=valid_seed_instructions)
@@ -139,7 +152,11 @@ def test_isConnected(backend):
 # Test Seed and check Resolved Stream characteristics
 
 
-def test_seed(backend, navigator, test_name):
+def test_seed(firmware, backend, navigator, test_name):
+    if firmware.device.startswith("nano"):
+        valid_seed_instructions = valid_seed_instructions_nano
+    else:
+        valid_seed_instructions = valid_seed_instructions_stax
     alice = device.apdu(backend)  # Assuming you have a Device class
     seed_automation = Automation(
         navigator, test_name=f"{test_name}_seed", instructions=valid_seed_instructions)
@@ -158,6 +175,14 @@ def test_seed(backend, navigator, test_name):
 
 
 def test_seed_and_add_bob(firmware, backend, navigator, test_name):
+    if firmware.device.startswith("nano"):
+        seed_instructions = [NavInsID.RIGHT_CLICK, NavInsID.BOTH_CLICK]
+        valid_member_instructions = valid_member_instructions_nano
+        dismiss_notification_instructions = [NavInsID.BOTH_CLICK]
+    else:
+        seed_instructions = [NavInsID.USE_CASE_CHOICE_CONFIRM]
+        valid_member_instructions = valid_member_instructions_stax
+        dismiss_notification_instructions = [NavInsID.USE_CASE_STATUS_DISMISS]
     alice = device.apdu(backend, navigator)
 
     bob = device.software()
@@ -165,13 +190,11 @@ def test_seed_and_add_bob(firmware, backend, navigator, test_name):
     topic = Crypto.from_hex(DEFAULT_TOPIC)
     stream = CommandStream()
 
-    seed_instructions = [NavInsID.RIGHT_CLICK, NavInsID.BOTH_CLICK]
     seed_automation = Automation(
         navigator, test_name=f"{test_name}_seed", instructions=seed_instructions)
     alice.update_automation(seed_automation)
     stream = stream.edit().seed(topic).issue(alice)
     backend.wait_for_text_on_screen("Trustchain")
-    backend.wait_for_text_on_screen("is ready")
 
     member_automation = Automation(
         navigator, test_name=f"{test_name}_member", instructions=valid_member_instructions)
@@ -179,7 +202,8 @@ def test_seed_and_add_bob(firmware, backend, navigator, test_name):
     stream = stream.edit().add_member("Bob", bob_public_key, 0xFFFFFFFF, True).issue(alice)
 
     # dismiss notif
-    navigator.navigate([NavInsID.BOTH_CLICK], screen_change_before_first_instruction=False)
+    navigator.navigate(dismiss_notification_instructions,
+                       screen_change_before_first_instruction=False)
     resolved = stream.resolve()
     assert resolved.is_created() is True
     assert len(resolved.get_members()) == 2
@@ -199,7 +223,11 @@ def seed_tree_and_derive_subtree(backend):
     tree = StreamTree.from_streams(stream)
 
 
-def test_standard_tree_derive(backend, navigator, test_name):
+def test_standard_tree_derive(backend, navigator, test_name, firmware):
+    if firmware.device.startswith("nano"):
+        valid_seed_instructions = valid_seed_instructions_nano
+    else:
+        valid_seed_instructions = valid_seed_instructions_stax
     alice = device.apdu(backend)
     seed_automation = Automation(
         navigator, test_name=f"{test_name}_seed", instructions=valid_seed_instructions)
@@ -227,7 +255,11 @@ def test_add_member_without_seed(backend):
         stream = stream.edit().add_member("Bob", bob_public_key, 0xFFFFFFFF, False).issue(alice)
 
 
-def test_add_member_from_non_member(backend, navigator, test_name):
+def test_add_member_from_non_member(backend, navigator, test_name, firmware):
+    if firmware.device.startswith("nano"):
+        valid_seed_instructions = valid_seed_instructions_nano
+    else:
+        valid_seed_instructions = valid_seed_instructions_stax
     alice = device.apdu(backend)
     seed_automation = Automation(
         navigator, test_name=f"{test_name}_seed", instructions=valid_seed_instructions)
@@ -247,7 +279,13 @@ def test_add_member_from_non_member(backend, navigator, test_name):
 
 
 # Test should publish a key to a member added by a software device
-def test_publish_key(backend, navigator, test_name):
+def test_publish_key(backend, navigator, test_name, firmware):
+    if firmware.device.startswith("nano"):
+        valid_seed_instructions = valid_seed_instructions_nano
+        valid_member_instructions = valid_member_instructions_nano
+    else:
+        valid_seed_instructions = valid_seed_instructions_stax
+        valid_member_instructions = valid_member_instructions_stax
     alice = device.apdu(backend)
     seed_automation = Automation(
         navigator, test_name=f"{test_name}_seed", instructions=valid_seed_instructions)
@@ -278,7 +316,13 @@ def test_publish_key(backend, navigator, test_name):
 # Test should not publish key to non-member
 
 
-def test_publish_key_to_non_member(backend, navigator, test_name):
+def test_publish_key_to_non_member(backend, navigator, test_name, firmware):
+    if firmware.device.startswith("nano"):
+        valid_seed_instructions = valid_seed_instructions_nano
+        valid_member_instructions = valid_member_instructions_nano
+    else:
+        valid_seed_instructions = valid_seed_instructions_stax
+        valid_member_instructions = valid_member_instructions_stax
     alice = device.apdu(backend)
     seed_automation = Automation(
         navigator, test_name=f"{test_name}_seed", instructions=valid_seed_instructions)
@@ -306,7 +350,11 @@ def test_publish_key_to_non_member(backend, navigator, test_name):
 # Alice seeds once and signs. Alice seeds once more creating a new block should fail.
 
 
-def test_seed_twice_by_alice_stream(backend, navigator, test_name):
+def test_seed_twice_by_alice_stream(backend, navigator, test_name, firmware):
+    if firmware.device.startswith("nano"):
+        valid_seed_instructions = valid_seed_instructions_nano
+    else:
+        valid_seed_instructions = valid_seed_instructions_stax
     alice = device.apdu(backend)
     seed_automation = Automation(
         navigator, test_name=f"{test_name}_seed", instructions=valid_seed_instructions)
@@ -324,7 +372,11 @@ def test_seed_twice_by_alice_stream(backend, navigator, test_name):
 # Alice seeds twice in the same block. Should fail.
 
 
-def test_seed_twice_by_alice_block(backend, navigator, test_name):
+def test_seed_twice_by_alice_block(backend, navigator, test_name, firmware):
+    if firmware.device.startswith("nano"):
+        valid_seed_instructions = valid_seed_instructions_nano
+    else:
+        valid_seed_instructions = valid_seed_instructions_stax
     alice = device.apdu(backend)
     seed_automation = Automation(
         navigator, test_name=f"{test_name}_seed", instructions=valid_seed_instructions)
@@ -359,7 +411,13 @@ def test_seed_twice_by_bob_stream(backend):
         stream = stream.edit().seed(Crypto.from_hex(DEFAULT_TOPIC)).issue(bob)
 
 
-def test_publish_by_non_member(backend, navigator, test_name):
+def test_publish_by_non_member(backend, navigator, test_name, firmware):
+    if firmware.device.startswith("nano"):
+        valid_seed_instructions = valid_seed_instructions_nano
+        valid_member_instructions = valid_member_instructions_nano
+    else:
+        valid_seed_instructions = valid_seed_instructions_stax
+        valid_member_instructions = valid_member_instructions_stax
     alice = device.apdu(backend)
     seed_automation = Automation(
         navigator, test_name=f"{test_name}_seed", instructions=valid_seed_instructions)
@@ -382,7 +440,13 @@ def test_publish_by_non_member(backend, navigator, test_name):
         stream = stream.edit().publish_key(charlie_public_key).issue(bob)
 
 
-def test_publish_key_to_non_member_by_software(backend, navigator, test_name):
+def test_publish_key_to_non_member_by_software(backend, navigator, test_name, firmware):
+    if firmware.device.startswith("nano"):
+        valid_seed_instructions = valid_seed_instructions_nano
+        valid_member_instructions = valid_member_instructions_nano
+    else:
+        valid_seed_instructions = valid_seed_instructions_stax
+        valid_member_instructions = valid_member_instructions_stax
     alice = device.apdu(backend)
     seed_automation = Automation(
         navigator, test_name=f"{test_name}_seed", instructions=valid_seed_instructions)
@@ -406,7 +470,13 @@ def test_publish_key_to_non_member_by_software(backend, navigator, test_name):
 
 # Shouldn't be able to add the same member twice
 
-def test_add_member_twice(backend, navigator, test_name):
+def test_add_member_twice(backend, navigator, test_name, firmware):
+    if firmware.device.startswith("nano"):
+        valid_seed_instructions = valid_seed_instructions_nano
+        valid_member_instructions = valid_member_instructions_nano
+    else:
+        valid_seed_instructions = valid_seed_instructions_stax
+        valid_member_instructions = valid_member_instructions_stax
     alice = device.apdu(backend)
     seed_automation = Automation(
         navigator, test_name=f"{test_name}_seed", instructions=valid_seed_instructions)

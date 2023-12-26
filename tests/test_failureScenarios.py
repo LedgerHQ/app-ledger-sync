@@ -14,12 +14,18 @@ from ragger.navigator import NavInsID, NavIns, Navigator
 from pathlib import Path
 
 DEFAULT_TOPIC = "c96d450545ff2836204c29af291428a5bf740304978f5dfb0b4a261474192851"
-valid_seed_instructions = [NavInsID.RIGHT_CLICK, NavInsID.BOTH_CLICK]
+valid_seed_instructions_nano = [NavInsID.RIGHT_CLICK, NavInsID.BOTH_CLICK]
+valid_seed_instructions_stax = [NavInsID.USE_CASE_CHOICE_CONFIRM]
 
 # Basic Signature Flow
 
 
-def test_basic_signature_flow(backend: BackendInterface, navigator, test_name):
+def test_basic_signature_flow(backend: BackendInterface, navigator, test_name, firmware):
+    if firmware.device.startswith("nano"):
+        valid_seed_instructions = valid_seed_instructions_nano
+    else:
+        valid_seed_instructions = valid_seed_instructions_stax
+
     sessionKey = Crypto.randomKeyPair()
 
     block = CommandBlock(
@@ -56,7 +62,12 @@ def test_basic_signature_flow(backend: BackendInterface, navigator, test_name):
 # We finalize twice, should fail.
 
 
-def test_finalize_twice(backend: BackendInterface, navigator, test_name):
+def test_finalize_twice(backend: BackendInterface, navigator, test_name, firmware):
+    if firmware.device.startswith("nano"):
+        valid_seed_instructions = valid_seed_instructions_nano
+    else:
+        valid_seed_instructions = valid_seed_instructions_stax
+
     sessionKey = Crypto.randomKeyPair()
 
     block = CommandBlock(
@@ -94,7 +105,12 @@ def test_finalize_twice(backend: BackendInterface, navigator, test_name):
         Device.finalizeSignature(backend)
 
 
-def test_sign_header_after_finalize(backend: BackendInterface, navigator, test_name):
+def test_sign_header_after_finalize(backend: BackendInterface, navigator, test_name, firmware):
+    if firmware.device.startswith("nano"):
+        valid_seed_instructions = valid_seed_instructions_nano
+    else:
+        valid_seed_instructions = valid_seed_instructions_stax
+
     sessionKey = Crypto.randomKeyPair()
 
     block = CommandBlock(
@@ -216,7 +232,12 @@ def test_bypass_init_header(backend: BackendInterface):
         Device.signBlockHeader(backend, CommandStreamEncoder.encodeBlockHeader(block))
 
 
-def test_bypass_one_command(backend, navigator, test_name):
+def test_bypass_one_command(backend, navigator, test_name, firmware):
+    if firmware.device.startswith("nano"):
+        valid_seed_instructions = valid_seed_instructions_nano
+    else:
+        valid_seed_instructions = valid_seed_instructions_stax
+
     sessionKey = Crypto.randomKeyPair()
     block = CommandBlock(
         0,  # Version

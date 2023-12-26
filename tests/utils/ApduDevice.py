@@ -9,6 +9,7 @@ from .NobleCrypto import Crypto
 from .CommandStream import CommandStream
 from .Device import device
 
+ROOT_SCREENSHOT_PATH = Path(__file__).parent.parent.resolve()
 
 # from ragger.utils import pack_APDU, RAPDU, Crop
 
@@ -343,7 +344,7 @@ class PublicKey:
 
 
 class Automation:
-    def __init__(self, navigator: Navigator, root_path: Path = Path.cwd(), test_name: str = None, instructions: list = None):
+    def __init__(self, navigator: Navigator, root_path: Path = ROOT_SCREENSHOT_PATH, test_name: str = None, instructions: list = None):
         self.navigator = navigator
         self.root_path = root_path
         self.test_name = test_name

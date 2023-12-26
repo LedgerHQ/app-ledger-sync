@@ -1,9 +1,11 @@
 import pytest
+from pathlib import Path
 
 from SeedIdClient import SeedIdClient, Errors
 
 from SeedIdChallenge import SeedIdChallenge
 from ragger.error import ExceptionRAPDU
+from ragger.navigator import NavInsID, NavIns, Navigator
 
 from ecdsa import VerifyingKey, curves, BadSignatureError, SigningKey
 from ecdsa.util import sigdecode_der, sigencode_der
@@ -11,17 +13,20 @@ import hashlib
 
 from PubKeyCredential import PubKeyCredential
 
+ROOT_SCREENSHOT_PATH = Path(__file__).parent.resolve()
+
 PUBLIC_KEY = bytearray.fromhex(
     "041FBEF68DE38F9FACD182C1BC60C3F17290C294CC0D197F57EB645AA43733440A68E8352EC6A76CBF09A93E5B5A6ED2F6676D2A66ED59AFD07AAEB7A19783D8B9")
 ATTESTATION_PUBKEY = bytearray.fromhex(
     "04F157320331EA2A70BB3075E8A8E6F9D696816143E9B3D6EB5C1AAB5E6C7D0B693A9DBEF9D5D2C87370999FFD9FD339320ED9012FC6A8BE78F061B857271CDB2B")
 
+approve_seed_id_instructions_nano = [NavInsID.RIGHT_CLICK, NavInsID.BOTH_CLICK]
+
+approve_seed_id_instructions_stax = [NavInsID.USE_CASE_CHOICE_CONFIRM]
+
 
 def check_signature(public_key, message, signature, curve) -> bool:
 
-    print("------------------------------------")
-    print(message)
-    print(message.hex())
     vk = VerifyingKey.from_string(public_key, curve=curve, hashfunc=hashlib.sha256)
     try:
         vk.verify(signature, message, hashlib.sha256, sigdecode=sigdecode_der)
@@ -75,11 +80,20 @@ def parse_result(result):
 
 
 def test_seed_id(firmware, backend, navigator, test_name):
+    if firmware.device.startswith("nano"):
+        approve_seed_id_instructions = approve_seed_id_instructions_nano
+    else:
+        approve_seed_id_instructions = approve_seed_id_instructions_stax
+
     client = SeedIdClient(backend)
 
     tlv_data = get_default_challenge_tlv()
 
-    response = client.get_seed_id(challenge_data=tlv_data)
+    with client.get_seed_id_async(challenge_data=tlv_data):
+        navigator.navigate_and_compare(ROOT_SCREENSHOT_PATH,
+                                       test_name, approve_seed_id_instructions)
+
+    response = client.seed_id_response()
 
     assert response.status == 0x9000
 

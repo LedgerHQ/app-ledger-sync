@@ -1,5 +1,7 @@
 from ragger.backend.interface import BackendInterface, RAPDU
 from enum import IntEnum
+from typing import Generator, List, Optional
+from contextlib import contextmanager
 
 CLA: int = 0xE0
 
@@ -37,9 +39,21 @@ class SeedIdClient:
     def __init__(self, backend: BackendInterface) -> None:
         self.backend = backend
 
-    def get_seed_id(self, challenge_data: bytes) -> RAPDU:
+    def get_seed_id(self, challenge_data: bytes) -> Generator[None, None, None]:
         return self.backend.exchange(cla=CLA,
                                      ins=InsType.GET_SEED_ID,
                                      p1=P1.P1_START,
                                      p2=P2.P2_LAST,
                                      data=challenge_data)
+
+    @contextmanager
+    def get_seed_id_async(self, challenge_data: bytes) -> Generator[None, None, None]:
+        with self.backend.exchange_async(cla=CLA,
+                                         ins=InsType.GET_SEED_ID,
+                                         p1=P1.P1_START,
+                                         p2=P2.P2_LAST,
+                                         data=challenge_data) as response:
+            yield response
+
+    def seed_id_response(self) -> Optional[RAPDU]:
+        return self.backend.last_async_response
