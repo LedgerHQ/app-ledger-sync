@@ -28,9 +28,9 @@ include $(BOLOS_SDK)/Makefile.defines
 APPNAME = "Trustchain"
 
 # Application version
-APPVERSION_M = 2
+APPVERSION_M = 0
 APPVERSION_N = 0
-APPVERSION_P = 0
+APPVERSION_P = 1
 APPVERSION = "$(APPVERSION_M).$(APPVERSION_N).$(APPVERSION_P)"
 
 # Application source files
