@@ -69,8 +69,7 @@ int handler_get_seed_id(buffer_t* buffer) {
     error = verify_challenge_signature(&challenge_ctx, challenge_hash);
     if (error) {
         PRINTF("Error verifying challenge: %d \n", error);
-#warning TODO
-        // return io_send_sw(error);
+        return io_send_sw(error);
     }
 
     ui_display_seed_id_command(challenge_ctx.host);
