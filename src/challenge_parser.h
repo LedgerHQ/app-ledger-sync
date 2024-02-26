@@ -22,6 +22,15 @@
 #define SIGNATURE_LENGTH        75
 
 /**
+ * Enumeration Attestions
+ */
+typedef enum {
+    APPLICATION_ATTESTATION = 0x00,
+    DEVICE_ATTESTATION = 0x01,
+    TRUSTCHAIN_ATTESTATION = 0x02,
+} attestation_type_e;
+
+/**
  * Enumeration labels
  */
 typedef enum {

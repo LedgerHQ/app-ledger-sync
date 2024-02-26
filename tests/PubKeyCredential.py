@@ -16,13 +16,13 @@ class PubKeyCredential:
         return version_bytes + curve_id_bytes + sign_algorithm_bytes + public_key_length_bytes + public_key_bytes
 
     @classmethod
-    def from_bytes(cls, data):
+    def from_bytes(cls, data, offset=0):
         # Parse the bytes to create an instance of PubKeyCredential
-        version = data[0]
-        curve_id = data[1]
-        sign_algorithm = data[2]
-        public_key_length = data[3]
-        public_key = data[4:4 + public_key_length]
+        version = data[0 + offset]
+        curve_id = data[1 + offset]
+        sign_algorithm = data[2 + offset]
+        public_key_length = data[3 + offset]
+        public_key = data[4 + offset:4 + offset + public_key_length]
 
         return cls(version, curve_id, sign_algorithm, public_key), 4 + public_key_length
 

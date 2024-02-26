@@ -7,16 +7,17 @@
 
 #define MAX_CHALLENGE_RESP_SIZE (sizeof(pubkey_credential_t) + MAX_DER_SIG_LEN + MAX_DER_SIG_LEN)
 
-static int send_challenge(uint8_t* compressed_public_key,
+static int send_challenge(uint8_t* compressed_seed_id_public_key,
                           uint8_t* signature,
                           size_t signature_len,
+                          uint8_t* attestation_pubkey,
                           uint8_t* attestation_signature,
                           size_t attestation_signature_len) {
     // Return SeedID public key + SeedID signature + Attestion PublicKey
 
     // TODO CHANGE THIS
     static uint8_t resp[MAX_CHALLENGE_RESP_SIZE] = {0};
-    LEDGER_ASSERT(compressed_public_key != NULL, "Null pointer");
+    LEDGER_ASSERT(compressed_seed_id_public_key != NULL, "Null pointer");
     LEDGER_ASSERT(signature != NULL, "Null pointer");
     LEDGER_ASSERT(attestation_signature != NULL, "Null pointer");
 
@@ -31,13 +32,25 @@ static int send_challenge(uint8_t* compressed_public_key,
     resp[offset++] = SEED_ID_SIGN_ALGORTITHM;
     resp[offset++] = PUBLIC_KEY_LENGTH;
 
-    memcpy(resp + offset, compressed_public_key, PUBLIC_KEY_LENGTH);
+    memcpy(resp + offset, compressed_seed_id_public_key, PUBLIC_KEY_LENGTH);
     offset += PUBLIC_KEY_LENGTH;
 
     // SeedID signature
     resp[offset++] = signature_len;
     memcpy(resp + offset, signature, signature_len);
     offset += signature_len;
+
+    // Attestation 
+    resp[offset++] = APPLICATION_ATTESTATION;
+    
+    // PubKey
+    resp[offset++] = SEED_ID_PUBKEY_VERSION;
+    resp[offset++] = SEED_ID_CURVE_ID;
+    resp[offset++] = SEED_ID_SIGN_ALGORTITHM;
+    resp[offset++] = PUBLIC_KEY_LENGTH;
+
+    memcpy(resp + offset, attestation_pubkey, PUBLIC_KEY_LENGTH);
+    offset += PUBLIC_KEY_LENGTH;
 
     // Attestation signature
     resp[offset++] = attestation_signature_len;
@@ -126,6 +139,7 @@ int sign_challenge(uint8_t* challenge_hash) {
     uint8_t attestation_signature[MAX_DER_SIG_LEN];
     size_t attestation_signature_len = MAX_DER_SIG_LEN;
     uint8_t compressed_public_key[PUBLIC_KEY_LENGTH];
+    uint8_t compressed_attestation_public_key[PUBLIC_KEY_LENGTH];
 
     PRINTF("challenge_hash: %.*H \n", CX_SHA256_SIZE, challenge_hash);
 
@@ -167,9 +181,14 @@ int sign_challenge(uint8_t* challenge_hash) {
         return SW_SIGNATURE_FAIL;
     }
 
+    if (crypto_compress_public_key(ATTESTATION_PUBKEY, &compressed_attestation_public_key)) {
+        return SW_SIGNATURE_FAIL;
+    }
+
     return send_challenge(compressed_public_key,
                           signature,
                           signature_len,
+                          compressed_attestation_public_key,
                           attestation_signature,
                           attestation_signature_len);
 }
