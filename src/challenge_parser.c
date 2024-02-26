@@ -52,7 +52,9 @@ static int buffer_get_next_item(uint8_t* buffer,
     return 0;
 }
 
-int challenge_parse_buffer(buffer_t* buffer, challenge_ctx_t* challenge_ctx) {
+int challenge_parse_buffer(buffer_t* buffer,
+                           challenge_ctx_t* challenge_ctx,
+                           uint8_t* challenge_hash) {
     uint8_t tag_label;
     uint8_t length = 0;
     uint8_t* value = NULL;
@@ -61,11 +63,13 @@ int challenge_parse_buffer(buffer_t* buffer, challenge_ctx_t* challenge_ctx) {
     uint8_t remaining_len = buffer->size;
 
     int error = 0;
+    crypto_hash_t hash;
+
+    crypto_digest_init(&hash);
 
     // STRUCTURE_TYPE
     PRINTF("Structure Type\n");
     error = buffer_get_next_item(buffer_pointer, &remaining_len, &tag_label, &length, &value);
-    buffer_pointer += length + VALUE_OFFSET;
     if (error) {
         return error;
     }
@@ -79,10 +83,13 @@ int challenge_parse_buffer(buffer_t* buffer, challenge_ctx_t* challenge_ctx) {
     PRINTF("\tLength: %d\n", length);
     challenge_ctx->payload_type = value[0];
 
+    crypto_digest_update(&hash, buffer_pointer, length + 2);
+
+    buffer_pointer += length + VALUE_OFFSET;
+
     // VERSION
     PRINTF("Version\n");
     error = buffer_get_next_item(buffer_pointer, &remaining_len, &tag_label, &length, &value);
-    buffer_pointer += length + VALUE_OFFSET;
     if (error) {
         return error;
     }
@@ -96,10 +103,13 @@ int challenge_parse_buffer(buffer_t* buffer, challenge_ctx_t* challenge_ctx) {
     PRINTF("\tLength: %d\n", length);
     challenge_ctx->version = value[0];
 
+    crypto_digest_update(&hash, buffer_pointer, length + 2);
+
+    buffer_pointer += length + VALUE_OFFSET;
+
     // CHALLENGE
     PRINTF("Challenge\n");
     error = buffer_get_next_item(buffer_pointer, &remaining_len, &tag_label, &length, &value);
-    buffer_pointer += length + VALUE_OFFSET;
     if (error) {
         return error;
     }
@@ -112,10 +122,13 @@ int challenge_parse_buffer(buffer_t* buffer, challenge_ctx_t* challenge_ctx) {
     PRINTF("\tLength: %d\n", length);
     memcpy(challenge_ctx->challenge_data, value, length);
 
+    crypto_digest_update(&hash, buffer_pointer, length + 2);
+
+    buffer_pointer += length + VALUE_OFFSET;
+
     // SIGNER_ALGO
     PRINTF("Signer Algo\n");
     error = buffer_get_next_item(buffer_pointer, &remaining_len, &tag_label, &length, &value);
-    buffer_pointer += length + VALUE_OFFSET;
     if (error) {
         return error;
     }
@@ -129,10 +142,11 @@ int challenge_parse_buffer(buffer_t* buffer, challenge_ctx_t* challenge_ctx) {
     PRINTF("\tLength: %d\n", length);
     challenge_ctx->rp_credential_sign_algorithm = value[0];
 
+    buffer_pointer += length + VALUE_OFFSET;
+
     // DER_SIGNATURE
     PRINTF("DER Signature\n");
     error = buffer_get_next_item(buffer_pointer, &remaining_len, &tag_label, &length, &value);
-    buffer_pointer += length + VALUE_OFFSET;
     if (error) {
         return error;
     }
@@ -145,10 +159,11 @@ int challenge_parse_buffer(buffer_t* buffer, challenge_ctx_t* challenge_ctx) {
     PRINTF("\tLength: %d\n", length);
     memcpy(challenge_ctx->rp_signature, value, length);
 
+    buffer_pointer += length + VALUE_OFFSET;
+
     // VALID_UNTIL
     PRINTF("Valid Until\n");
     error = buffer_get_next_item(buffer_pointer, &remaining_len, &tag_label, &length, &value);
-    buffer_pointer += length + VALUE_OFFSET;
     if (error) {
         return error;
     }
@@ -161,10 +176,13 @@ int challenge_parse_buffer(buffer_t* buffer, challenge_ctx_t* challenge_ctx) {
     PRINTF("\tLength: %d\n", length);
     memcpy(challenge_ctx->challenge_expiry, value, length);
 
+    crypto_digest_update(&hash, buffer_pointer, length + 2);
+
+    buffer_pointer += length + VALUE_OFFSET;
+
     // TRUSTED_NAME
     PRINTF("Trusted Name\n");
     error = buffer_get_next_item(buffer_pointer, &remaining_len, &tag_label, &length, &value);
-    buffer_pointer += length + VALUE_OFFSET;
     if (error) {
         return error;
     }
@@ -178,10 +196,13 @@ int challenge_parse_buffer(buffer_t* buffer, challenge_ctx_t* challenge_ctx) {
     memcpy(challenge_ctx->host, value, length);
     challenge_ctx->host[length] = '\0';
 
+    crypto_digest_update(&hash, buffer_pointer, length + 2);
+
+    buffer_pointer += length + VALUE_OFFSET;
+
     // PUBLIC_KEY_CURVE
     PRINTF("Public Key Curve\n");
     error = buffer_get_next_item(buffer_pointer, &remaining_len, &tag_label, &length, &value);
-    buffer_pointer += length + VALUE_OFFSET;
     if (error) {
         return error;
     }
@@ -195,10 +216,11 @@ int challenge_parse_buffer(buffer_t* buffer, challenge_ctx_t* challenge_ctx) {
     PRINTF("\tLength: %d\n", length);
     challenge_ctx->rp_credential_curve_id = value[0];
 
+    buffer_pointer += length + VALUE_OFFSET;
+
     // PUBLIC_KEY
     PRINTF("Public Key\n");
     error = buffer_get_next_item(buffer_pointer, &remaining_len, &tag_label, &length, &value);
-    buffer_pointer += length + VALUE_OFFSET;
     if (error) {
         return error;
     }
@@ -210,6 +232,8 @@ int challenge_parse_buffer(buffer_t* buffer, challenge_ctx_t* challenge_ctx) {
     PRINTF("\tValue: %.*H\n", length, value);
     PRINTF("\tLength: %d\n", length);
     memcpy(challenge_ctx->rp_credential_public_key, value, length);
+
+    buffer_pointer += length + VALUE_OFFSET;
 
     // PROTOCOL_VERSION
     PRINTF("Protocol Version\n");
@@ -229,10 +253,14 @@ int challenge_parse_buffer(buffer_t* buffer, challenge_ctx_t* challenge_ctx) {
     PRINTF("\tLength: %d\n", length);
     memcpy(challenge_ctx->protocol_version, value, length);
 
+    crypto_digest_update(&hash, buffer_pointer, length + 2);
+
     // Now buffer should be empty
     if (remaining_len != 0) {
         return SW_PARSER_INVALID_FORMAT;
     }
+
+    crypto_digest_finalize(&hash, challenge_hash, CX_SHA256_SIZE);
 
     return 0;
 }

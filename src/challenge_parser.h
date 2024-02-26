@@ -66,10 +66,10 @@ typedef struct {
  */
 #define ECDSA_SHA256 0x01
 
-#define SEED_ID_PROTOCOL_VERSION_M       0x00
+#define SEED_ID_PROTOCOL_VERSION_M       0x01
 #define SEED_ID_PROTOCOL_VERSION_N       0x00
 #define SEED_ID_PROTOCOL_VERSION_P_UPPER 0x00
-#define SEED_ID_PROTOCOL_VERSION_P_LOWER 0x01
+#define SEED_ID_PROTOCOL_VERSION_P_LOWER 0x00
 
 #define SEED_ID_VERSION                          0x00
 #define TYPE_SEED_ID__AUTHENTIFICATION_CHALLENGE 0x07
@@ -80,4 +80,6 @@ typedef struct {
 /**
  * Parser for challenge data
  */
-int challenge_parse_buffer(buffer_t* buffer, challenge_ctx_t* challenge_ctx);
+int challenge_parse_buffer(buffer_t* buffer,
+                           challenge_ctx_t* challenge_ctx,
+                           uint8_t* challenge_hash);

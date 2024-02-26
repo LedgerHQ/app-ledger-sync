@@ -13,14 +13,14 @@ class SeedIdChallenge:
     DEFAULT_VALUES = {
         STRUCTURE_TYPE: 0x07,
         VERSION: 0,
-        CHALLENGE: b'\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f\x10',
+        CHALLENGE: bytes.fromhex("53cafde60e5395b164eb867213bc05f6"),
         SIGNER_ALGO: 0x01,
-        DER_SIGNATURE: "0b3c6d9f2a5c8b1e4f7a0b3c6d9f2a5c8b1e4f7a0b3c6d9f2a5c8b1e4f7a0b3c6d9f2a5c8b1",
-        VALID_UNTIL: 1636357581,
-        TRUSTED_NAME: b'MyHost',
+        DER_SIGNATURE: bytes.fromhex("3045022025d130d7ae5c48a6cf09781d04a08e9a2d07ce1bd17e84637f6ede4a043c5dcc022100a846ececf20eb53ffc2dc502ce8074ba40b241bfd13edaf1e8575559a9b2b4ea"),
+        VALID_UNTIL: 1708678950,
+        TRUSTED_NAME: b'localhost',
         PUBLIC_KEY_CURVE: 0x21,
-        PUBLIC_KEY: b'\x01\x02\x03...\x10',
-        PROTOCOL_VERSION: 0x00000001,
+        PUBLIC_KEY: bytes.fromhex("02d89618096b7a88aafca0a2ee483a257cefe4dae1d6d7059e1549b110d3ff575c"),
+        PROTOCOL_VERSION: 0x1000000,
     }
 
     FIELD_LENGTHS = {
@@ -88,6 +88,41 @@ class SeedIdChallenge:
                 tlv_data.extend(self._serialize_field(tag_label, length, value))
 
         return bytes(tlv_data)
+
+    def get_challenge_hash(self):
+        hash_data = bytearray()
+
+        tag_label = self.STRUCTURE_TYPE
+        length = SeedIdChallenge.FIELD_LENGTHS[tag_label]
+        value = self.payload_type
+        hash_data.extend(self._serialize_field(tag_label, length, value))
+
+        tag_label = self.VERSION
+        length = SeedIdChallenge.FIELD_LENGTHS[tag_label]
+        value = self.version
+        hash_data.extend(self._serialize_field(tag_label, length, value))
+
+        tag_label = self.CHALLENGE
+        length = SeedIdChallenge.FIELD_LENGTHS[tag_label]
+        value = self.challenge_data
+        hash_data.extend(self._serialize_field(tag_label, length, value))
+
+        tag_label = self.VALID_UNTIL
+        length = SeedIdChallenge.FIELD_LENGTHS[tag_label]
+        value = self.challenge_expiry
+        hash_data.extend(self._serialize_field(tag_label, length, value))
+
+        tag_label = self.TRUSTED_NAME
+        length = len(self.host) + 2
+        value = self.host
+        hash_data.extend(self._serialize_field(tag_label, length, value))
+
+        tag_label = self.PROTOCOL_VERSION
+        length = SeedIdChallenge.FIELD_LENGTHS[tag_label]
+        value = self.protocol_version
+        hash_data.extend(self._serialize_field(tag_label, length, value))
+
+        return bytes(hash_data)
 
     @staticmethod
     def find_field(serialized_data, tag_label):

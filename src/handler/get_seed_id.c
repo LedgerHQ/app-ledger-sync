@@ -58,13 +58,11 @@ int handler_get_seed_id(buffer_t* buffer) {
 
     PRINTF("Parsing buffer\n");
 
-    error = challenge_parse_buffer(buffer, &challenge_ctx);
+    error = challenge_parse_buffer(buffer, &challenge_ctx, challenge_hash);
     if (error) {
         PRINTF("Error parsing buffer: %d \n", error);
         return io_send_sw(error);
     }
-
-    crypto_digest(buffer->ptr, buffer->size, challenge_hash, CX_SHA256_SIZE);
 
     error = verify_challenge_signature(&challenge_ctx, challenge_hash);
     if (error) {

@@ -35,6 +35,27 @@ def check_signature(public_key, message, signature, curve) -> bool:
     return True
 
 
+def get_challenge_tlv():
+    seed_id_challenge = SeedIdChallenge()
+
+    # Set individual attributes
+    seed_id_challenge.payload_type = SeedIdChallenge.DEFAULT_VALUES[SeedIdChallenge.STRUCTURE_TYPE]
+    seed_id_challenge.version = 0
+    seed_id_challenge.protocol_version = 0x1000000
+    seed_id_challenge.challenge_data = bytes.fromhex("53cafde60e5395b164eb867213bc05f6")
+    seed_id_challenge.challenge_expiry = 1708678950
+    seed_id_challenge.host = b'localhost'
+    seed_id_challenge.rp_credential_sign_algorithm = SeedIdChallenge.DEFAULT_VALUES[
+        SeedIdChallenge.SIGNER_ALGO]
+    seed_id_challenge.rp_credential_curve_id = SeedIdChallenge.DEFAULT_VALUES[
+        SeedIdChallenge.PUBLIC_KEY_CURVE]
+    seed_id_challenge.rp_credential_public_key = bytes.fromhex(
+        "02d89618096b7a88aafca0a2ee483a257cefe4dae1d6d7059e1549b110d3ff575c")
+    seed_id_challenge.rp_signature = bytes.fromhex(
+        "3045022025d130d7ae5c48a6cf09781d04a08e9a2d07ce1bd17e84637f6ede4a043c5dcc022100a846ececf20eb53ffc2dc502ce8074ba40b241bfd13edaf1e8575559a9b2b4ea")
+    return seed_id_challenge
+
+
 def get_default_challenge_tlv():
     seed_id_challenge = SeedIdChallenge()
 
@@ -87,7 +108,10 @@ def test_seed_id(firmware, backend, navigator, test_name):
 
     client = SeedIdClient(backend)
 
-    tlv_data = get_default_challenge_tlv()
+    seed_id_challenge = get_challenge_tlv()
+    tlv_data = seed_id_challenge.to_tlv()
+
+    challenge_hash = seed_id_challenge.get_challenge_hash()
 
     with client.get_seed_id_async(challenge_data=tlv_data):
         navigator.navigate_and_compare(ROOT_SCREENSHOT_PATH,
@@ -99,13 +123,10 @@ def test_seed_id(firmware, backend, navigator, test_name):
 
     pubkey, signature, challenge = parse_result(response.data)
 
-    assert check_signature(pubkey.public_key, tlv_data, signature, curves.SECP256k1) == True
+    assert check_signature(pubkey.public_key, challenge_hash, signature, curves.SECP256k1) == True
 
     assert check_signature(ATTESTATION_PUBKEY, hashlib.sha256(
-        tlv_data).digest() + signature, challenge, curves.SECP256k1) == True
-
-    # pubkey, signature, challenge = parse_result(result)
-    # assert result is True
+        challenge_hash).digest() + signature, challenge, curves.SECP256k1) == True
 
 
 # def test_seed_id_invalid_challenge(firmware, backend, navigator, test_name):
