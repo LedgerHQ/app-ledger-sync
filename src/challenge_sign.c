@@ -104,13 +104,14 @@ int verify_challenge_signature(challenge_ctx_t* challenge_ctx, uint8_t* challeng
 
     PRINTF("Verifying challenge signature\n");
 
+    uint8_t sig_len = challenge_ctx->rp_signature[1] + 2;
     int verified = crypto_verify_signature(challenge_ctx->rp_credential_public_key,
                                            challenge_hash,
                                            challenge_ctx->rp_signature,
-                                           SIGNATURE_LENGTH);
+                                           sig_len);
 
-    if (!verified) {
-        PRINTF("Signature not verified\n");
+    if (verified != CX_OK) {
+        PRINTF("Signature not verified %d \n", verified);
         return SW_CHALLENGE_NOT_VERIFIED;
     }
     PRINTF("Signature verified\n");

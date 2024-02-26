@@ -314,7 +314,7 @@ int stream_parse_signature(stream_ctx_t *ctx, buffer_t *data) {
     if (crypto_verify_signature(ctx->current_block_issuer,
                                 final_digest,
                                 signature,
-                                signature_len) != 1) {
+                                signature_len) != CX_OK) {
         return SP_ERR_INVALID_STREAM;
     }
     block_hash_signature(signature, signature_len, &ctx->full_block_digest);

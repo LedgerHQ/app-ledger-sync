@@ -379,7 +379,9 @@ int crypto_verify_signature(const uint8_t *public_key,
         return C_ERROR;
     }
     PRINTF("Verifying signature\n");
-    return cx_ecdsa_verify_no_throw(&pk, digest, CX_SHA256_SIZE, signature, signature_len);
+    return cx_ecdsa_verify_no_throw(&pk, digest, CX_SHA256_SIZE, signature, signature_len)
+               ? CX_OK
+               : C_ERROR;
 }
 
 void crypto_digest_init(crypto_hash_t *hash) {
