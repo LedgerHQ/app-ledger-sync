@@ -164,7 +164,7 @@ static int signer_inject_seed(signer_ctx_t *signer, block_command_t *command) {
     // Set the shared secret in the stream
     memcpy(G_context.stream.shared_secret, xpriv, sizeof(xpriv));
     G_context.stream.shared_secret_len = sizeof(xpriv);
-
+   
     // User approval
     ui_display_add_seed_command();
 
@@ -175,10 +175,9 @@ int add_seed_callback(bool confirm) {
     if (confirm) {
         io_send_trusted_property(SW_OK);
     } else {
+        explicit_bzero(G_context.stream.shared_secret, G_context.stream.shared_secret_len);
         io_send_sw(SW_DENY);
     }
-    explicit_bzero(G_context.stream.shared_secret, G_context.stream.shared_secret_len);
-
     return 0;
 }
 
