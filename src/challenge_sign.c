@@ -40,9 +40,9 @@ static int send_challenge(uint8_t* compressed_seed_id_public_key,
     memcpy(resp + offset, signature, signature_len);
     offset += signature_len;
 
-    // Attestation 
+    // Attestation
     resp[offset++] = APPLICATION_ATTESTATION;
-    
+
     // PubKey
     resp[offset++] = SEED_ID_PUBKEY_VERSION;
     resp[offset++] = SEED_ID_CURVE_ID;

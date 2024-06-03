@@ -12,4 +12,3 @@ typedef struct {
 typedef char crypto_hash_t;
 typedef crypto_secp256k1_private_key_t crypto_private_key_t;
 typedef secp256k1_pubkey crypto_public_key_t;
-
