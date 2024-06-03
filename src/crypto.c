@@ -215,7 +215,7 @@ int crypto_sign_block(void) {
 
     if (error == CX_OK) {
         G_context.signer_info.signature_len = sig_len;
-        G_context.signer_info.v = (uint8_t)(info & CX_ECCINFO_PARITY_ODD);
+        G_context.signer_info.v = (uint8_t) (info & CX_ECCINFO_PARITY_ODD);
     }
 
     return error == CX_OK ? CX_OK : C_ERROR;

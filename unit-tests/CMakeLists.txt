@@ -70,7 +70,7 @@ add_library(crypto SHARED ./lib/crypto.c ./lib/hmac_sha2.c ./lib/sha2.c ./lib/bn
 
 # LINKAGE
 target_link_libraries(test_bip32 PUBLIC cmocka gcov bip32 read crypto base58 write secp256k1)
-target_link_libraries(test_block_parser PUBLIC 
+target_link_libraries(test_block_parser PUBLIC
                       block_parser
                       tlv
                       buffer

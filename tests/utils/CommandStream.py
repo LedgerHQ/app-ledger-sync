@@ -79,18 +79,18 @@ class CommandStream:
         return CommandStream(self._blocks + [signed_block])
 
     '''
-    def push(self, block:CommandBlock, issuer:device, tree = None): 
+    def push(self, block:CommandBlock, issuer:device, tree = None):
         #print(type(issuer))
         stream = []
-     
+
         if len(block.commands) == 0:
             raise ValueError("Attempts to create an empty block")
-        
+
         #UPDATE WITH TREE
         if (len(self._blocks) == 0 or self._blocks[0].commands[0].get_type() != CommandType.Seed) and block.commands[0].get_type() != CommandType.Seed:
             if tree is None:
                 raise ValueError("Null tree cannot be used to sign the new block")
-    
+
             #stream = self._blocks + [block]
         else:
             stream = self._blocks + [block]
@@ -100,7 +100,7 @@ class CommandStream:
 
         signed_block = issuer.sign(stream, tree)
         return CommandStream(self._blocks + [signed_block])
-    
+
     def resolve(self, incomplete=False):
         return CommandStreamResolver.resolve(self._blocks)
 '''
