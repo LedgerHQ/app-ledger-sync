@@ -1,6 +1,9 @@
 #include "tlv.h"
 #include "constants.h"
-#ifndef TEST
+#ifdef TEST
+#include <stdio.h>
+#include <string.h>
+#else
 #include "os.h"
 #endif
 

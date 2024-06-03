@@ -416,7 +416,6 @@ static void test_stream_parse(void** state) {
 
 static void test_parse_derive_command(void** state) {
     (void) state;
-    const char* command = "";
     // TODO: implement
 }
 

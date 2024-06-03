@@ -4,10 +4,14 @@ if(${CMAKE_VERSION} VERSION_LESS 3.10)
     cmake_policy(VERSION ${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION})
 endif()
 
+if (NOT DEFINED ENV{BOLOS_SDK})
+  message(FATAL_ERROR "BOLOS_SDK environment variable not found.")
+endif()
+
 # project information
 project(unit_tests
         VERSION 0.1
-	      DESCRIPTION "Unit tests for Ledger Nano application"
+	      DESCRIPTION "Unit tests for Ledger Application"
         LANGUAGES C)
 
 
