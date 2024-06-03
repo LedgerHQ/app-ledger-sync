@@ -59,7 +59,7 @@ static void ui_add_member_callback(bool approve) {
 }
 
 int ui_display_add_seed_command(void) {
-    nbgl_useCaseChoice(&C_round_warning_64px,
+    nbgl_useCaseChoice(&C_Important_Circle_64px,
                        "Create a new\nsync group ?",
                        NULL,
                        "Yes",
@@ -69,7 +69,7 @@ int ui_display_add_seed_command(void) {
 }
 
 int ui_display_add_member_command(void) {
-    nbgl_useCaseChoice(&C_round_warning_64px,
+    nbgl_useCaseChoice(&C_Important_Circle_64px,
                        "Activate\nWallet Sync ?",
                        NULL,
                        "Yes",
@@ -86,7 +86,7 @@ int ui_display_add_member_confirmed(void) {
 
 int ui_display_seed_id_command(uint8_t* in_host) {
     memcpy(host, in_host, sizeof(host));
-    nbgl_useCaseChoice(&C_round_warning_64px,
+    nbgl_useCaseChoice(&C_Important_Circle_64px,
                        "SeedID request from:",
                        (const char*) host,
                        "Approve",
