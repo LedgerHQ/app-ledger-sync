@@ -42,6 +42,7 @@ ICON_NANOS = icons/app_trustchain_16px.gif
 ICON_NANOX = icons/app_trustchain_14px.gif
 ICON_NANOSP = icons/app_trustchain_14px.gif
 ICON_STAX = icons/app_trustchain_32px.gif
+ICON_FLEX = icons/app_trustchain_40px.gif
 
 # Application allowed derivation curves.
 # Possibles curves are: secp256k1, secp256r1, ed25519 and bls12381g1
