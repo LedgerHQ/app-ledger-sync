@@ -84,6 +84,7 @@ static int signer_inject_seed(signer_ctx_t *signer, block_command_t *command) {
     // Generate private key
     ret = crypto_generate_pair(&public_key, &private_key);
     if (ret != 0) {
+        signer_reset();
         return ret;
     }
 
@@ -95,6 +96,7 @@ static int signer_inject_seed(signer_ctx_t *signer, block_command_t *command) {
                                 command->command.seed.ephemeral_public_key,
                                 secret);
     if (ret != 0) {
+        signer_reset();
         return ret;
     }
 
@@ -117,6 +119,8 @@ static int signer_inject_seed(signer_ctx_t *signer, block_command_t *command) {
                          sizeof(command->command.seed.encrypted_xpriv),
                          false);
     if (ret < 0) {
+        signer_reset();
+        explicit_bzero(&xpriv, sizeof(xpriv));
         return ret;
     }
     command->command.seed.encrypted_xpriv_size = sizeof(command->command.seed.encrypted_xpriv);
@@ -131,6 +135,8 @@ static int signer_inject_seed(signer_ctx_t *signer, block_command_t *command) {
     buffer.offset = 0;
     ret = io_push_trusted_property(TP_XPRIV, &buffer);
     if (ret != 0) {
+        signer_reset();
+        explicit_bzero(&xpriv, sizeof(xpriv));
         return ret;
     }
 
@@ -140,6 +146,8 @@ static int signer_inject_seed(signer_ctx_t *signer, block_command_t *command) {
     buffer.offset = 0;
     ret = io_push_trusted_property(TP_EPHEMERAL_PUBLIC_KEY, &buffer);
     if (ret != 0) {
+        signer_reset();
+        explicit_bzero(&xpriv, sizeof(xpriv));
         return ret;
     }
 
@@ -149,6 +157,8 @@ static int signer_inject_seed(signer_ctx_t *signer, block_command_t *command) {
     buffer.offset = 0;
     ret = io_push_trusted_property(TP_COMMAND_IV, &buffer);
     if (ret != 0) {
+        signer_reset();
+        explicit_bzero(&xpriv, sizeof(xpriv));
         return ret;
     }
 
@@ -158,12 +168,16 @@ static int signer_inject_seed(signer_ctx_t *signer, block_command_t *command) {
     buffer.offset = 0;
     ret = io_push_trusted_property(TP_GROUPKEY, &buffer);
     if (ret != 0) {
+        signer_reset();
+        explicit_bzero(&xpriv, sizeof(xpriv));
         return ret;
     }
 
     // Set the shared secret in the stream
     memcpy(G_context.stream.shared_secret, xpriv, sizeof(xpriv));
     G_context.stream.shared_secret_len = sizeof(xpriv);
+
+    explicit_bzero(&xpriv, sizeof(xpriv));
 
     // User approval
     ui_display_add_seed_command();
