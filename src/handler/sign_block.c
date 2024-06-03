@@ -35,7 +35,6 @@ int handler_sign_block(buffer_t *cdata, uint8_t mode) {
 
         // Expects to read a block header (version, issuer, parent...)
         error = signer_parse_block_header(&G_context.signer_info, &G_context.stream, cdata);
-
         if (error != 0) {
             signer_reset();
             return io_send_sw(SW_STREAM_PARSER_INVALID_FORMAT);

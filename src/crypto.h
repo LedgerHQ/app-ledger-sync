@@ -1,4 +1,3 @@
-
 #pragma once
 
 #include <stdint.h>  // uint*_t
@@ -21,10 +20,6 @@ typedef cx_ecfp_public_key_t crypto_public_key_t;
 #include <assert.h>
 #define LEDGER_ASSERT(x, y) assert(x)
 #endif
-
-#define C_IV_LEN 16
-#define C_ERROR  -1
-#define C_OK     CX_OK
 
 static const uint8_t ATTESTATION_KEY[] = {
     0x97, 0xcf, 0x0c, 0x79, 0xd5, 0x77, 0xc3, 0x48, 0x9e, 0x01, 0x4d, 0x69, 0x80, 0xef, 0xac, 0x5e,
@@ -71,14 +66,13 @@ int crypto_derive_private_key(crypto_private_key_t *private_key,
  * @param[in]  data The data to compute the HMAC of.
  * @param[out] hmac The output buffer to store the hmac
  * @param[out] hmac_length The length of the output buffer.
- * @return 0 on success, error number otherwise.
  */
-int crypto_hmac_sha512(uint8_t *key,
-                       uint32_t key_len,
-                       uint8_t *data,
-                       uint32_t data_len,
-                       uint8_t *hmac,
-                       uint8_t hmac_len);
+void crypto_hmac_sha512(uint8_t *key,
+                        uint32_t key_len,
+                        uint8_t *data,
+                        uint32_t data_len,
+                        uint8_t *hmac,
+                        uint8_t hmac_len);
 
 /**
  * Initialize public key given private key.
@@ -105,9 +99,9 @@ void crypto_init_private_key(uint8_t raw_private_key[static 32], crypto_private_
  * Compress public key.
  * @param[in]  public_key The public key to compress. Must be 65 bytes long (with 0x04 prefix).
  * @param[out] compressed_public_key The compressed public key. Must be 33 bytes long.
- * @return 0 on success, error number otherwise.
  */
-int crypto_compress_public_key(const uint8_t *public_key, uint8_t compressed_public_key[static 33]);
+void crypto_compress_public_key(const uint8_t *public_key,
+                                uint8_t compressed_public_key[static 33]);
 
 /**
  * Decompress public key.
