@@ -40,14 +40,13 @@ static void bn_to_bytes(bn_t *number, uint8_t *out) {
     }
 }
 
-int crypto_hmac_sha512(uint8_t *key,
-                       uint32_t key_len,
-                       uint8_t *data,
-                       uint32_t data_len,
-                       uint8_t *hmac,
-                       uint8_t hmac_len) {
+void crypto_hmac_sha512(uint8_t *key,
+                        uint32_t key_len,
+                        uint8_t *data,
+                        uint32_t data_len,
+                        uint8_t *hmac,
+                        uint8_t hmac_len) {
     hmac_sha512(key, key_len, data, data_len, hmac, hmac_len);
-    return 0;
 }
 
 void crypto_init_public_key(crypto_private_key_t *private_key,

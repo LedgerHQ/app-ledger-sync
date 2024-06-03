@@ -18,7 +18,7 @@ int handler_init_signature_flow(buffer_t *cdata) {
 
     explicit_bzero(&G_context.signer_info, sizeof(G_context.signer_info));
 
-    if (crypto_generate_pair(&session_key, &private_key) != C_OK) {
+    if (crypto_generate_pair(&session_key, &private_key) != CX_OK) {
         return io_send_sw(SW_BAD_STATE);
     }
 
@@ -26,16 +26,11 @@ int handler_init_signature_flow(buffer_t *cdata) {
 
     if ((ret = crypto_ecdh(&private_key,
                            cdata->ptr + cdata->offset,
-                           G_context.signer_info.session_encryption_key)) != 0) {
+                           G_context.signer_info.session_encryption_key)) != CX_OK) {
         explicit_bzero(&private_key, sizeof(private_key));
         return io_send_sw(ret);
     }
-    ret = crypto_compress_public_key(session_key.W, G_context.signer_info.session_key);
-
-    if (ret != 0) {
-        explicit_bzero(&private_key, sizeof(private_key));
-        return io_send_sw(SW_BAD_STATE);
-    }
+    crypto_compress_public_key(session_key.W, G_context.signer_info.session_key);
 
     PRINTF("SESSION PRIVATE KEY: %.*H\n", sizeof(private_key.d), private_key.d);
     PRINTF("SESSION ENCRYPTION KEY: %.*H\n",
@@ -52,11 +47,7 @@ int handler_init_signature_flow(buffer_t *cdata) {
     }
 
     crypto_init_public_key(&private_key, &session_key, derivation_buffer + 1);
-    ret = crypto_compress_public_key(derivation_buffer, G_context.stream.device_public_key);
-    if (ret != 0) {
-        explicit_bzero(&private_key, sizeof(private_key));
-        return io_send_sw(SW_BAD_STATE);
-    }
+    crypto_compress_public_key(derivation_buffer, G_context.stream.device_public_key);
     PRINTF("DEVICE PUBLIC KEY: %.*H\n",
            sizeof(G_context.stream.device_public_key),
            G_context.stream.device_public_key);

@@ -105,10 +105,7 @@ static int get_public_key(uint8_t* compressed_public_key) {
         return SW_SIGNATURE_FAIL;
     }
 
-    if (crypto_compress_public_key(raw_pubkey, compressed_public_key)) {
-        return SW_SIGNATURE_FAIL;
-    }
-
+    crypto_compress_public_key(raw_pubkey, compressed_public_key);
     return 0;
 }
 
@@ -181,9 +178,7 @@ int sign_challenge(uint8_t* challenge_hash) {
         return SW_SIGNATURE_FAIL;
     }
 
-    if (crypto_compress_public_key(ATTESTATION_PUBKEY, &compressed_attestation_public_key)) {
-        return SW_SIGNATURE_FAIL;
-    }
+    crypto_compress_public_key(ATTESTATION_PUBKEY, (uint8_t*) &compressed_attestation_public_key);
 
     return send_challenge(compressed_public_key,
                           signature,

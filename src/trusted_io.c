@@ -44,6 +44,10 @@ int io_push_trusted_property(uint8_t property_type, buffer_t *rdata) {
                             sizeof(G_trusted_io_buffer) - G_trusted_output_len,
                             true);
 
+    if (length < 0) {
+        io_send_sw(SW_WRONG_DATA);
+        return -1;
+    }
     // Write length
     io_apdu_buffer[1] = length;
     G_trusted_output_len += length + 1;

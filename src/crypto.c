@@ -24,9 +24,7 @@
 #include "globals.h"
 
 int crypto_generate_pair(crypto_public_key_t *public_key, crypto_private_key_t *private_key) {
-    return cx_ecfp_generate_pair_no_throw(CX_CURVE_256K1, public_key, private_key, 0) == CX_OK
-               ? CX_OK
-               : C_ERROR;
+    return cx_ecfp_generate_pair_no_throw(CX_CURVE_256K1, public_key, private_key, 0);
 }
 
 int crypto_derive_private_key(cx_ecfp_private_key_t *private_key,
@@ -47,7 +45,9 @@ void crypto_init_public_key(cx_ecfp_private_key_t *private_key,
     LEDGER_ASSERT(
         cx_ecfp_generate_pair_no_throw(CX_CURVE_256K1, public_key, private_key, 1) == CX_OK,
         "Generate pair error");
-    if (raw_public_key != NULL) memmove(raw_public_key, public_key->W + 1, RAW_PUBLIC_KEY_LENGTH);
+    if (raw_public_key != NULL) {
+        memmove(raw_public_key, public_key->W + 1, RAW_PUBLIC_KEY_LENGTH);
+    }
 }
 
 void crypto_init_private_key(uint8_t raw_private_key[static 32],
@@ -58,13 +58,12 @@ void crypto_init_private_key(uint8_t raw_private_key[static 32],
         "Private key init failed");
 }
 
-int crypto_compress_public_key(const uint8_t *public_key,
-                               uint8_t compressed_public_key[static MEMBER_KEY_LEN]) {
+void crypto_compress_public_key(const uint8_t *public_key,
+                                uint8_t compressed_public_key[static MEMBER_KEY_LEN]) {
     for (int i = 0; i < 32; i++) {
         compressed_public_key[1 + i] = public_key[i + 1];
     }
     compressed_public_key[0] = (public_key[RAW_PUBLIC_KEY_LENGTH] & 1) ? 0x03 : 0x02;
-    return 0;
 }
 
 static int ecpoint_decompress(uint8_t prefix, const uint8_t *raw_x, uint8_t *out_y) {
@@ -87,11 +86,11 @@ static int ecpoint_decompress(uint8_t prefix, const uint8_t *raw_x, uint8_t *out
     uint8_t exponent = 3;
     bool is_odd;
     int ret = 0;
-    int err = 0;
+    cx_err_t err = CX_INTERNAL_ERROR;
 
     BEGIN_TRY {
         TRY {
-            err |= cx_bn_lock(32, 0);
+            err = cx_bn_lock(32, 0);
 
             // y_square = 0
             err |= cx_bn_alloc(&y_square, 32);
@@ -168,17 +167,15 @@ static int ecpoint_decompress(uint8_t prefix, const uint8_t *raw_x, uint8_t *out
 
 int crypto_decompress_public_key(const uint8_t *compressed_public_key,
                                  uint8_t public_key[static RAW_PUBLIC_KEY_LENGTH + 1]) {
-    int error = 0;
+    cx_err_t error = CX_INTERNAL_ERROR;
 
-    error = ecpoint_decompress(compressed_public_key[0],
-                               compressed_public_key + 1,
-                               public_key + 1 + 32);
-    if (error != 0) {
-        return error;
-    }
+    CX_CHECK(ecpoint_decompress(compressed_public_key[0],
+                                compressed_public_key + 1,
+                                public_key + 1 + 32));
     memcpy(public_key + 1, compressed_public_key + 1, 32);
     public_key[0] = 0x04;
-    return 0;
+end:
+    return error;
 }
 
 int crypto_sign_block(void) {
@@ -187,18 +184,16 @@ int crypto_sign_block(void) {
     uint8_t chain_code[32] = {0};
     uint32_t info = 0;
     size_t sig_len = 0;
-
-    // Derive private key
-    int error = crypto_derive_private_key(&private_key, chain_code, SEED_ID_PATH, SEED_ID_PATH_LEN);
-
+    cx_err_t error = CX_INTERNAL_ERROR;
     cx_ecfp_public_key_t pk;
     uint8_t PK[1 + RAW_PUBLIC_KEY_LENGTH];
     uint8_t CPK[MEMBER_KEY_LEN];
+
+    // Derive private key
+    CX_CHECK(crypto_derive_private_key(&private_key, chain_code, SEED_ID_PATH, SEED_ID_PATH_LEN));
+
     crypto_init_public_key(&private_key, &pk, PK + 1);
     crypto_compress_public_key(PK, CPK);
-    if (error != 0) {
-        return C_ERROR;
-    }
     PRINTF("PUBLIC KEY (SIGN): %.*H", pk.W_len, pk.W);
     PRINTF("HASH TO SIGN (SIGN): %.*H", HASH_LEN, G_context.stream.last_block_hash);
     // Sign hash of last block
@@ -211,14 +206,14 @@ int crypto_sign_block(void) {
                                    G_context.signer_info.signature,
                                    &sig_len,
                                    &info);
-    explicit_bzero(&private_key, sizeof(private_key));
 
+end:
     if (error == CX_OK) {
         G_context.signer_info.signature_len = sig_len;
         G_context.signer_info.v = (uint8_t) (info & CX_ECCINFO_PARITY_ODD);
     }
-
-    return error == CX_OK ? CX_OK : C_ERROR;
+    explicit_bzero(&private_key, sizeof(private_key));
+    return error;
 }
 
 /**
@@ -227,15 +222,13 @@ int crypto_sign_block(void) {
 int crypto_ecdh(const cx_ecfp_private_key_t *private_key,
                 const uint8_t *compressed_public_key,
                 uint8_t *secret) {
-    int error = 0;
+    cx_err_t error = CX_INTERNAL_ERROR;
     uint8_t raw_public_key[1 + RAW_PUBLIC_KEY_LENGTH] = {0};
-    if ((error = crypto_decompress_public_key(compressed_public_key, raw_public_key)) != 0) {
-        (void) error;
-        return C_ERROR;
-    }
+    CX_CHECK(crypto_decompress_public_key(compressed_public_key, raw_public_key));
     error = cx_ecdh_no_throw(private_key, CX_ECDH_X, raw_public_key, 65, secret, 32);
+end:
     explicit_bzero(&raw_public_key, sizeof(raw_public_key));
-    return error == CX_OK ? CX_OK : C_ERROR;
+    return error;
 }
 
 int crypto_ephemeral_ecdh(const uint8_t *recipient_public_key,
@@ -243,31 +236,25 @@ int crypto_ephemeral_ecdh(const uint8_t *recipient_public_key,
                           uint8_t *secret) {
     PRINTF("crypto_ephemeral_ecdh()\n");
     // Generate ephemeral keypair
-    int ret = 0;
+    cx_err_t error = CX_INTERNAL_ERROR;
     cx_ecfp_private_key_t ephemeral_private_key;
     cx_ecfp_public_key_t ephemeral_public_key;
 
-    ret = cx_ecfp_generate_pair_no_throw(CX_CURVE_256K1,
-                                         &ephemeral_public_key,
-                                         &ephemeral_private_key,
-                                         0);
-    if (ret != 0) {
-        return C_ERROR;
-    }
+    CX_CHECK(cx_ecfp_generate_pair_no_throw(CX_CURVE_256K1,
+                                            &ephemeral_public_key,
+                                            &ephemeral_private_key,
+                                            0));
 
     // Perform ECDH between ephemeral private key and recipient public key
-    ret = crypto_ecdh(&ephemeral_private_key, recipient_public_key, secret);
-    if (ret != 0) {
-        explicit_bzero(&ephemeral_private_key, sizeof(ephemeral_private_key));
-        return C_ERROR;
-    }
+    CX_CHECK(crypto_ecdh(&ephemeral_private_key, recipient_public_key, secret));
 
     // Compress ephemeral public key
-    ret = crypto_compress_public_key(ephemeral_public_key.W, out_ephemeral_public_key);
+    crypto_compress_public_key(ephemeral_public_key.W, out_ephemeral_public_key);
 
+end:
     // Clean up
     explicit_bzero(&ephemeral_private_key, sizeof(ephemeral_private_key));
-    return ret == CX_OK ? CX_OK : C_ERROR;
+    return error;
 }
 
 int crypto_ecdhe_decrypt(const cx_ecfp_private_key_t *private_key,
@@ -278,23 +265,22 @@ int crypto_ecdhe_decrypt(const cx_ecfp_private_key_t *private_key,
                          uint8_t *decrypted_data,
                          uint32_t decrypted_data_len) {
     uint8_t secret[32];
-    int ret = CX_OK;
+    cx_err_t error = CX_INTERNAL_ERROR;
+
     // Compute secret key
-    ret = crypto_ecdh(private_key, sender_public_key, secret);
-    if (ret != 0) {
-        return ret;
-    }
+    CX_CHECK(crypto_ecdh(private_key, sender_public_key, secret));
 
     // Decrypt
-    ret = crypto_decrypt(secret,
-                         sizeof(secret),
-                         data,
-                         data_len,
-                         initialization_vector,
-                         decrypted_data,
-                         decrypted_data_len,
-                         false);
-    return ret;
+    error = crypto_decrypt(secret,
+                           sizeof(secret),
+                           data,
+                           data_len,
+                           initialization_vector,
+                           decrypted_data,
+                           decrypted_data_len,
+                           false);
+end:
+    return error;
 }
 
 int crypto_encrypt(const uint8_t *secret,
@@ -305,25 +291,27 @@ int crypto_encrypt(const uint8_t *secret,
                    uint8_t *encrypted_data,
                    uint32_t encrypted_data_len,
                    bool padding) {
-    int ret = CX_OK;
+    cx_err_t error = CX_INTERNAL_ERROR;
     size_t out_len = encrypted_data_len;
     cx_aes_key_t key;
 
-    ret = cx_aes_init_key_no_throw(secret, secret_len, &key);
-    if (ret != CX_OK) {
-        return C_ERROR;
-    }
-    ret = cx_aes_iv_no_throw(
+    CX_CHECK(cx_aes_init_key_no_throw(secret, secret_len, &key));
+
+    error = cx_aes_iv_no_throw(
         &key,
         CX_ENCRYPT | CX_CHAIN_CBC | CX_LAST | (padding ? CX_PAD_ISO9797M2 : CX_PAD_NONE),
         initialization_vector,
-        C_IV_LEN,
+        CX_AES_BLOCK_SIZE,
         data,
         data_len,
         encrypted_data,
         &out_len);
+    if (error == CX_OK) {
+        error = out_len;
+    }
+end:
     explicit_bzero(&key, sizeof(key));
-    return ret == CX_OK ? out_len : C_ERROR;
+    return error;
 }
 
 int crypto_decrypt(const uint8_t *secret,
@@ -334,58 +322,54 @@ int crypto_decrypt(const uint8_t *secret,
                    uint8_t *decrypted_data,
                    uint32_t decrypted_data_len,
                    bool padding) {
-    int ret = CX_OK;
+    cx_err_t error = CX_INTERNAL_ERROR;
     cx_aes_key_t key;
     size_t out_len = decrypted_data_len;
 
-    ret = cx_aes_init_key_no_throw(secret, secret_len, &key);
-    if (ret < 0) {
-        return C_ERROR;
-    }
-    ret = cx_aes_iv_no_throw(
+    CX_CHECK(cx_aes_init_key_no_throw(secret, secret_len, &key));
+
+    error = cx_aes_iv_no_throw(
         &key,
         CX_DECRYPT | CX_CHAIN_CBC | CX_LAST | (padding ? CX_PAD_ISO9797M2 : CX_PAD_NONE),
         initialization_vector,
-        C_IV_LEN,
+        CX_AES_BLOCK_SIZE,
         data,
         data_len,
         decrypted_data,
         &out_len);
+    if (error == CX_OK) {
+        error = out_len;
+    }
+end:
     explicit_bzero(&key, sizeof(key));
-    return ret == CX_OK ? out_len : C_ERROR;
+    return error;
 }
 
 int crypto_verify_signature(const uint8_t *public_key,
                             const uint8_t *digest,
                             uint8_t *signature,
                             size_t signature_len) {
-    int ret = CX_OK;
+    cx_err_t error = CX_INTERNAL_ERROR;
     cx_ecfp_public_key_t pk;
     uint8_t raw_public_key[RAW_PUBLIC_KEY_LENGTH + 1] = {0};
 
-    ret = crypto_decompress_public_key(public_key, raw_public_key);
-    if (ret != CX_OK) {
-        PRINTF("Failed to decompress public key\n");
-        return C_ERROR;
-    }
+    CX_CHECK(crypto_decompress_public_key(public_key, raw_public_key));
     PRINTF("PUBLIC KEY: %.*H\n", sizeof(raw_public_key), raw_public_key);
     PRINTF("HASH TO SIGN: %.*H\n", HASH_LEN, digest);
     PRINTF("SIGNATURE: %.*H\n", signature_len, signature);
-    ret = cx_ecfp_init_public_key_no_throw(CX_CURVE_256K1,
-                                           raw_public_key,
-                                           sizeof(raw_public_key),
-                                           &pk);
-    if (ret != CX_OK) {
-        return C_ERROR;
-    }
+    CX_CHECK(cx_ecfp_init_public_key_no_throw(CX_CURVE_256K1,
+                                              raw_public_key,
+                                              sizeof(raw_public_key),
+                                              &pk));
     PRINTF("Verifying signature\n");
-    return cx_ecdsa_verify_no_throw(&pk, digest, CX_SHA256_SIZE, signature, signature_len)
-               ? CX_OK
-               : C_ERROR;
+    error = cx_ecdsa_verify_no_throw(&pk, digest, CX_SHA256_SIZE, signature, signature_len) ? CX_OK
+                                                                                            : -1;
+end:
+    return error;
 }
 
 void crypto_digest_init(crypto_hash_t *hash) {
-    cx_sha256_init((cx_sha256_t *) hash);
+    LEDGER_ASSERT(cx_sha256_init_no_throw((cx_sha256_t *) hash) == CX_OK, "Crypto digest error");
 }
 
 void crypto_digest_update(crypto_hash_t *hash, const uint8_t *data, uint32_t len) {
@@ -403,14 +387,13 @@ void crypto_digest(const uint8_t *data, uint32_t len, uint8_t *digest, uint32_t 
                   "Crypto digest error");
 }
 
-int crypto_hmac_sha512(uint8_t *key,
-                       uint32_t key_len,
-                       uint8_t *data,
-                       uint32_t data_len,
-                       uint8_t *hmac,
-                       uint8_t hmac_len) {
+void crypto_hmac_sha512(uint8_t *key,
+                        uint32_t key_len,
+                        uint8_t *data,
+                        uint32_t data_len,
+                        uint8_t *hmac,
+                        uint8_t hmac_len) {
     cx_hmac_sha512(key, key_len, data, data_len, hmac, hmac_len);
-    return 0;
 }
 
 int crypto_ec_add_mod_n(const uint8_t *a, const uint8_t *b, uint8_t *out) {
@@ -418,11 +401,12 @@ int crypto_ec_add_mod_n(const uint8_t *a, const uint8_t *b, uint8_t *out) {
     cx_bn_t a_bn;
     cx_bn_t b_bn;
     cx_bn_t out_bn;
-    int err = 0;
+    int ret = 0;
+    cx_err_t err = CX_INTERNAL_ERROR;
 
     BEGIN_TRY {
         TRY {
-            err |= cx_bn_lock(32, 0);
+            err = cx_bn_lock(32, 0);
             err |= cx_bn_alloc(&n, 32);
             err |= cx_ecdomain_parameter_bn(CX_CURVE_256K1, CX_CURVE_PARAM_Order, n);
             err |= cx_bn_alloc_init(&a_bn, 32, a, 32);
@@ -430,47 +414,47 @@ int crypto_ec_add_mod_n(const uint8_t *a, const uint8_t *b, uint8_t *out) {
             err |= cx_bn_alloc(&out_bn, 32);
             err |= cx_bn_mod_add(out_bn, a_bn, b_bn, n);
             err |= cx_bn_export(out_bn, out, 32);
+        }
+        CATCH_OTHER(e) {
+            ret = e;
+        }
+        FINALLY {
             err |= cx_bn_destroy(&a_bn);
             err |= cx_bn_destroy(&b_bn);
             err |= cx_bn_destroy(&out_bn);
-        }
-        CATCH_OTHER(e) {
-            return e;
-        }
-        FINALLY {
             err |= cx_bn_unlock();
         }
     }
     END_TRY;
 
     LEDGER_ASSERT(err == CX_OK, "Crypto Error");
-    return 0;
+    return ret;
 }
 
 bool crypto_ec_is_point_on_curve(const uint8_t *private_key) {
     cx_bn_t n;
     cx_bn_t private_key_bn;
-    int ret;
-    int err = 0;
+    int ret = 0;
+    cx_err_t err = CX_INTERNAL_ERROR;
 
     BEGIN_TRY {
         TRY {
-            err |= cx_bn_lock(32, 0);
+            err = cx_bn_lock(32, 0);
             err |= cx_bn_alloc(&n, 32);
             err |= cx_ecdomain_parameter_bn(CX_CURVE_256K1, CX_CURVE_PARAM_Order, n);
             err |= cx_bn_alloc_init(&private_key_bn, 32, private_key, 32);
             err |= cx_bn_cmp(private_key_bn, n, &ret);
-            err |= cx_bn_destroy(&private_key_bn);
-            err |= cx_bn_destroy(&n);
         }
         CATCH_OTHER(e) {
-            return e;
+            ret = e;
         }
         FINALLY {
+            err |= cx_bn_destroy(&private_key_bn);
+            err |= cx_bn_destroy(&n);
             err |= cx_bn_unlock();
         }
     }
     END_TRY;
     LEDGER_ASSERT(err == CX_OK, "Crypto Error");
-    return ret < 0;
+    return ret;
 }

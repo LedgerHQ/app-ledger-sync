@@ -85,45 +85,34 @@ static int bip32_derive_xpriv(uint8_t *parent_private_key,
     LEDGER_ASSERT(child_private_key != NULL, "Null child_private_key\n");
     LEDGER_ASSERT(child_chain_code != NULL, "Null child_chain_code\n");
 
-iteration:
-    if (index >= 1u << 31u) {
-        data.hard[0] = 0x00;
-        memcpy(data.hard + 1, parent_private_key, PRIVATE_KEY_LEN);
-        write_u32_be(data.hard, MEMBER_KEY_LEN, index);
-        ret = crypto_hmac_sha512(parent_chain_code, 32, data.hard, sizeof(data.hard), I, sizeof(I));
+    do {
+        if (index >= (1u << 31u)) {
+            data.hard[0] = 0x00;
+            memcpy(data.hard + 1, parent_private_key, PRIVATE_KEY_LEN);
+            write_u32_be(data.hard, MEMBER_KEY_LEN, index);
+            crypto_hmac_sha512(parent_chain_code, 32, data.hard, sizeof(data.hard), I, sizeof(I));
+        } else {
+            crypto_init_private_key(parent_private_key, &data.soft.private_key);
+            crypto_init_public_key(&data.soft.private_key,
+                                   &data.soft.public_key,
+                                   data.soft.raw_public_key + 1);
+            data.soft.raw_public_key[0] = 0x04;
+            crypto_compress_public_key(data.soft.raw_public_key, data.soft.compressed_public_key);
+            write_u32_be(data.soft.compressed_public_key, MEMBER_KEY_LEN, index);
+            crypto_hmac_sha512(parent_chain_code,
+                               32,
+                               data.soft.compressed_public_key,
+                               37,
+                               I,
+                               sizeof(I));
+        }
+        ret = crypto_ec_add_mod_n(parent_private_key, I, child_private_key);
         if (ret != 0) {
             return ret;
         }
-    } else {
-        crypto_init_private_key(parent_private_key, &data.soft.private_key);
-        crypto_init_public_key(&data.soft.private_key,
-                               &data.soft.public_key,
-                               data.soft.raw_public_key + 1);
-        data.soft.raw_public_key[0] = 0x04;
-        ret = crypto_compress_public_key(data.soft.raw_public_key, data.soft.compressed_public_key);
-        if (ret != 0) {
-            return ret;
-        }
-        write_u32_be(data.soft.compressed_public_key, MEMBER_KEY_LEN, index);
-        ret = crypto_hmac_sha512(parent_chain_code,
-                                 32,
-                                 data.soft.compressed_public_key,
-                                 37,
-                                 I,
-                                 sizeof(I));
-        if (ret != 0) {
-            return ret;
-        }
-    }
-    ret = crypto_ec_add_mod_n(parent_private_key, I, child_private_key);
-    if (ret != 0) {
-        return ret;
-    }
-    if (!crypto_ec_is_point_on_curve(child_private_key)) {
-        index += 1;
-        PRINTF("got iteration\n");
-        goto iteration;
-    }
+        index++;
+    } while (!crypto_ec_is_point_on_curve(child_private_key));
+
     memcpy(child_chain_code, I + 32, 32);
     return ret;
 }
