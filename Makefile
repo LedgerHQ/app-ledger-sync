@@ -28,9 +28,9 @@ include $(BOLOS_SDK)/Makefile.defines
 APPNAME = "Trustchain"
 
 # Application version
-APPVERSION_M = 0
+APPVERSION_M = 1
 APPVERSION_N = 0
-APPVERSION_P = 1
+APPVERSION_P = 0
 APPVERSION = "$(APPVERSION_M).$(APPVERSION_N).$(APPVERSION_P)"
 
 # Application source files
@@ -64,12 +64,11 @@ PATH_APP_LOAD_PARAMS = "99'/99'"   # purpose=coin(44) / coin_type=Testnet(1)
 # - <VARIANT_VALUES> a list of variant that can be build using this app code.
 #   * It must at least contains one value.
 #   * Values can be the app ticker or anything else but should be unique.
-VARIANT_PARAM = COIN
+VARIANT_PARAM = APPNAME
 VARIANT_VALUES = Trustchain
 
 # Enabling DEBUG flag will enable PRINTF and disable optimizations
-DEBUG = 1
-ENABLE_DEBUG=1
+#DEBUG = 1
 
 ########################################
 #     Application custom permissions   #
