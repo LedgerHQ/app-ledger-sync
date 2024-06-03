@@ -76,22 +76,19 @@ void crypto_init_private_key(uint8_t raw_private_key[static 32],
     memcpy(private_key->raw, raw_private_key, 32);
 }
 
-int crypto_compress_public_key(const uint8_t *public_key,
-                               uint8_t compressed_public_key[static 33]) {
+void crypto_compress_public_key(const uint8_t *public_key,
+                                uint8_t compressed_public_key[static 33]) {
     crypto_public_key_t pubkey;
     size_t length = 33;
-    int ret = 0;
 
     secp256k1_context *ctx = secp256k1_context_create(SECP256K1_CONTEXT_NONE);
-    ret = secp256k1_ec_pubkey_parse(ctx, &pubkey, public_key, 65);
-    (void) ret;
+    assert(secp256k1_ec_pubkey_parse(ctx, &pubkey, public_key, 65) == 1);
     secp256k1_ec_pubkey_serialize(ctx,
                                   compressed_public_key,
                                   &length,
                                   &pubkey,
                                   SECP256K1_EC_COMPRESSED);
     secp256k1_context_destroy(ctx);
-    return 0;
 }
 
 int crypto_ec_add_mod_n(const uint8_t *a, const uint8_t *b, uint8_t *out) {

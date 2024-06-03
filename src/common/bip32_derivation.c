@@ -14,6 +14,9 @@
  *  limitations under the License.
  *****************************************************************************/
 
+#ifdef TEST
+#include <string.h>
+#endif
 #include "types.h"
 #include "write.h"
 #include "constants.h"
