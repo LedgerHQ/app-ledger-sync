@@ -17,6 +17,7 @@ unit-tests/coverage.info
 fuzzing/build/
 
 # Python
+venv/
 *.pyc[cod]
 *.egg
 __pycache__/
