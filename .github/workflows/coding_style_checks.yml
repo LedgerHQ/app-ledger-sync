@@ -21,4 +21,11 @@ jobs:
     with:
       source: './src'
       extensions: 'h,c'
-      version: 11
+      version: 12
+
+  yamllint:
+    name: Check yaml files
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: yamllint .
