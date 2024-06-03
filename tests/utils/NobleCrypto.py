@@ -209,15 +209,15 @@ class DerivationPath:
 
 
 '''
-def ecdh(keyPair, publicKey): 
+def ecdh(keyPair, publicKey):
             group = ecc.SubGroup(0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f, (0x79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798,
                                             0x483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8), 0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141,0x1)
             curve = ecc.Curve(0x0, 0x7,group, 'secp256k1')
-        
+
             keyPair1 = ecc.Keypair(curve, int.from_bytes(keyPair['privateKey'],byteorder='big', signed = False),int.from_bytes(keyPair['publicKey'],byteorder='big', signed = False))
             keyPair2 = ecc.Keypair(curve, None, int.from_bytes(publicKey,byteorder='big', signed = False))
 
-        
+
             objECDH = ecc.ECDH(keyPair1)
             secret = objECDH.get_secret(keyPair2)
             #secret = secret.to_bytes(65,'big')
