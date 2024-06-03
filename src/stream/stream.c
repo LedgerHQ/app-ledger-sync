@@ -83,7 +83,7 @@ inline static int stream_parse_seed_command(stream_ctx_t *ctx,
                                             block_command_t *command,
                                             uint8_t *trusted_data,
                                             size_t trusted_data_len) {
-    int ret = CX_OK;
+    cx_err_t error = CX_INTERNAL_ERROR;
     cx_ecfp_private_key_t private_key = {0};
     uint8_t chain_code[32] = {0};
 
@@ -94,11 +94,8 @@ inline static int stream_parse_seed_command(stream_ctx_t *ctx,
     // otherwise create and return a trusted member
     if (memcmp(ctx->current_block_issuer, ctx->device_public_key, MEMBER_KEY_LEN) == 0) {
         // Initialize private key
-        ret = crypto_derive_private_key(&private_key, chain_code, SEED_ID_PATH, SEED_ID_PATH_LEN);
-        if (ret != CX_OK) {
-            explicit_bzero(&private_key, sizeof(private_key));
-            return ret;
-        }
+        CX_CHECK(
+            crypto_derive_private_key(&private_key, chain_code, SEED_ID_PATH, SEED_ID_PATH_LEN));
         // Decrypt the seed
         ctx->shared_secret_len = crypto_ecdhe_decrypt(&private_key,
                                                       command->command.seed.ephemeral_public_key,
@@ -109,7 +106,8 @@ inline static int stream_parse_seed_command(stream_ctx_t *ctx,
                                                       sizeof(ctx->shared_secret));
         explicit_bzero(&private_key, sizeof(private_key));
         if (ctx->shared_secret_len != 2 * PRIVATE_KEY_LEN) {
-            return SP_ERR_INVALID_STREAM;
+            error = SP_ERR_INVALID_STREAM;
+            goto end;
         }
         PRINTF("STREAM SHARED SECRET: %.*H", ctx->shared_secret_len, ctx->shared_secret);
     } else {
@@ -117,12 +115,14 @@ inline static int stream_parse_seed_command(stream_ctx_t *ctx,
         memcpy(ctx->trusted_member.member_key, ctx->current_block_issuer, MEMBER_KEY_LEN);
         ctx->trusted_member.owns_key = true;
         ctx->trusted_member.permissions = OWNER;
-        ret = serialize_trusted_member(&ctx->trusted_member, trusted_data, trusted_data_len);
+        error = serialize_trusted_member(&ctx->trusted_member, trusted_data, trusted_data_len);
     }
 
     // Update the stream context
     ctx->is_created = true;
-    return ret;
+end:
+    explicit_bzero(&private_key, sizeof(private_key));
+    return error;
 }
 
 inline static int stream_parse_derive_command(stream_ctx_t *ctx,
@@ -133,16 +133,13 @@ inline static int stream_parse_derive_command(stream_ctx_t *ctx,
     (void) trusted_data_len;
     cx_ecfp_private_key_t private_key = {0};
     uint8_t chain_code[32] = {0};
-    int ret = CX_OK;
+    cx_err_t error = CX_INTERNAL_ERROR;
 
     // If the command was issued by the device, save the seed in the stream context
     if (memcmp(ctx->current_block_issuer, ctx->device_public_key, MEMBER_KEY_LEN) == 0) {
         // Initialize private key
-        ret = crypto_derive_private_key(&private_key, chain_code, SEED_ID_PATH, SEED_ID_PATH_LEN);
-        if (ret != CX_OK) {
-            explicit_bzero(&private_key, sizeof(private_key));
-            return ret;
-        }
+        CX_CHECK(
+            crypto_derive_private_key(&private_key, chain_code, SEED_ID_PATH, SEED_ID_PATH_LEN));
         // Decrypt the xpriv
         ctx->shared_secret_len =
             crypto_ecdhe_decrypt(&private_key,
@@ -154,16 +151,19 @@ inline static int stream_parse_derive_command(stream_ctx_t *ctx,
                                  sizeof(ctx->shared_secret));
         explicit_bzero(&private_key, sizeof(private_key));
         if (ctx->shared_secret_len != 2 * PRIVATE_KEY_LEN) {
-            return SP_ERR_INVALID_STREAM;
+            error = SP_ERR_INVALID_STREAM;
+            goto end;
         }
         PRINTF("STREAM SHARED SECRET (from derivation): %.*H",
                ctx->shared_secret_len,
                ctx->shared_secret);
-        return SP_OK;
     }
 
     // Nothing to update in the stream context
-    return SP_OK;
+    error = SP_OK;
+end:
+    explicit_bzero(&private_key, sizeof(private_key));
+    return error;
 }
 
 inline static int stream_parse_add_member_command(stream_ctx_t *ctx,
