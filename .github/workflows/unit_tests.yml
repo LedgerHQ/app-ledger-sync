@@ -46,6 +46,6 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./unit-tests/coverage.info
           flags: unittests
-          name: codecov-app-boilerplate
+          name: codecov-app-trustchain
           fail_ci_if_error: true
           verbose: true
