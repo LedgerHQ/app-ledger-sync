@@ -132,7 +132,6 @@ int crypto_ephemeral_ecdh(const uint8_t *recipient_public_key,
 
 /**
  * Performs an ephemeral ECDH and decrypts the given data.
- * @param[in]  private_key The private key of the recipient.
  * @param[in]  sender_public_key The public key of the sender.
  * @param[in]  data The data to decrypt.
  * @param[in]  data_len The length of the data to decrypt.
@@ -141,13 +140,12 @@ int crypto_ephemeral_ecdh(const uint8_t *recipient_public_key,
  * @param[in]  decrypted_data_len The length of the decrypted data buffer.
  * @return The length of the decrypted data on success, a negative number in case of error.
  */
-int crypto_ecdhe_decrypt(const crypto_private_key_t *private_key,
-                         const uint8_t *sender_public_key,
-                         const uint8_t *data,
-                         uint32_t data_len,
-                         uint8_t *initialization_vector,
-                         uint8_t *decrypted_data,
-                         uint32_t decrypted_data_len);
+int crypto_ecdh_decrypt(const uint8_t *sender_public_key,
+                        const uint8_t *data,
+                        uint32_t data_len,
+                        uint8_t *initialization_vector,
+                        uint8_t *decrypted_data,
+                        uint32_t decrypted_data_len);
 
 /**
  * Encrypt data with the given secret and IV

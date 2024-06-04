@@ -155,39 +155,29 @@ end:
 
 int crypto_sign_block(void) {
     PRINTF("crypto_sign_block()\n");
-    cx_ecfp_private_key_t private_key = {0};
-    uint8_t chain_code[32] = {0};
     uint32_t info = 0;
     size_t sig_len = 0;
     cx_err_t error = CX_INTERNAL_ERROR;
-    cx_ecfp_public_key_t pk;
-    uint8_t PK[1 + RAW_PUBLIC_KEY_LENGTH];
-    uint8_t CPK[MEMBER_KEY_LEN];
 
-    // Derive private key
-    CX_CHECK(crypto_derive_private_key(&private_key, chain_code, SEED_ID_PATH, SEED_ID_PATH_LEN));
-
-    crypto_init_public_key(&private_key, &pk, PK + 1);
-    crypto_compress_public_key(PK, CPK);
-    PRINTF("PUBLIC KEY (SIGN): %.*H", pk.W_len, pk.W);
-    PRINTF("HASH TO SIGN (SIGN): %.*H", HASH_LEN, G_context.stream.last_block_hash);
-    // Sign hash of last block
     sig_len = sizeof(G_context.signer_info.signature);
-    error = cx_ecdsa_sign_no_throw(&private_key,
-                                   CX_RND_RFC6979 | CX_LAST,
-                                   CX_SHA256,
-                                   G_context.stream.last_block_hash,
-                                   sizeof(G_context.stream.last_block_hash),
-                                   G_context.signer_info.signature,
-                                   &sig_len,
-                                   &info);
+    error = bip32_derive_with_seed_ecdsa_sign_hash_256(HDW_NORMAL,
+                                                       CX_CURVE_256K1,
+                                                       SEED_ID_PATH,
+                                                       SEED_ID_PATH_LEN,
+                                                       CX_RND_RFC6979 | CX_LAST,
+                                                       CX_SHA256,
+                                                       G_context.stream.last_block_hash,
+                                                       sizeof(G_context.stream.last_block_hash),
+                                                       G_context.signer_info.signature,
+                                                       &sig_len,
+                                                       &info,
+                                                       NULL,
+                                                       0);
 
-end:
     if (error == CX_OK) {
         G_context.signer_info.signature_len = sig_len;
         G_context.signer_info.v = (uint8_t) (info & CX_ECCINFO_PARITY_ODD);
     }
-    explicit_bzero(&private_key, sizeof(private_key));
     return error;
 }
 
@@ -232,18 +222,22 @@ end:
     return error;
 }
 
-int crypto_ecdhe_decrypt(const cx_ecfp_private_key_t *private_key,
-                         const uint8_t *sender_public_key,
-                         const uint8_t *data,
-                         uint32_t data_len,
-                         uint8_t *initialization_vector,
-                         uint8_t *decrypted_data,
-                         uint32_t decrypted_data_len) {
+int crypto_ecdh_decrypt(const uint8_t *sender_public_key,
+                        const uint8_t *data,
+                        uint32_t data_len,
+                        uint8_t *initialization_vector,
+                        uint8_t *decrypted_data,
+                        uint32_t decrypted_data_len) {
     uint8_t secret[32];
+    uint8_t chain_code[32] = {0};
+    cx_ecfp_private_key_t private_key = {0};
     cx_err_t error = CX_INTERNAL_ERROR;
 
+    // Initialize private key
+    CX_CHECK(crypto_derive_private_key(&private_key, chain_code, SEED_ID_PATH, SEED_ID_PATH_LEN));
+
     // Compute secret key
-    CX_CHECK(crypto_ecdh(private_key, sender_public_key, secret));
+    CX_CHECK(crypto_ecdh(&private_key, sender_public_key, secret));
 
     // Decrypt
     error = crypto_decrypt(secret,
@@ -255,6 +249,8 @@ int crypto_ecdhe_decrypt(const cx_ecfp_private_key_t *private_key,
                            decrypted_data_len,
                            false);
 end:
+    explicit_bzero(&secret, sizeof(secret));
+    explicit_bzero(&private_key, sizeof(private_key));
     return error;
 }
 
