@@ -153,6 +153,7 @@ end:
     if (error != CX_OK) {
         signer_reset();
     }
+    explicit_bzero(&secret, sizeof(secret));
     explicit_bzero(&xpriv, sizeof(xpriv));
     return error;
 }
@@ -260,6 +261,7 @@ static int signer_inject_derive(block_command_t *command) {
     error = io_push_trusted_property(TP_GROUPKEY, &buffer);
 
 end:
+    explicit_bzero(secret, sizeof(secret));
     return error;
 }
 
@@ -374,6 +376,7 @@ static int signer_inject_publish_key(block_command_t *command) {
     serialize_trusted_member(&G_context.stream.trusted_member, buffer, sizeof(buffer));
     error = io_push_trusted_property(TP_NEW_MEMBER, &trusted_property);
 end:
+    explicit_bzero(&secret, sizeof(secret));
     return error;
 }
 

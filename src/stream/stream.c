@@ -84,8 +84,6 @@ inline static int stream_parse_seed_command(stream_ctx_t *ctx,
                                             uint8_t *trusted_data,
                                             size_t trusted_data_len) {
     cx_err_t error = CX_INTERNAL_ERROR;
-    cx_ecfp_private_key_t private_key = {0};
-    uint8_t chain_code[32] = {0};
 
     PRINTF("BLOCK ISSUER: %.*H", MEMBER_KEY_LEN, ctx->current_block_issuer);
     PRINTF("DEVICE KEY: %.*H", MEMBER_KEY_LEN, ctx->device_public_key);
@@ -93,22 +91,18 @@ inline static int stream_parse_seed_command(stream_ctx_t *ctx,
     // If the command was issued by the device, save the seed in the stream context
     // otherwise create and return a trusted member
     if (memcmp(ctx->current_block_issuer, ctx->device_public_key, MEMBER_KEY_LEN) == 0) {
-        // Initialize private key
-        CX_CHECK(
-            crypto_derive_private_key(&private_key, chain_code, SEED_ID_PATH, SEED_ID_PATH_LEN));
         // Decrypt the seed
-        ctx->shared_secret_len = crypto_ecdhe_decrypt(&private_key,
-                                                      command->command.seed.ephemeral_public_key,
-                                                      command->command.seed.encrypted_xpriv,
-                                                      sizeof(command->command.seed.encrypted_xpriv),
-                                                      command->command.seed.initialization_vector,
-                                                      ctx->shared_secret,
-                                                      sizeof(ctx->shared_secret));
-        explicit_bzero(&private_key, sizeof(private_key));
+        ctx->shared_secret_len = crypto_ecdh_decrypt(command->command.seed.ephemeral_public_key,
+                                                     command->command.seed.encrypted_xpriv,
+                                                     sizeof(command->command.seed.encrypted_xpriv),
+                                                     command->command.seed.initialization_vector,
+                                                     ctx->shared_secret,
+                                                     sizeof(ctx->shared_secret));
         if (ctx->shared_secret_len != 2 * PRIVATE_KEY_LEN) {
             error = SP_ERR_INVALID_STREAM;
             goto end;
         }
+        error = SP_OK;
         PRINTF("STREAM SHARED SECRET: %.*H", ctx->shared_secret_len, ctx->shared_secret);
     } else {
         // Issue a trusted member for the issuer
@@ -121,35 +115,22 @@ inline static int stream_parse_seed_command(stream_ctx_t *ctx,
     // Update the stream context
     ctx->is_created = true;
 end:
-    explicit_bzero(&private_key, sizeof(private_key));
     return error;
 }
 
-inline static int stream_parse_derive_command(stream_ctx_t *ctx,
-                                              block_command_t *command,
-                                              uint8_t *trusted_data,
-                                              size_t trusted_data_len) {
-    (void) trusted_data;
-    (void) trusted_data_len;
-    cx_ecfp_private_key_t private_key = {0};
-    uint8_t chain_code[32] = {0};
+inline static int stream_parse_derive_command(stream_ctx_t *ctx, block_command_t *command) {
     cx_err_t error = CX_INTERNAL_ERROR;
 
     // If the command was issued by the device, save the seed in the stream context
     if (memcmp(ctx->current_block_issuer, ctx->device_public_key, MEMBER_KEY_LEN) == 0) {
-        // Initialize private key
-        CX_CHECK(
-            crypto_derive_private_key(&private_key, chain_code, SEED_ID_PATH, SEED_ID_PATH_LEN));
         // Decrypt the xpriv
         ctx->shared_secret_len =
-            crypto_ecdhe_decrypt(&private_key,
-                                 command->command.derive.ephemeral_public_key,
-                                 command->command.derive.encrypted_xpriv,
-                                 sizeof(command->command.derive.encrypted_xpriv),
-                                 command->command.derive.initialization_vector,
-                                 ctx->shared_secret,
-                                 sizeof(ctx->shared_secret));
-        explicit_bzero(&private_key, sizeof(private_key));
+            crypto_ecdh_decrypt(command->command.derive.ephemeral_public_key,
+                                command->command.derive.encrypted_xpriv,
+                                sizeof(command->command.derive.encrypted_xpriv),
+                                command->command.derive.initialization_vector,
+                                ctx->shared_secret,
+                                sizeof(ctx->shared_secret));
         if (ctx->shared_secret_len != 2 * PRIVATE_KEY_LEN) {
             error = SP_ERR_INVALID_STREAM;
             goto end;
@@ -162,7 +143,6 @@ inline static int stream_parse_derive_command(stream_ctx_t *ctx,
     // Nothing to update in the stream context
     error = SP_OK;
 end:
-    explicit_bzero(&private_key, sizeof(private_key));
     return error;
 }
 
@@ -258,7 +238,7 @@ int stream_parse_command(stream_ctx_t *ctx,
             length = stream_parse_seed_command(ctx, &command, trusted_data, trusted_data_len);
             break;
         case COMMAND_DERIVE:
-            length = stream_parse_derive_command(ctx, &command, trusted_data, trusted_data_len);
+            length = stream_parse_derive_command(ctx, &command);
             break;
         case COMMAND_ADD_MEMBER:
             length = stream_parse_add_member_command(ctx, &command, trusted_data, trusted_data_len);

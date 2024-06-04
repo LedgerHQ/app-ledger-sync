@@ -109,6 +109,7 @@ static int bip32_derive_xpriv(uint8_t *parent_private_key,
                                I,
                                sizeof(I));
         }
+        explicit_bzero(&data, sizeof(data));
         ret = crypto_ec_add_mod_n(parent_private_key, I, child_private_key);
         if (ret != 0) {
             return ret;
