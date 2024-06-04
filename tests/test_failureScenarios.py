@@ -1,7 +1,9 @@
 import pytest
+
 from ragger.error import ExceptionRAPDU
-from ragger.backend.interface import BackendInterface
-from ragger.navigator import NavInsID
+from ragger.backend import BackendInterface
+from ragger.firmware import Firmware
+from ragger.navigator import Navigator
 
 from utils.CommandStream import CommandStream
 from utils.NobleCrypto import Crypto
@@ -10,21 +12,18 @@ from utils.index import device
 from utils.ApduDevice import Device, Automation
 from utils.CommandStreamEncoder import CommandStreamEncoder
 
-from ragger.navigator import NavInsID, NavIns, Navigator
-from pathlib import Path
+from constants import DEFAULT_TOPIC, approve_instructions_nano, approve_instructions_stax
 
-DEFAULT_TOPIC = "c96d450545ff2836204c29af291428a5bf740304978f5dfb0b4a261474192851"
-valid_seed_instructions_nano = [NavInsID.RIGHT_CLICK, NavInsID.BOTH_CLICK]
-valid_seed_instructions_stax = [NavInsID.USE_CASE_CHOICE_CONFIRM]
 
 # Basic Signature Flow
-
-
-def test_basic_signature_flow(backend: BackendInterface, navigator, test_name, firmware):
-    if firmware.device.startswith("nano"):
-        valid_seed_instructions = valid_seed_instructions_nano
+def test_basic_signature_flow(firmware: Firmware,
+                              backend: BackendInterface,
+                              navigator: Navigator,
+                              test_name: str) -> None:
+    if firmware.is_nano:
+        valid_seed_instructions = approve_instructions_nano
     else:
-        valid_seed_instructions = valid_seed_instructions_stax
+        valid_seed_instructions = approve_instructions_stax
 
     sessionKey = Crypto.randomKeyPair()
 
@@ -59,14 +58,16 @@ def test_basic_signature_flow(backend: BackendInterface, navigator, test_name, f
     # Finalize signature
     Device.finalizeSignature(backend)
 
+
 # We finalize twice, should fail.
-
-
-def test_finalize_twice(backend: BackendInterface, navigator, test_name, firmware):
-    if firmware.device.startswith("nano"):
-        valid_seed_instructions = valid_seed_instructions_nano
+def test_finalize_twice(firmware: Firmware,
+                        backend: BackendInterface,
+                        navigator: Navigator,
+                        test_name: str) -> None:
+    if firmware.is_nano:
+        valid_seed_instructions = approve_instructions_nano
     else:
-        valid_seed_instructions = valid_seed_instructions_stax
+        valid_seed_instructions = approve_instructions_stax
 
     sessionKey = Crypto.randomKeyPair()
 
@@ -105,11 +106,14 @@ def test_finalize_twice(backend: BackendInterface, navigator, test_name, firmwar
         Device.finalizeSignature(backend)
 
 
-def test_sign_header_after_finalize(backend: BackendInterface, navigator, test_name, firmware):
-    if firmware.device.startswith("nano"):
-        valid_seed_instructions = valid_seed_instructions_nano
+def test_sign_header_after_finalize(firmware: Firmware,
+                                    backend: BackendInterface,
+                                    navigator: Navigator,
+                                    test_name: str) -> None:
+    if firmware.is_nano:
+        valid_seed_instructions = approve_instructions_nano
     else:
-        valid_seed_instructions = valid_seed_instructions_stax
+        valid_seed_instructions = approve_instructions_stax
 
     sessionKey = Crypto.randomKeyPair()
 
@@ -149,13 +153,13 @@ def test_sign_header_after_finalize(backend: BackendInterface, navigator, test_n
 
 
 # Should fail to sign when flow was not initialized
-def test_no_init(backend):
+def test_no_init(backend: BackendInterface) -> None:
     with pytest.raises(ExceptionRAPDU):
         Device.finalizeSignature(backend)
 
 
 # Should fail to sign a block when bypassing command parsing
-def test_bypass_command(backend: BackendInterface):
+def test_bypass_command(backend: BackendInterface) -> None:
     sessionKey = Crypto.randomKeyPair()
 
     block = CommandBlock(
@@ -184,7 +188,7 @@ def test_bypass_command(backend: BackendInterface):
 
 
 # Test should fail when bypassing header signingx
-def test_bypass_header(backend: BackendInterface):
+def test_bypass_header(backend: BackendInterface) -> None:
     sessionKey = Crypto.randomKeyPair()
 
     block = CommandBlock(
@@ -210,9 +214,7 @@ def test_bypass_header(backend: BackendInterface):
 
 
 # Test should fail to signblockheader when not initialized flow
-def test_bypass_init_header(backend: BackendInterface):
-    sessionKey = Crypto.randomKeyPair()
-
+def test_bypass_init_header(backend: BackendInterface) -> None:
     block = CommandBlock(
         0,  # Version
         Crypto.random_bytes(32),  # Parent
@@ -232,11 +234,14 @@ def test_bypass_init_header(backend: BackendInterface):
         Device.signBlockHeader(backend, CommandStreamEncoder.encodeBlockHeader(block))
 
 
-def test_bypass_one_command(backend, navigator, test_name, firmware):
-    if firmware.device.startswith("nano"):
-        valid_seed_instructions = valid_seed_instructions_nano
+def test_bypass_one_command(firmware: Firmware,
+                            backend: BackendInterface,
+                            navigator: Navigator,
+                            test_name: str) -> None:
+    if firmware.is_nano:
+        valid_seed_instructions = approve_instructions_nano
     else:
-        valid_seed_instructions = valid_seed_instructions_stax
+        valid_seed_instructions = approve_instructions_stax
 
     sessionKey = Crypto.randomKeyPair()
     block = CommandBlock(
@@ -279,9 +284,8 @@ def test_bypass_one_command(backend, navigator, test_name, firmware):
         Device.finalizeSignature(backend)
 
 
-# TEST FOR TOMORROW
 # TEST INVALID SIGNATURE IN PREVIOUS BLOCK
-def test_false_signature_with_resolve(backend: BackendInterface):
+def test_false_signature_with_resolve(backend: BackendInterface) -> None:
     sessionKey = Crypto.randomKeyPair()
 
     block = CommandBlock(
@@ -302,10 +306,10 @@ def test_false_signature_with_resolve(backend: BackendInterface):
     stream = CommandStream([block])
     Device.initFlow(backend, sessionKey['publicKey'])
     with pytest.raises(AssertionError):
-        resolved = stream.resolve()
+        stream.resolve()
 
 
-def test_false_signature_with_parsing(backend: BackendInterface):
+def test_false_signature_with_parsing(backend: BackendInterface) -> None:
     bob = device.software()
     bob_public_key = bob.get_public_key()
     sessionKey = Crypto.randomKeyPair()
@@ -325,7 +329,7 @@ def test_false_signature_with_parsing(backend: BackendInterface):
         bytes([0]*0)
     )
 
-    signedBlock = sign_command_block(block, bob_public_key, bob.key_pair['privateKey'])
+    signedBlock = sign_command_block(block, bob.key_pair['privateKey'])
 
     stream = [signedBlock]
     Device.initFlow(backend, sessionKey['publicKey'])

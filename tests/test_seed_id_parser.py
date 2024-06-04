@@ -1,20 +1,18 @@
+from pathlib import Path
 import pytest
 
-from SeedIdClient import SeedIdClient, Errors
-
-from SeedIdChallenge import SeedIdChallenge
 from ragger.error import ExceptionRAPDU
-from ragger.navigator import NavInsID, NavIns, Navigator
+from ragger.backend import BackendInterface
+from ragger.firmware import Firmware
+from ragger.navigator import Navigator
 
-from pathlib import Path
-ROOT_SCREENSHOT_PATH = Path(__file__).parent.resolve()
+from SeedIdClient import SeedIdClient, Errors
+from SeedIdChallenge import SeedIdChallenge
 
-approve_seed_id_instructions_nano = [NavInsID.RIGHT_CLICK, NavInsID.BOTH_CLICK]
-
-approve_seed_id_instructions_stax = [NavInsID.USE_CASE_CHOICE_CONFIRM]
+from constants import approve_instructions_nano, approve_instructions_stax
 
 
-def get_default_challenge_tlv():
+def get_default_challenge_tlv() -> bytes:
     seed_id_challenge = SeedIdChallenge()
 
     # Set individual attributes
@@ -35,31 +33,34 @@ def get_default_challenge_tlv():
     return tlv_data
 
 
-def test_seed_id(firmware, backend, navigator, test_name):
-    if firmware.device.startswith("nano"):
-        approve_seed_id_instructions = approve_seed_id_instructions_nano
+def test_seed_id(firmware: Firmware,
+                 backend: BackendInterface,
+                 navigator: Navigator,
+                 default_screenshot_path: Path,
+                 test_name: str) -> None:
+    if firmware.is_nano:
+        approve_seed_id_instructions = approve_instructions_nano
     else:
-        approve_seed_id_instructions = approve_seed_id_instructions_stax
+        approve_seed_id_instructions = approve_instructions_stax
 
     client = SeedIdClient(backend)
 
     tlv_data = get_default_challenge_tlv()
 
     with client.get_seed_id_async(challenge_data=tlv_data):
-        navigator.navigate_and_compare(ROOT_SCREENSHOT_PATH,
-                                       test_name, approve_seed_id_instructions)
+        navigator.navigate_and_compare(default_screenshot_path, test_name, approve_seed_id_instructions)
 
     response = client.seed_id_response()
-    assert response.status == 0x9000
+    assert response and response.status == Errors.SUCCESS
 
 
-def test_seed_id_wrong_structure_type(firmware, backend, navigator, test_name):
+def test_seed_id_wrong_structure_type(backend: BackendInterface) -> None:
     client = SeedIdClient(backend)
 
     # Override STRUCTURE_TYPE with unsupported data
     tlv_data = get_default_challenge_tlv()
-    data = 0x66
-    tlv_data = SeedIdChallenge.update_field(tlv_data, SeedIdChallenge.STRUCTURE_TYPE, data)
+    data1 = 0x66
+    tlv_data = SeedIdChallenge.update_field(tlv_data, SeedIdChallenge.STRUCTURE_TYPE, data1)
 
     with pytest.raises(ExceptionRAPDU) as e:
         client.get_seed_id(challenge_data=tlv_data)
@@ -67,22 +68,22 @@ def test_seed_id_wrong_structure_type(firmware, backend, navigator, test_name):
 
     # Override STRUCTURE_TYPE with unsupported length
     tlv_data = get_default_challenge_tlv()
-    data = SeedIdChallenge.DEFAULT_VALUES[SeedIdChallenge.STRUCTURE_TYPE]
+    data2 = SeedIdChallenge.DEFAULT_VALUES[SeedIdChallenge.STRUCTURE_TYPE]
     length = 0x10
-    tlv_data = SeedIdChallenge.update_field(tlv_data, SeedIdChallenge.STRUCTURE_TYPE, data, length)
+    tlv_data = SeedIdChallenge.update_field(tlv_data, SeedIdChallenge.STRUCTURE_TYPE, data2, length)
 
     with pytest.raises(ExceptionRAPDU) as e:
         client.get_seed_id(challenge_data=tlv_data)
     assert e.value.status == Errors.PARSER_INVALID_VALUE
 
 
-def test_seed_id_wrong_version(firmware, backend, navigator, test_name):
+def test_seed_id_wrong_version(backend: BackendInterface) -> None:
     client = SeedIdClient(backend)
 
     # Override VERSION with unsupported data
     tlv_data = get_default_challenge_tlv()
-    data = 0x66
-    tlv_data = SeedIdChallenge.update_field(tlv_data, SeedIdChallenge.VERSION, data)
+    data1 = 0x66
+    tlv_data = SeedIdChallenge.update_field(tlv_data, SeedIdChallenge.VERSION, data1)
 
     with pytest.raises(ExceptionRAPDU) as e:
         client.get_seed_id(challenge_data=tlv_data)
@@ -90,16 +91,16 @@ def test_seed_id_wrong_version(firmware, backend, navigator, test_name):
 
     # Override VERSION with unsupported length
     tlv_data = get_default_challenge_tlv()
-    data = SeedIdChallenge.DEFAULT_VALUES[SeedIdChallenge.VERSION]
+    data2 = SeedIdChallenge.DEFAULT_VALUES[SeedIdChallenge.VERSION]
     length = 0x10
-    tlv_data = SeedIdChallenge.update_field(tlv_data, SeedIdChallenge.VERSION, data, length)
+    tlv_data = SeedIdChallenge.update_field(tlv_data, SeedIdChallenge.VERSION, data2, length)
 
     with pytest.raises(ExceptionRAPDU) as e:
         client.get_seed_id(challenge_data=tlv_data)
     assert e.value.status == Errors.PARSER_INVALID_VALUE
 
 
-def test_seed_id_wrong_challenge(firmware, backend, navigator, test_name):
+def test_seed_id_wrong_challenge(backend: BackendInterface) -> None:
     client = SeedIdClient(backend)
 
     # Override CHALLENGE with unsupported length
@@ -113,13 +114,13 @@ def test_seed_id_wrong_challenge(firmware, backend, navigator, test_name):
     assert e.value.status == Errors.PARSER_INVALID_VALUE
 
 
-def test_seed_id_wrong_signer_algo(firmware, backend, navigator, test_name):
+def test_seed_id_wrong_signer_algo(backend: BackendInterface) -> None:
     client = SeedIdClient(backend)
 
     # Override SIGNER_ALGO with unsupported data
     tlv_data = get_default_challenge_tlv()
-    data = 0x66
-    tlv_data = SeedIdChallenge.update_field(tlv_data, SeedIdChallenge.SIGNER_ALGO, data)
+    data1 = 0x66
+    tlv_data = SeedIdChallenge.update_field(tlv_data, SeedIdChallenge.SIGNER_ALGO, data1)
 
     with pytest.raises(ExceptionRAPDU) as e:
         client.get_seed_id(challenge_data=tlv_data)
@@ -127,16 +128,16 @@ def test_seed_id_wrong_signer_algo(firmware, backend, navigator, test_name):
 
     # Override SIGNER_ALGO with unsupported length
     tlv_data = get_default_challenge_tlv()
-    data = SeedIdChallenge.DEFAULT_VALUES[SeedIdChallenge.SIGNER_ALGO]
+    data2 = SeedIdChallenge.DEFAULT_VALUES[SeedIdChallenge.SIGNER_ALGO]
     length = 0x10
-    tlv_data = SeedIdChallenge.update_field(tlv_data, SeedIdChallenge.SIGNER_ALGO, data, length)
+    tlv_data = SeedIdChallenge.update_field(tlv_data, SeedIdChallenge.SIGNER_ALGO, data2, length)
 
     with pytest.raises(ExceptionRAPDU) as e:
         client.get_seed_id(challenge_data=tlv_data)
     assert e.value.status == Errors.PARSER_INVALID_VALUE
 
 
-def test_seed_id_wrong_signature(firmware, backend, navigator, test_name):
+def test_seed_id_wrong_signature(backend: BackendInterface) -> None:
     client = SeedIdClient(backend)
 
     # Override DER_SIGNATURE with unsupported length
@@ -150,7 +151,7 @@ def test_seed_id_wrong_signature(firmware, backend, navigator, test_name):
     assert e.value.status == Errors.PARSER_INVALID_FORMAT
 
 
-def test_seed_id_wrong_valid_until(firmware, backend, navigator, test_name):
+def test_seed_id_wrong_valid_until(backend: BackendInterface) -> None:
     client = SeedIdClient(backend)
 
     # Override VALID_UNTIL with unsupported length
@@ -164,7 +165,7 @@ def test_seed_id_wrong_valid_until(firmware, backend, navigator, test_name):
     assert e.value.status == Errors.PARSER_INVALID_VALUE
 
 
-def test_seed_id_wrong_trusted_name(firmware, backend, navigator, test_name):
+def test_seed_id_wrong_trusted_name(backend: BackendInterface) -> None:
     client = SeedIdClient(backend)
 
     # Override TRUSTED_NAME with unsupported length
@@ -178,13 +179,13 @@ def test_seed_id_wrong_trusted_name(firmware, backend, navigator, test_name):
     assert e.value.status == Errors.PARSER_INVALID_VALUE
 
 
-def test_seed_id_wrong_public_key_curve(firmware, backend, navigator, test_name):
+def test_seed_id_wrong_public_key_curve(backend: BackendInterface) -> None:
     client = SeedIdClient(backend)
 
     # Override PUBLIC_KEY_CURVE with unsupported data
     tlv_data = get_default_challenge_tlv()
-    data = 0x66
-    tlv_data = SeedIdChallenge.update_field(tlv_data, SeedIdChallenge.PUBLIC_KEY_CURVE, data)
+    data1 = 0x66
+    tlv_data = SeedIdChallenge.update_field(tlv_data, SeedIdChallenge.PUBLIC_KEY_CURVE, data1)
 
     with pytest.raises(ExceptionRAPDU) as e:
         client.get_seed_id(challenge_data=tlv_data)
@@ -192,17 +193,17 @@ def test_seed_id_wrong_public_key_curve(firmware, backend, navigator, test_name)
 
     # Override PUBLIC_KEY_CURVE with unsupported length
     tlv_data = get_default_challenge_tlv()
-    data = SeedIdChallenge.DEFAULT_VALUES[SeedIdChallenge.PUBLIC_KEY_CURVE]
+    data2 = SeedIdChallenge.DEFAULT_VALUES[SeedIdChallenge.PUBLIC_KEY_CURVE]
     length = 0x10
     tlv_data = SeedIdChallenge.update_field(
-        tlv_data, SeedIdChallenge.PUBLIC_KEY_CURVE, data, length)
+        tlv_data, SeedIdChallenge.PUBLIC_KEY_CURVE, data2, length)
 
     with pytest.raises(ExceptionRAPDU) as e:
         client.get_seed_id(challenge_data=tlv_data)
     assert e.value.status == Errors.PARSER_INVALID_VALUE
 
 
-def test_seed_id_wrong_public_key(firmware, backend, navigator, test_name):
+def test_seed_id_wrong_public_key(backend: BackendInterface) -> None:
     client = SeedIdClient(backend)
 
     # Override PUBLIC_KEY with unsupported length
@@ -216,13 +217,13 @@ def test_seed_id_wrong_public_key(firmware, backend, navigator, test_name):
     assert e.value.status == Errors.PARSER_INVALID_FORMAT
 
 
-def test_seed_id_wrong_protocol_version(firmware, backend, navigator, test_name):
+def test_seed_id_wrong_protocol_version(backend: BackendInterface) -> None:
     client = SeedIdClient(backend)
 
     # Override PROTOCOL_VERSION with unsupported data
     tlv_data = get_default_challenge_tlv()
-    data = 0x66
-    tlv_data = SeedIdChallenge.update_field(tlv_data, SeedIdChallenge.PROTOCOL_VERSION, data)
+    data1= 0x66
+    tlv_data = SeedIdChallenge.update_field(tlv_data, SeedIdChallenge.PROTOCOL_VERSION, data1)
 
     with pytest.raises(ExceptionRAPDU) as e:
         client.get_seed_id(challenge_data=tlv_data)
@@ -230,17 +231,17 @@ def test_seed_id_wrong_protocol_version(firmware, backend, navigator, test_name)
 
     # Override PROTOCOL_VERSION with unsupported length
     tlv_data = get_default_challenge_tlv()
-    data = SeedIdChallenge.DEFAULT_VALUES[SeedIdChallenge.PROTOCOL_VERSION]
+    data2 = SeedIdChallenge.DEFAULT_VALUES[SeedIdChallenge.PROTOCOL_VERSION]
     length = 0x10
     tlv_data = SeedIdChallenge.update_field(
-        tlv_data, SeedIdChallenge.PROTOCOL_VERSION, data, length)
+        tlv_data, SeedIdChallenge.PROTOCOL_VERSION, data2, length)
 
     with pytest.raises(ExceptionRAPDU) as e:
         client.get_seed_id(challenge_data=tlv_data)
     assert e.value.status == Errors.PARSER_INVALID_FORMAT
 
 
-def test_seed_id_extra_data(firmware, backend, navigator, test_name):
+def test_seed_id_extra_data(backend: BackendInterface) -> None:
     client = SeedIdClient(backend)
 
     tlv_data = get_default_challenge_tlv()
@@ -251,7 +252,7 @@ def test_seed_id_extra_data(firmware, backend, navigator, test_name):
     assert e.value.status == Errors.PARSER_INVALID_FORMAT
 
 
-def test_seed_id_missing_field(firmware, backend, navigator, test_name):
+def test_seed_id_missing_field(backend: BackendInterface) -> None:
     client = SeedIdClient(backend)
 
     seed_id_challenge = SeedIdChallenge()

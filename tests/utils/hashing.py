@@ -1,29 +1,23 @@
 
+from utils.NobleCrypto import Crypto
 
 class NoHash:
 
-    def __init__(self, buffer) -> None:
-        from NobleCrypto import Crypto
-
+    def __init__(self, buffer: bytes) -> None:
         self.digest_size = 32
         self.block_size = 32
         self.name = 'NoHash'
         self.buffer = bytes() + buffer
-        print('buffer' + Crypto.to_hex(buffer))
 
-    def update(self, data):
+    def update(self, data) -> None:
         self.buffer += data
 
     def digest(self):
-        from NobleCrypto import Crypto
         if len(self.buffer) > self.digest_size:
-            raise ('NoHash can only hash data up to {self.digest_size}')
-
-        print('Buffer:' + Crypto.to_hex(self.buffer))
+            raise ValueError(f"NoHash can only hash data up to {self.digest_size}")
         return self.buffer
 
-    def hexdigest(self):
-        from NobleCrypto import Crypto
+    def hexdigest(self) -> str:
         return Crypto.to_hex(self.digest())
 
     def copy(self):

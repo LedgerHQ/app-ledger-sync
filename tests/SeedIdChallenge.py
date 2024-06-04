@@ -10,6 +10,7 @@ class SeedIdChallenge:
     PUBLIC_KEY = 0x33
     PROTOCOL_VERSION = 0x60
 
+    # pylint: disable=line-too-long
     DEFAULT_VALUES = {
         STRUCTURE_TYPE: 0x07,
         VERSION: 0,
@@ -22,6 +23,7 @@ class SeedIdChallenge:
         PUBLIC_KEY: bytes.fromhex("02d89618096b7a88aafca0a2ee483a257cefe4dae1d6d7059e1549b110d3ff575c"),
         PROTOCOL_VERSION: 0x1000000,
     }
+    # pylint: enable=line-too-long
 
     FIELD_LENGTHS = {
         STRUCTURE_TYPE: 1,
