@@ -141,6 +141,7 @@ The signature phase returns TP when providing header and commands.
 | --- | --- | --- |
 | `GET_VERSION` | 0x03 | Get application version as `MAJOR`, `MINOR`, `PATCH` |
 | `GET_APP_NAME` | 0x04 | Get ASCII encoded application name |
+| `GET_SEED_ID` | 0x05 | Get public key |
 | `INIT` | 0x06 | Initialize the signature flow, this must be called before any parsing or signature commands |
 | `PARSE_STREAM` | 0x08 | Parse a stream to give some context to the signer, this command can be skipped if the block to sign is the first block of a root stream (Seed command) |
 | `SIGN_BLOCK` | 0x07 | Parses and sign a new block |
@@ -173,6 +174,49 @@ The signature phase returns TP when providing header and commands.
 | Response length (bytes) | SW | RData |
 | --- | --- | --- |
 | var | 0x9000 | `APPNAME (var)` |
+
+### GET_SEED_ID
+
+#### Command
+
+| CLA | INS | P1 | P2 | Lc | CData |
+| --- | --- | --- | --- | --- | --- |
+| 0xE0 | 0x05 | 0x00 | 0x00 | var | `Challenge (var)` |
+
+The Challenge data is a TLV structure containing the following fields:
+
+| Name | Length |
+| --- | --- |
+| STRUCTURE_TYPE | 0x01 |
+| VERSION | 0x01 |
+| CHALLENGE | 0x10 |
+| SIGNER_ALGO | 0x01 |
+| DER_SIGNATURE | var |
+| VALID_UNTIL | 0x04 |
+| TRUSTED_NAME | var |
+| PUBLIC_KEY_CURVE | 0x01 |
+| PUBLIC_KEY | 0x21 |
+| PROTOCOL_VERSION | 0x04 |
+
+### Response
+
+| Response length (bytes) | SW | RData |
+| --- | --- | --- |
+| var | 0x9000 | `Signed Pubkey and attestation (var)` |
+
+The resulting Data is composed of:
+
+| Name | Length |
+| --- | --- |
+| Pubkey Header | 0x04 |
+| Pubkey | 0x21 |
+| Pubkey sig length | 0x01 |
+| Pubkey signature | var |
+| Attestation ID | 0x01 |
+| Attestation Header | 0x04 |
+| Attestation key | 0x21 |
+| Attestation sig length | 0x01 |
+| Attestation signature | var |
 
 ### INIT
 
