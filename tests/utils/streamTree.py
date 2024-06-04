@@ -1,19 +1,8 @@
-from .indexedTree import IndexedTree
-from .NobleCrypto import DerivationPath
-from .InterfaceStreamTree import InterfaceStreamTree
-from .InterfaceStreamTree import PublishKeyEvent
-from .CommandStream import CommandStream
-
-
-class ApplicationStreams:
-    def __init__(self, appStream: CommandStream, appRootStream: CommandStream):
-        self.appStream = appStream
-        self.appRootStream = appRootStream
-
-
-class StreamTreeCreateOpts:
-    def __init__(self, topic=None):
-        self.topic = topic if topic is not None else []
+from utils.indexedTree import IndexedTree
+from utils.NobleCrypto import DerivationPath
+from utils.InterfaceStreamTree import InterfaceStreamTree
+from utils.InterfaceStreamTree import PublishKeyEvent
+from utils.CommandStream import CommandStream
 
 
 class StreamTree(InterfaceStreamTree):
@@ -28,7 +17,7 @@ class StreamTree(InterfaceStreamTree):
         application_root = "0h"  # TODO change this
         return f"{tree_root}/{application_id}h/{application_root}"
 
-    def get_publish_key_event(self, member: bytes, path: list) -> PublishKeyEvent or None:
+    def get_publish_key_event(self, member: bytes, path: list) -> PublishKeyEvent|None:
         # Iterate over the tree from leaf to root
         leaf = self.tree.find_child(path)
         if not leaf or leaf.get_value() is None:
@@ -73,12 +62,12 @@ class StreamTree(InterfaceStreamTree):
             stream = stream.edit().derive(indexes).add_member(
                 name, member, permission, True).issue(owner, self, root)
             return self.update(stream)
-        elif len(stream.blocks) == 0:
+        if len(stream.blocks) == 0:
             raise ValueError(
                 "StreamTree.share cannot add a member if the root was not previously created")
-        else:
-            new_stream = stream.edit().add_member(name, member, permission).issue(owner, self)
-            return self.update(new_stream)
+
+        new_stream = stream.edit().add_member(name, member, permission).issue(owner, self)
+        return self.update(new_stream)
 
     def update(self, stream: CommandStream):
         path = stream.get_stream_path()
@@ -89,10 +78,12 @@ class StreamTree(InterfaceStreamTree):
         return StreamTree(new_tree)
 
     @staticmethod
-    def create_new_tree(owner, opts={}):
+    def create_new_tree(owner, opts: dict|None = None):
+        if opts is None:
+            opts = {}
         stream = CommandStream()
         stream = stream.edit().seed(opts.get('topic')).issue(owner)
-        tree = IndexedTree(stream)
+        tree: IndexedTree = IndexedTree(stream)
         return StreamTree(tree)
 
     @staticmethod

@@ -1,19 +1,11 @@
 # SECP256k1
 
-from ecdsa import ecdh, curves, ecdsa
-from Crypto.Util.Padding import pad, unpad
-from .hashing import NoHash
-from Crypto.PublicKey import ECC
-from Crypto.Cipher import AES
-from hashlib import md5
 import hashlib
 import os
-from bip32 import BIP32
-import binascii
-import tinyec.ec as ecc
-from secp256k1 import PublicKey, PrivateKey
-import secp256k1
-from cffi import FFI
+from Crypto.Cipher import AES
+from bip32 import BIP32  # type: ignore
+import secp256k1  # type: ignore
+from cffi import FFI  # type: ignore
 ffi = FFI()
 
 # BIP32
@@ -32,7 +24,7 @@ class Crypto:
     # Generates a Private Key and a Public Key from SECP256k1 Elliptic curve
     @staticmethod
     def randomKeyPair():
-        privateKeyObj = PrivateKey()
+        privateKeyObj = secp256k1.PrivateKey()
         privateKey = privateKeyObj.private_key
         publicKey = privateKeyObj.pubkey.serialize()
 
@@ -43,7 +35,7 @@ class Crypto:
 
     @staticmethod
     def keyPair_from_secret_key(secret):
-        private = PrivateKey(secret)
+        private = secp256k1.PrivateKey(secret)
         public = private.pubkey.serialize()
         return {'publicKey': public, 'privateKey': secret}
 
@@ -52,11 +44,11 @@ class Crypto:
         pk = xpriv[:32]
         chain_code = xpriv[32:]
 
-        object = BIP32(chain_code, pk)
+        obj = BIP32(chain_code, pk)
         return {
-            'publicKey': object.get_pubkey_from_path(path),
-            'privateKey': object.get_extended_privkey_from_path(path)[1],
-            'chainCode': object.get_extended_privkey_from_path(path)[0]
+            'publicKey': obj.get_pubkey_from_path(path),
+            'privateKey': obj.get_extended_privkey_from_path(path)[1],
+            'chainCode': obj.get_extended_privkey_from_path(path)[0]
         }
 
     @staticmethod
@@ -89,9 +81,9 @@ class Crypto:
 
     @staticmethod
     def sign(message, keyPair):
-        privateKey = PrivateKey(keyPair['privateKey'])
-        object = privateKey.ecdsa_sign(message, raw=True)
-        return privateKey.ecdsa_serialize(object)
+        privateKey = secp256k1.PrivateKey(keyPair['privateKey'])
+        obj = privateKey.ecdsa_sign(message, raw=True)
+        return privateKey.ecdsa_serialize(obj)
 
     # Takes a hexadecimal string and turns it into a bytes object
     @staticmethod
@@ -100,7 +92,7 @@ class Crypto:
 
     # Concatenates two bytearrays
     @staticmethod
-    def concat(a: bytearray, b: bytearray) -> bytearray:
+    def concat(a: bytearray, b: bytearray) -> bytes:
         c = bytearray(len(a) + len(b))
         c[:len(a)] = a
         c[len(a):] = b
@@ -113,7 +105,7 @@ class Crypto:
         pubkey = secp256k1.PublicKey(bytes(public_key), raw=True)
         # Verify the signature`
         # print('Sig: ' + Crypto.to_hex(signature))
-        signatureEcdsa = ffi.new('unsigned char[%d]' % len(bytes(signature)), signature)
+        signatureEcdsa = ffi.new(f"unsigned char[{len(bytes(signature))}]", signature)
         signatureEcdsa = pubkey.ecdsa_deserialize(signatureEcdsa)
         is_valid = pubkey.ecdsa_verify(bytes(message), signatureEcdsa, raw=True)
 
@@ -133,13 +125,13 @@ class Crypto:
     # Converts a bytearray to hex code
     @staticmethod
     def to_hex(byte_array):
-        if type(byte_array) != bytearray and type(byte_array) != bytes:
+        if not isinstance(byte_array, bytearray) and not isinstance(byte_array, bytes):
             return ""
         return "".join(format(byte, '02x') for byte in byte_array)
 
     @staticmethod
     def to_repr(byte_array: bytearray):
-        if type(byte_array) != bytearray and type(byte_array) != bytes:
+        if not isinstance(byte_array, bytearray) and not isinstance(byte_array, bytes):
             return repr(byte_array)
 
         return Crypto.to_hex(byte_array)
@@ -179,6 +171,7 @@ class Crypto:
         decryption_cipher = AES.new(normalizedSecret, AES.MODE_CBC, nonce)
         return Crypto.unpad(decryption_cipher.decrypt(cipherText))
 
+    @staticmethod
     def ecdh(keyPair: dict, publicKey: bytes) -> bytes:
         public = secp256k1.PublicKey(publicKey, raw=True)
         point = public.tweak_mul(keyPair['privateKey'])
@@ -206,25 +199,3 @@ class DerivationPath:
         if isinstance(path, str):
             return path
         return "m/" + "/".join([(str(s - 0x80000000) + "'" if s >= 0x80000000 else str(s)) for s in path])
-
-
-'''
-def ecdh(keyPair, publicKey):
-            group = ecc.SubGroup(0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f, (0x79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798,
-                                            0x483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8), 0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141,0x1)
-            curve = ecc.Curve(0x0, 0x7,group, 'secp256k1')
-
-            keyPair1 = ecc.Keypair(curve, int.from_bytes(keyPair['privateKey'],byteorder='big', signed = False),int.from_bytes(keyPair['publicKey'],byteorder='big', signed = False))
-            keyPair2 = ecc.Keypair(curve, None, int.from_bytes(publicKey,byteorder='big', signed = False))
-
-
-            objECDH = ecc.ECDH(keyPair1)
-            secret = objECDH.get_secret(keyPair2)
-            #secret = secret.to_bytes(65,'big')
-            return type(secret)
-
-'''
-
-print(Crypto.to_hex((Crypto.ecdh({'privateKey': Crypto.from_hex('7a78d422ef9dd3a16579d5a71ed00c874fab0b45e31ae40c36bbb219ff6bdd79')}, Crypto.from_hex(
-    '03258b047d404b5e8419f5f9221e02d5f836aff34e839e7627bfc10e70b07f0775')))))
-# 8903c057d0909b03c0bb0dc6c18202573bc726c8ab8058e16b41850a261048b6  2322f5d008d3e5ff69e40859f11e27b45ef0fd2cb051dd84a574038792309cb1
