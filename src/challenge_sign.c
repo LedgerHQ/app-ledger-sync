@@ -5,7 +5,15 @@
 #include "globals.h"
 #include "crypto_helpers.h"
 
-#define MAX_CHALLENGE_RESP_SIZE (sizeof(pubkey_credential_t) + MAX_DER_SIG_LEN + MAX_DER_SIG_LEN)
+// Response contains:
+// - pubkey_credential_t (72 Bytes)
+// - pubkey_signature_len (1 Byte)
+// - pubkey_signature (max MAX_DER_SIG_LEN Bytes)
+// - Attestation ID (1 Byte)
+// - pubkey_credential_t (72 Bytes)
+// - attestation_signature_len (1 Byte)
+// - attestation_signature (max MAX_DER_SIG_LEN Bytes)
+#define MAX_CHALLENGE_RESP_SIZE ((2 * (sizeof(pubkey_credential_t) + MAX_DER_SIG_LEN)) + 3)
 
 static int send_challenge(uint8_t* compressed_seed_id_public_key,
                           uint8_t* signature,
@@ -15,7 +23,6 @@ static int send_challenge(uint8_t* compressed_seed_id_public_key,
                           size_t attestation_signature_len) {
     // Return SeedID public key + SeedID signature + Attestion PublicKey
 
-    // TODO CHANGE THIS
     static uint8_t resp[MAX_CHALLENGE_RESP_SIZE] = {0};
     LEDGER_ASSERT(compressed_seed_id_public_key != NULL, "Null pointer");
     LEDGER_ASSERT(signature != NULL, "Null pointer");
