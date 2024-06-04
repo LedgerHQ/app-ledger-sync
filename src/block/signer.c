@@ -34,7 +34,6 @@ static bool signer_verify_parent_hash(stream_ctx_t *stream, uint8_t *parent_hash
 }
 
 int signer_parse_block_header(signer_ctx_t *signer, stream_ctx_t *stream, buffer_t *data) {
-    (void) signer;
     // Parse the block header
     block_header_t block_header;
     LEDGER_ASSERT(signer != NULL, "Null signer");
@@ -70,8 +69,7 @@ int signer_parse_block_header(signer_ctx_t *signer, stream_ctx_t *stream, buffer
     return 0;
 }
 
-static int signer_inject_seed(signer_ctx_t *signer, block_command_t *command) {
-    (void) signer;
+static int signer_inject_seed(block_command_t *command) {
     cx_ecfp_private_key_t private_key;
     cx_ecfp_public_key_t public_key;
     uint8_t xpriv[MAX_ENCRYPTED_KEY_LEN];
@@ -409,7 +407,7 @@ int signer_parse_command(signer_ctx_t *signer, stream_ctx_t *stream, buffer_t *d
             stream->is_created = true;
             stream->topic_len = command.command.seed.topic_len;
             memcpy(stream->topic, command.command.seed.topic, command.command.seed.topic_len);
-            err = signer_inject_seed(signer, &command);
+            err = signer_inject_seed(&command);
             if (err) {
                 signer_reset();
                 return err;

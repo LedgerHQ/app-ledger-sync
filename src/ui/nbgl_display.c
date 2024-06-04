@@ -31,8 +31,7 @@
 #include "constants.h"
 #include "../globals.h"
 #include "../sw.h"
-#include "action/validate.h"
-#include "../menu.h"
+#include "menu.h"
 #include "challenge_parser.h"
 
 static uint8_t host[HOST_LENGTH];

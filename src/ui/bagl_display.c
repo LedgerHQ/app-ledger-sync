@@ -31,8 +31,7 @@
 #include "constants.h"
 #include "../globals.h"
 #include "../sw.h"
-#include "action/validate.h"
-#include "../menu.h"
+#include "menu.h"
 #include "trusted_io.h"
 #include "challenge_parser.h"
 

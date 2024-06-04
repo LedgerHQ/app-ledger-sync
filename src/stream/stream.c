@@ -300,8 +300,6 @@ int stream_parse_command(stream_ctx_t *ctx,
 }
 
 int stream_parse_signature(stream_ctx_t *ctx, buffer_t *data) {
-    (void) data;
-    (void) ctx;
     uint8_t signature[MAX_DER_SIG_LEN] = {0};
     int signature_len = 0;
     uint8_t final_digest[HASH_LEN];
