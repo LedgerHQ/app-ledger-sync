@@ -1,7 +1,9 @@
 from pathlib import Path
 from typing import List, Union, cast
+import re
 from ragger.backend.interface import BackendInterface
 from ragger.navigator import Navigator
+from ragger.utils.misc import get_current_app_name_and_version
 
 from utils.CommandStreamDecoder import TLV
 from utils.CommandStreamEncoder import CommandStreamEncoder
@@ -421,13 +423,16 @@ class ApduDevice(device):
         return PublicKey(public_key)
 
     def is_connected(self) -> bool:
-        response = self.transport.exchange(0xE0, 0x04, 0x00, 0x00)
-        sw = response.status
-        if sw != 0x9000:
-            return False
+        # Send the APDU
+        app_name, version = get_current_app_name_and_version(self.transport)
+        print(f" Name: {app_name}")
+        print(f" Version: {version}")
+        self._verify_version(version.split("-")[0])
 
-        app_name = response.data.decode()
-        return app_name == "Trustchain"
+        response = self.transport.exchange(0xE0, 0x04, 0x00, 0x00)
+        assert response.status == 0x9000
+
+        return app_name == response.data.decode()
 
     def assert_stream_is_valid(self, stream: List[CommandBlock]):
         block_to_sign = sum(1 for block in stream if len(block.signature) == 0)
@@ -595,6 +600,38 @@ class ApduDevice(device):
         block_to_sign.signature = signature[0]
 
         return block_to_sign
+
+    def _read_makefile(self) -> List[str]:
+        """Read lines from the parent Makefile """
+
+        parent = Path(__file__).parent.parent.parent.resolve()
+        makefile = f"{parent}/Makefile"
+        print(f"Makefile: {makefile}")
+        with open(makefile, "r", encoding="utf-8") as f_p:
+            lines = f_p.readlines()
+        return lines
+
+    def _verify_version(self, version: str) -> None:
+        """Verify the app version, based on defines in Makefile
+
+        Args:
+            Version (str): Version to be checked
+        """
+
+        vers_dict = {}
+        vers_str = ""
+        lines = self._read_makefile()
+        version_re = re.compile(r"^APPVERSION_(?P<part>\w)\s?=\s?(?P<val>\d*)", re.I)
+        for line in lines:
+            info = version_re.match(line)
+            if info:
+                dinfo = info.groupdict()
+                vers_dict[dinfo["part"]] = dinfo["val"]
+        try:
+            vers_str = f"{vers_dict['M']}.{vers_dict['N']}.{vers_dict['P']}"
+        except KeyError:
+            pass
+        assert version == vers_str
 
 
 def createApduDevice(transport: BackendInterface, navigator: Navigator|None = None):
