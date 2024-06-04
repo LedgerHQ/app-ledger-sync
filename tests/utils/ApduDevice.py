@@ -1,17 +1,15 @@
 from pathlib import Path
 from typing import List, Union, cast
 from ragger.backend.interface import BackendInterface
-from ragger.navigator import NavInsID, NavIns, Navigator
+from ragger.navigator import Navigator
 
-from .CommandStreamDecoder import TLV
-from .CommandBlock import CommandType, Command, CommandBlock, commands
-from .NobleCrypto import Crypto
-from .CommandStream import CommandStream
-from .Device import device
+from utils.CommandStreamDecoder import TLV
+from utils.CommandStreamEncoder import CommandStreamEncoder
+from utils.CommandBlock import CommandType, Command, CommandBlock, commands
+from utils.NobleCrypto import Crypto
+from utils.Device import device
 
 ROOT_SCREENSHOT_PATH = Path(__file__).parent.parent.resolve()
-
-# from ragger.utils import pack_APDU, RAPDU, Crop
 
 
 class Device:
@@ -65,7 +63,13 @@ class Device:
             self.issuer = issuer
 
     class SeedCommandResponse:
-        def __init__(self, iv: bytes, xpriv: bytes, commandIv: bytes, ephemeralPublicKey: bytes, groupKey: bytes, trustedMember: bytes or None):
+        def __init__(self,
+                     iv: bytes,
+                     xpriv: bytes,
+                     commandIv: bytes,
+                     ephemeralPublicKey: bytes,
+                     groupKey: bytes,
+                     trustedMember: bytes|None):
             self.iv = iv
             self.xpriv = xpriv
             self.commandIv = commandIv
@@ -74,7 +78,13 @@ class Device:
             self.trustedMember = trustedMember
 
         def __repr__(self) -> str:
-            return f'<IV:{Crypto.to_hex(self.iv),}xpriv:{Crypto.to_hex(self.xpriv)}, commandIV:{Crypto.to_hex(self.commandIv)},ephPublic:{Crypto.to_hex(self.ephemeralPublicKey)}groupKey:{Crypto.to_hex(self.groupKey)},trustedMember:{Crypto.to_hex(self.trustedMember)}>'
+            string = f"<IV:{Crypto.to_hex(self.iv),}"
+            string += f"xpriv:{Crypto.to_hex(self.xpriv)}, "
+            string += f"commandIV:{Crypto.to_hex(self.commandIv)},"
+            string += f"ephPublic:{Crypto.to_hex(self.ephemeralPublicKey)}"
+            string += f"groupKey:{Crypto.to_hex(self.groupKey)},"
+            string += f"trustedMember:{Crypto.to_hex(self.trustedMember)}"
+            return string
 
     class EmptyCommandResponse:
         pass
@@ -85,7 +95,7 @@ class Device:
             self.trustedMember = trustedMember
 
     class PublishKeyCommandResponse:
-        def __init__(self, trustedMember: bytes or None, iv: bytes, xpriv: bytes, commandIv: bytes, ephemeralPublicKey: bytes):
+        def __init__(self, trustedMember: bytes|None, iv: bytes, xpriv: bytes, commandIv: bytes, ephemeralPublicKey: bytes):
             self.trustedMember = trustedMember
             self.iv = iv
             self.xpriv = xpriv
@@ -95,6 +105,7 @@ class Device:
     CommandResponse = Union[SeedCommandResponse, AddMemberCommandResponse,
                             PublishKeyCommandResponse, EmptyCommandResponse]
 
+    @staticmethod
     def set_trusted_member(transport: BackendInterface, member):
         payload = bytearray([
             Device.TrustedPropertiesTLV.IV, len(member.iv), *member.iv,
@@ -103,6 +114,7 @@ class Device:
         transport.exchange(Device.CLA, Device.INS_SET_TRUSTED_MEMBER,
                            Device.ParseStreamMode.Empty, Device.OutputDataMode.none, payload)
 
+    @staticmethod
     def parse_block_header(transport: BackendInterface, header):
         # Convert header to bytearray
         header_bytes = bytearray(header)
@@ -112,6 +124,7 @@ class Device:
                                       Device.ParseStreamMode.BlockHeader, Device.OutputDataMode.none, header_bytes)
         return response.data
 
+    @staticmethod
     def parseCommand(transport: BackendInterface, command, outputTrustedParam: bool = False):
         command_bytes = bytearray(command)
         response = transport.exchange(Device.CLA, Device.INS_PARSE_STREAM,
@@ -119,6 +132,7 @@ class Device:
         return response.data
         # Need to fix outputTrustedParam parameter
 
+    @staticmethod
     def parse_signature(transport: BackendInterface, signature):
         # Convert header to bytes
         signature_bytes = bytes(signature)
@@ -129,14 +143,17 @@ class Device:
                                       Device.ParseStreamMode.Signature, Device.OutputDataMode.none, signature_bytes)
         return response.data
 
+    @staticmethod
     def initFlow(transport: BackendInterface, sessionKey):
         sessionKey_bytes = bytes(sessionKey)
         transport.exchange(Device.CLA, Device.INS_INIT, 0x00, 0x00, sessionKey_bytes)
 
+    @staticmethod
     def parseEmptyStream(transport: BackendInterface):
         transport.exchange(Device.CLA, Device.INS_PARSE_STREAM,
                            Device.ParseStreamMode.Empty, Device.OutputDataMode.none, bytearray(0))
 
+    @staticmethod
     def signBlockHeader(transport: BackendInterface, header):
         header_bytes = bytearray(header)
         data = transport.exchange(Device.CLA, Device.INS_SIGN_BLOCK,
@@ -155,26 +172,34 @@ class Device:
             if tlv['type'] == Device.TrustedPropertiesTLV.IssuerPublicKey:
                 issuer = tlv['value']
 
-        if iv == None:
+        if iv is None:
             raise ValueError("No IV in response")
 
-        if issuer == None:
+        if issuer is None:
             raise ValueError("No issuer in response")
 
         return (iv, issuer)
 
+    @staticmethod
     def signCommand(transport: BackendInterface, command, automation=None):
         if not automation:
-            response = transport.exchange(
+            response1 = transport.exchange(
                 Device.CLA, Device.INS_SIGN_BLOCK, Device.ParseStreamMode.Command, Device.OutputDataMode.none, command)
-        else:
-            with transport.exchange_async(Device.CLA, Device.INS_SIGN_BLOCK, Device.ParseStreamMode.Command, Device.OutputDataMode.none, command):
-                automation.navigator.navigate_and_compare(automation.root_path,
-                                                          automation.test_name, automation.instructions,
-                                                          screen_change_after_last_instruction=False)
-            response = transport.last_async_response
-        return response.data
+            return response1.data
 
+        with transport.exchange_async(Device.CLA,
+                                        Device.INS_SIGN_BLOCK,
+                                        Device.ParseStreamMode.Command,
+                                        Device.OutputDataMode.none,
+                                        command):
+            automation.navigator.navigate_and_compare(automation.root_path,
+                                                        automation.test_name, automation.instructions,
+                                                        screen_change_after_last_instruction=False)
+        response2 = transport.last_async_response
+        assert response2
+        return response2.data
+
+    @staticmethod
     def finalizeSignature(transport: BackendInterface):
         response = transport.exchange(Device.CLA, Device.INS_SIGN_BLOCK,
                                       Device.ParseStreamMode.Signature, Device.OutputDataMode.none, bytearray(0))
@@ -187,13 +212,16 @@ class Device:
         # print('\nSession Key: ' + Crypto.to_hex(session_key))
         return (signature, session_key)
 
+    @staticmethod
     def getPublicKey(transport: BackendInterface):
         response = transport.exchange(Device.CLA, Device.INS_GET_PUBLIC_KEY, 0x00, 0x00, bytes(0))
         return response.data
 
+    @staticmethod
     def getStatusWord(response):
         return response.status
 
+    @staticmethod
     def parse_trusted_seed(tlvs) -> SeedCommandResponse:
         iv = None
         xpriv = None
@@ -231,6 +259,7 @@ class Device:
 
         return Device.SeedCommandResponse(iv, xpriv, command_iv, ephemeral_public_key, group_key, trusted_member)
 
+    @staticmethod
     def parse_trusted_add_member(tlvs) -> AddMemberCommandResponse:
         iv = None
         trusted_member = None
@@ -246,6 +275,7 @@ class Device:
 
         return Device.AddMemberCommandResponse(iv, trusted_member)
 
+    @staticmethod
     def parse_trusted_publish_key(tlvs) -> PublishKeyCommandResponse:
         iv = ephemeral_public_key = command_iv = trusted_member = xpriv = None
 
@@ -274,6 +304,7 @@ class Device:
 
         return Device.PublishKeyCommandResponse(trusted_member, iv, xpriv, command_iv, ephemeral_public_key, )
 
+    @staticmethod
     def parse_trusted_properties(command: Command, raw_properties: bytes):
         tlvs = TLV.read_all_tlv(raw_properties, 0)
         # print(tlvs)
@@ -281,14 +312,13 @@ class Device:
 
         if command_type in (CommandType.Derive, CommandType.Seed):
             return Device.parse_trusted_seed(tlvs)
-        elif command_type == CommandType.AddMember:
+        if command_type == CommandType.AddMember:
             return Device.parse_trusted_add_member(tlvs)
-        elif command_type == CommandType.PublishKey:
+        if command_type == CommandType.PublishKey:
             return Device.parse_trusted_publish_key(tlvs)
-        elif command_type == CommandType.CloseStream:
+        if command_type == CommandType.CloseStream:
             return {}
-        else:
-            raise ValueError("Unsupported command type")
+        raise ValueError("Unsupported command type")
 
 
 def inject_trusted_properties(command: Command, properties: Device.CommandResponse, secret):
@@ -307,7 +337,7 @@ def inject_trusted_properties(command: Command, properties: Device.CommandRespon
             secret, seed_properties.iv, seed_properties.groupKey)
         return seed_command
 
-    elif command_type == CommandType.Derive:
+    if command_type == CommandType.Derive:
         derive_command = cast(commands.Derive, command)
         derive_properties = cast(Device.SeedCommandResponse, properties)
         derive_command.encrypted_xpriv = Crypto.decrypt(
@@ -319,9 +349,9 @@ def inject_trusted_properties(command: Command, properties: Device.CommandRespon
         derive_command.group_key = Crypto.decrypt(
             secret, derive_properties.iv, derive_properties.groupKey)
         return derive_command
-    elif command_type == CommandType.AddMember:
+    if command_type == CommandType.AddMember:
         return command  # No properties to inject
-    elif command_type == CommandType.PublishKey:
+    if command_type == CommandType.PublishKey:
         publish_key_command = cast(commands.PublishKey, command)
         publish_key_properties = cast(Device.PublishKeyCommandResponse, properties)
         # print('LengthIV' + (Crypto.to_hex(publish_key_properties.iv)))
@@ -332,10 +362,9 @@ def inject_trusted_properties(command: Command, properties: Device.CommandRespon
         publish_key_command.encrypted_xpriv = Crypto.decrypt(
             secret, publish_key_properties.iv, publish_key_properties.xpriv)
         return publish_key_command
-    elif command_type == CommandType.CloseStream:
+    if command_type == CommandType.CloseStream:
         return command  # No properties to inject
-    else:
-        raise Exception("Unsupported command type")
+    raise ValueError("Unsupported command type")
 
 
 class PublicKey:
@@ -344,7 +373,13 @@ class PublicKey:
 
 
 class Automation:
-    def __init__(self, navigator: Navigator, root_path: Path = ROOT_SCREENSHOT_PATH, test_name: str = None, instructions: list = None):
+    def __init__(self,
+                 navigator: Navigator,
+                 root_path: Path = ROOT_SCREENSHOT_PATH,
+                 test_name: str = "",
+                 instructions: list|None = None):
+        if instructions is None:
+            instructions = []
         self.navigator = navigator
         self.root_path = root_path
         self.test_name = test_name
@@ -359,13 +394,19 @@ class Automation:
 
 class ApduDevice(device):
     # Replace 'Any' with the actual type for the Transport class
-    def __init__(self, transport: BackendInterface, navigator: Navigator = None):
+    def __init__(self, transport: BackendInterface, navigator: Navigator|None = None):
         self.transport = transport
         self.session_key_pair = Crypto.randomKeyPair()
+        self.automation: Automation|None = None
         if navigator:
             self.automation = Automation(navigator)
-        else:
-            self.automation = None
+
+    def read_key(self, tree, path) -> None:
+        raise NotImplementedError
+
+    def derive_key(self, tree, path) -> None:
+        raise NotImplementedError
+
 
     def update_automation(self, automation: Automation):
         if not self.automation:
@@ -396,7 +437,6 @@ class ApduDevice(device):
                 f"Stream must contain exactly one block to sign. Found {block_to_sign} blocks to sign.")
 
     def record_trusted_member(self, trusted_params: Device.TrustedParams, public_key, response_data):
-        from .CommandStreamDecoder import TLV
     # Parse an APDU result as TLV and find IV and trusted member data.
     # The data is then assigned to a public key. The parsing must set the
     # public key depending on the current step in the flow (e.g add member
@@ -431,24 +471,23 @@ class ApduDevice(device):
         member_hex = Crypto.to_hex(public_key)
         member = trusted_params.members.get(member_hex)
         if member is None:
-            raise Exception("Trusted member not found")
+            raise ValueError("Trusted member not found")
         return member
 
     def set_trusted_member(self, params: Device.TrustedParams, public_key):
         # print("test")
         # Check if the trusted member is already set on the device
         if params.last_trusted_member == Crypto.to_hex(public_key):
-            return
+            return None
 
         # Verify if the trusted member exists
-        if self.has_trusted_member(params, public_key) == False:
-            return
+        if not self.has_trusted_member(params, public_key):
+            return None
 
         # print("Setting trusted member:" + Crypto.to_hex(public_key))
         return Device.set_trusted_member(self.transport, self.get_trusted_member(params, public_key))
 
     def parse_block(self, block: CommandBlock, trusted_params: Device.TrustedParams):
-        from .CommandStreamEncoder import CommandStreamEncoder
 
         result = None
         # Parse the block header
@@ -484,8 +523,10 @@ class ApduDevice(device):
                 command = cast(commands.AddMember, command)
                 self.record_trusted_member(trusted_params, command.public_key, result)
             elif command_type == CommandType.PublishKey:
+                command = cast(commands.PublishKey, command)
                 self.record_trusted_member(trusted_params, command.recipient, result)
             elif command_type == CommandType.Derive:
+                command = cast(commands.Derive, command)
                 self.record_trusted_member(trusted_params, block.issuer, result)
             # elif command_type == CommandType.EditMember:
                 # self.record_trusted_member(trusted_params, command.member, result)
@@ -504,8 +545,7 @@ class ApduDevice(device):
 
         return trusted_params
 
-    def sign(self, stream: List[CommandBlock], tree):
-        from .CommandStreamEncoder import CommandStreamEncoder
+    def sign(self, stream: List[CommandBlock], tree=None):
         session_key = self.session_key_pair
         trusted_properties = []
 
@@ -517,7 +557,7 @@ class ApduDevice(device):
         Device.initFlow(self.transport, session_key['publicKey'])
 
         # Before signing, we need to parse the stream on device and get trusted params
-        trusted_params = self.parse_stream(stream)
+        _ = self.parse_stream(stream)
 
         # Create the new block to sign
         block_to_sign = stream[-1]
@@ -526,7 +566,7 @@ class ApduDevice(device):
             self.transport, CommandStreamEncoder.encodeBlockHeader(block_to_sign))
 
         # Pass all commands to the device
-        for command_index in range(len(block_to_sign.commands)):
+        for command_index, _ in enumerate(block_to_sign.commands):
             # Pass the trusted param allowing the command to the device
             # If we have no trusted param, we need explicit approval
 
@@ -546,7 +586,7 @@ class ApduDevice(device):
         issuer = Crypto.decrypt(secret, trusted_issuer[0], trusted_issuer[1])
 
         # Inject trusted properties for commands
-        for command_index in range(len(block_to_sign.commands)):
+        for command_index, _ in enumerate(block_to_sign.commands):
             block_to_sign.commands[command_index] = inject_trusted_properties(
                 block_to_sign.commands[command_index], trusted_properties[command_index], secret
             )
@@ -557,5 +597,5 @@ class ApduDevice(device):
         return block_to_sign
 
 
-def createApduDevice(transport: BackendInterface, navigator: Navigator = None):
+def createApduDevice(transport: BackendInterface, navigator: Navigator|None = None):
     return ApduDevice(transport, navigator)

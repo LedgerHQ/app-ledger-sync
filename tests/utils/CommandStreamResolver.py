@@ -1,7 +1,7 @@
 from typing import List, cast
 
-from .NobleCrypto import Crypto
-from .CommandBlock import Permissions, hash_command_block, CommandType, verify_command_block, CommandBlock, Command, commands
+from utils.NobleCrypto import Crypto
+from utils.CommandBlock import Permissions, hash_command_block, CommandType, verify_command_block, CommandBlock, Command, commands
 
 
 class ResolvedCommandStreamInternals:
@@ -27,9 +27,11 @@ class CommandStreamResolver:
         if internals.permission[Crypto.to_hex(issuer)] & 0x02 == Permissions.KEY_READER:
             raise ValueError(
                 f"Issuer does not have permission to publish keys at height {internals.height}")
-        if internals.keys.get(Crypto.to_hex(issuer)) is None and internals.permission[Crypto.to_hex(issuer)] & Permissions.KEY_CREATOR != Permissions.KEY_CREATOR:
+        if internals.keys.get(Crypto.to_hex(issuer)) is None and internals.permission[Crypto.to_hex(issuer)] & \
+            Permissions.KEY_CREATOR != Permissions.KEY_CREATOR:
             raise ValueError(f"Issuer does not have a key to publish at height {internals.height}")
-        if Crypto.to_hex(issuer) not in internals.keys and internals.permission[Crypto.to_hex(issuer)] & Permissions.KEY_CREATOR != Permissions.KEY_CREATOR and len(internals.keys.keys()) > 0:
+        if Crypto.to_hex(issuer) not in internals.keys and internals.permission[Crypto.to_hex(issuer)] & \
+            Permissions.KEY_CREATOR != Permissions.KEY_CREATOR and len(internals.keys.keys()) > 0:
             raise ValueError(f"Issuer is trying to publish a new key at height {internals.height}")
 
     @staticmethod
@@ -46,7 +48,7 @@ class CommandStreamResolver:
             raise ValueError(f"The stream is not created at height {internals.height}")
 
     @staticmethod
-    def replay_command(command: Command, block: CommandBlock, block_hash, height, internals: ResolvedCommandStreamInternals):
+    def replay_command(command: Command, block: CommandBlock, block_hash, internals: ResolvedCommandStreamInternals):
         command_type = command.get_type()
 
         if command_type == CommandType.Seed:
@@ -112,9 +114,7 @@ class CommandStreamResolver:
         block_hash = Crypto.to_hex(hash_command_block(block))
 
         for command in block.commands:
-            internals = CommandStreamResolver.replay_command(
-                command, block, block_hash, height, internals
-            )
+            internals = CommandStreamResolver.replay_command(command, block, block_hash, internals)
 
         internals.hashes.append(block_hash)
         return internals
@@ -125,8 +125,8 @@ class CommandStreamResolver:
         for height, block in enumerate(stream):
             internals.height = height
             if height > 0 and Crypto.to_hex(block.parent) != Crypto.to_hex(hash_command_block(stream[height - 1])):
-                raise Exception(
-                    "Command stream has been tampered with (invalid parent hash) at height " + str(height))
+                raise ValueError(
+                    f"Command stream has been tampered with (invalid parent hash) at height {str(height)}")
             if len(block.signature) == 0:
                 break
             internals = CommandStreamResolver.resolve_block(block, height, internals)
@@ -150,16 +150,19 @@ class ResolvedCommandStream:
         return self._internals.permission.get(Crypto.to_hex(public_key)) == Permissions.OWNER
 
     def is_key_creator(self, public_key):
-        return (self._internals.permission.get(Crypto.to_hex(public_key)) & Permissions.KEY_CREATOR) == Permissions.KEY_CREATOR
+        return (self._internals.permission.get(Crypto.to_hex(public_key)) & \
+                Permissions.KEY_CREATOR) == Permissions.KEY_CREATOR
 
     def owns_key(self, public_key):
         return self._internals.keys.get(Crypto.to_hex(public_key)) is not None
 
     def is_member_adder(self, public_key):
-        return (self._internals.permission.get(Crypto.to_hex(public_key)) & Permissions.ADD_MEMBER) == Permissions.ADD_MEMBER
+        return (self._internals.permission.get(Crypto.to_hex(public_key)) & \
+                Permissions.ADD_MEMBER) == Permissions.ADD_MEMBER
 
     def is_member_remover(self, public_key):
-        return (self._internals.permission.get(Crypto.to_hex(public_key)) & Permissions.REMOVE_MEMBER) == Permissions.REMOVE_MEMBER
+        return (self._internals.permission.get(Crypto.to_hex(public_key)) & \
+                Permissions.REMOVE_MEMBER) == Permissions.REMOVE_MEMBER
 
     def key_count(self):
         return len(self._internals.keys)

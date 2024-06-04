@@ -1,7 +1,10 @@
-from ragger.backend.interface import BackendInterface, RAPDU
 from enum import IntEnum
-from typing import Generator, List, Optional
+from typing import Generator, Optional
 from contextlib import contextmanager
+
+from ragger.backend import BackendInterface
+from ragger.backend.interface import RAPDU
+
 
 CLA: int = 0xE0
 
@@ -30,6 +33,7 @@ class InsType(IntEnum):
 
 
 class Errors(IntEnum):
+    SUCCESS = 0x9000
     PARSER_INVALID_FORMAT = 0xB00D
     PARSER_INVALID_VALUE = 0xB00E
     CHALLENGE_NOT_VERIFIED = 0xB00F
@@ -39,7 +43,7 @@ class SeedIdClient:
     def __init__(self, backend: BackendInterface) -> None:
         self.backend = backend
 
-    def get_seed_id(self, challenge_data: bytes) -> Generator[None, None, None]:
+    def get_seed_id(self, challenge_data: bytes) -> RAPDU:
         return self.backend.exchange(cla=CLA,
                                      ins=InsType.GET_SEED_ID,
                                      p1=P1.P1_START,

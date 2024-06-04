@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    from .CommandStream import CommandStream
+    from utils.CommandStream import CommandStream
 
 
 class PublishKeyEvent:
@@ -13,10 +13,10 @@ class PublishKeyEvent:
 
 
 class InterfaceStreamTree:
-    def get_application_root_path(self, application_id: int) -> str:
+    def get_application_root_path(self, application_id: int):
         pass
 
-    def get_publish_key_event(self, member: bytes, path: list) -> PublishKeyEvent or None:
+    def get_publish_key_event(self, member: bytes, path: list):
         pass
 
     def get_child(self, path):

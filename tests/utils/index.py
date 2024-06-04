@@ -1,5 +1,5 @@
-from .Device import createDevice
-from .ApduDevice import createApduDevice
+from utils.Device import createDevice
+from utils.ApduDevice import createApduDevice
 
 
 class device:

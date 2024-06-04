@@ -1,12 +1,12 @@
-from .CommandBlock import CommandBlock, Command, CommandType, commands
-from .CommandStreamEncoder import TLVTypes
-from .BigEndian import BigEndian
+from utils.CommandBlock import CommandBlock, CommandType, commands
+from utils.CommandStreamEncoder import TLVTypes
+from utils.BigEndian import BigEndian
 
 
 class TLV:
     class TLVField:
-        def __init__(self, type, value):
-            self.type = type
+        def __init__(self, type_val, value):
+            self.type = type_val
             self.value = value
 
     # Takes two bytearrays and concatenates them
@@ -19,13 +19,13 @@ class TLV:
 
     @staticmethod
     def read_tlv(buffer, offset):
-        type = buffer[offset]
+        type_val = buffer[offset]
         offset += 1
         length = buffer[offset]
         offset += 1
         value = buffer[offset:offset+length]
         offset += length
-        return {'tlv': {'type': type, 'value': value}, 'offset': offset}
+        return {'tlv': {'type': type_val, 'value': value}, 'offset': offset}
         # The offset is important as it indicates when the next TLV Field begins if there is any
 
     @staticmethod
@@ -119,18 +119,17 @@ class TLV:
         command_type = tlv['type']
         if command_type == CommandType.Seed:
             return TLV.read_seed_command(tlv['value'])
-        # elif command_type == CommandType.Derive:
+        # if command_type == CommandType.Derive:
             # return TLV.read_derive_command(tlv['value'])
-        elif command_type == CommandType.AddMember:
+        if command_type == CommandType.AddMember:
             return TLV.read_add_member_command(tlv['value'])
-        elif command_type == CommandType.PublishKey:
+        if command_type == CommandType.PublishKey:
             return TLV.read_publish_key_command(tlv['value'])
-        # elif command_type == CommandType.EditMember:
+        # if command_type == CommandType.EditMember:
             # return read_edit_member_command(tlv['value'])
-        elif command_type == CommandType.CloseStream:
-            return TLV.read_close_stream_command(tlv['value'])
-        else:
-            raise ValueError("Unknown command type")
+        if command_type == CommandType.CloseStream:
+            return TLV.read_close_stream_command()
+        raise ValueError("Unknown command type")
 
     @staticmethod
     def read_seed_command(buffer):
@@ -153,7 +152,7 @@ class TLV:
         read_path = TLV.read_derivation_path(TLV.read_tlv(buffer, 0))
         read_group_key = TLV.read_public_key(TLV.read_tlv(buffer, read_path['offset']))
         read_iv = TLV.read_bytes(TLV.read_tlv(buffer, read_group_key['offset']))
-        read_encrypted_xpriv = TLV.read_bytes(TLV.mroread_tlv(buffer, read_iv['offset']))
+        read_encrypted_xpriv = TLV.read_bytes(TLV.read_tlv(buffer, read_iv['offset']))
         read_ephemeral_public_key = TLV.read_bytes(
             TLV.read_tlv(buffer, read_encrypted_xpriv['offset']))
         return commands.Derive(read_path['value'],
@@ -179,7 +178,7 @@ class TLV:
         return commands.PublishKey(IV['value'], encrypted_xpriv['value'], recipient['value'], ephemeral_public_key['value'])
 
     @staticmethod
-    def read_close_stream_command(buffer):
+    def read_close_stream_command():
         return commands.CloseStream()
 
 
@@ -194,17 +193,17 @@ def unpack(buffer):
         length = TLV.readVarInt(TLV.read_tlv(buffer, issuer['offset']))
         offset = length['offset']
 
-        commands = []
+        cmds = []
         for _ in range(length['value']):
             commandBuffer = TLV.read_tlv(buffer, offset)
             command = TLV.read_command(commandBuffer['tlv'])
-            commands.append(command)
+            cmds.append(command)
             offset = commandBuffer['offset']
 
         signature = TLV.read_signature(TLV.read_tlv(buffer, offset))
         offset = signature['offset']
         stream.append(CommandBlock(version['value'], parent['value'],
-                      issuer['value'], commands, signature['value']))
+                      issuer['value'], cmds, signature['value']))
 
     return stream
 
@@ -213,10 +212,3 @@ class CommandStreamDecoder:
     @staticmethod
     def decode(buffer):
         return unpack(buffer)
-
-
-'''
-a = TLV.read_tlv(b'\x01\x01\xff', 0)
-b = TLV.readVarInt(a)
-print(b)
-'''

@@ -1,5 +1,6 @@
-from .CommandBlock import CommandBlock, Command, CommandType, commands
-from .BigEndian import BigEndian
+from typing import cast
+from utils.CommandBlock import CommandBlock, Command, CommandType, commands
+from utils.BigEndian import BigEndian
 
 
 # Combines the two byte arrays a and b
@@ -37,51 +38,52 @@ class TLV:
     @staticmethod
     def pushString(a: bytearray, b: str) -> bytearray:
         encoded = b.encode()
-        return pushTLV(a, 0x04, len(encoded), encoded)
+        return pushTLV(a, TLVTypes.String, len(encoded), bytearray(encoded))
 
     @staticmethod
     def pushByte(a: bytearray, b: int) -> bytearray:
-        return pushTLV(a, 0x01, 1, bytearray([b]))
+        return pushTLV(a, TLVTypes.VarInt, 1, bytearray([b]))
 
     @staticmethod
     def pushInt16(a: bytearray, b: int) -> bytearray:
-        bytes = BigEndian.shortToArray(b)
-        return pushTLV(a, 0x01, 2, bytes)
+        data = BigEndian.shortToArray(b)
+        return pushTLV(a, TLVTypes.VarInt, 2, data)
 
     @staticmethod
     def pushInt32(a: bytearray, b: int) -> bytearray:
-        bytes = BigEndian.numberToArray(b)
-        return pushTLV(a, 0x01, 4, bytes)
+        data = BigEndian.numberToArray(b)
+        return pushTLV(a, TLVTypes.VarInt, 4, data)
 
     @staticmethod
-    def pushHash(a: bytearray, b: bytearray) -> bytearray:
-        return pushTLV(a, 0x02, len(b), b)
+    def pushHash(a: bytearray, b: bytes) -> bytearray:
+        return pushTLV(a, TLVTypes.Hash, len(b), bytearray(b))
 
     @staticmethod
-    def pushSignature(a: bytearray, b: bytearray) -> bytearray:
-        return pushTLV(a, 0x03, len(b), b)
+    def pushSignature(a: bytearray, b: bytes) -> bytearray:
+        return pushTLV(a, TLVTypes.Signature, len(b), bytearray(b))
 
     @staticmethod
-    def pushBytes(a: bytearray, b: bytearray) -> bytearray:
-        return pushTLV(a, 0x05, len(b), b)
+    def pushBytes(a: bytearray, b: bytes) -> bytearray:
+        return pushTLV(a, TLVTypes.Bytes, len(b), bytearray(b))
 
     @staticmethod
     def pushNull(a: bytearray) -> bytearray:
-        return pushTLV(a, 0x00, 0, bytearray())
+        return pushTLV(a, TLVTypes.Null, 0, bytearray())
 
     @staticmethod
-    def pushPublicKey(a: bytearray, b: bytearray) -> bytearray:
-        return pushTLV(a, 0x06, len(b), b)
+    def pushPublicKey(a: bytearray, b: bytes) -> bytearray:
+        return pushTLV(a, TLVTypes.PublicKey, len(b), bytearray(b))
 
     @staticmethod
     def pushDerivationPath(a: bytearray, b: list) -> bytearray:
-        bytes = bytearray()
+        data = bytearray()
         for i in b:
-            bytes = push(bytes, BigEndian.numberToArray(i))
-        return TLV.pushBytes(a, bytes)
+            data = push(data, BigEndian.numberToArray(i))
+        return TLV.pushBytes(a, data)
 
     # Methods to pack different commands into TLV format
 
+    @staticmethod
     def packSeed(b: commands.Seed) -> bytearray:
         object_data = bytearray()
         if b.topic:
@@ -95,6 +97,7 @@ class TLV:
         object_data = TLV.pushPublicKey(object_data, b.ephemeral_public_key)
         return object_data
 
+    @staticmethod
     def packDerive(b: commands.Derive) -> bytearray:
         object_data = bytearray()
         object_data = TLV.pushDerivationPath(object_data, b.path)
@@ -104,6 +107,7 @@ class TLV:
         object_data = TLV.pushPublicKey(object_data, b.ephemeral_public_key)
         return object_data
 
+    @staticmethod
     def packAddMember(b: commands.AddMember) -> bytearray:
         object_data = bytearray()
         object_data = TLV.pushString(object_data, b.name)
@@ -111,6 +115,7 @@ class TLV:
         object_data = TLV.pushInt32(object_data, b.permissions)
         return object_data
 
+    @staticmethod
     def packPublishKey(b: commands.PublishKey) -> bytearray:
         object_data = bytearray()
         object_data = TLV.pushBytes(object_data, b.initialization_vector)
@@ -119,40 +124,32 @@ class TLV:
         object_data = TLV.pushPublicKey(object_data, b.ephemeral_public_key)
         return object_data
 
-    def packCloseStream(b: commands.CloseStream) -> bytearray:
+    @staticmethod
+    def packCloseStream() -> bytearray:
         return bytearray()
 
-    '''
-    def packEditMember(b: commands.EditMember) -> bytearray:
-        object_data = bytearray()
-        object_data = TLV.pushPublicKey(object_data, b.member)
-        if b.permissions:
-            object_data = TLV.pushInt32(object_data, b.permissions)
-        else:
-            object_data = TLV.pushNull(object_data)
-        if b.name:
-            object_data = TLV.pushString(object_data, b.name)
-        else:
-            object_data = TLV.pushNull(object_data)
-        return object_data
-    '''
 
+    @staticmethod
     def packCommand(buffer: bytearray, command: Command) -> bytearray:
         object_bytes = bytearray()
         command_type = command.get_type()
 
         if command_type == CommandType.Seed:
+            command = cast(commands.Seed, command)
             object_bytes = TLV.packSeed(command)
         elif command_type == CommandType.Derive:
+            command = cast(commands.Derive, command)
             object_bytes = TLV.packDerive(command)
         elif command_type == CommandType.AddMember:
+            command = cast(commands.AddMember, command)
             object_bytes = TLV.packAddMember(command)
         elif command_type == CommandType.PublishKey:
+            command = cast(commands.PublishKey, command)
             object_bytes = TLV.packPublishKey(command)
         elif command_type == CommandType.CloseStream:
-            object_bytes = TLV.packCloseStream(command)
-        elif command_type == CommandType.EditMember:
-            object_bytes = TLV.packEditMember(command)
+            object_bytes = TLV.packCloseStream()
+        # elif command_type == CommandType.EditMember:
+        #     object_bytes = TLV.packEditMember(command)
 
         buffer = pushTLV(buffer, command.get_type(), len(object_bytes), object_bytes)
         return buffer

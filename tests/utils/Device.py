@@ -1,30 +1,35 @@
 from typing import List, cast
 
-from .NobleCrypto import Crypto
-from .CommandBlock import CommandType, sign_command_block, CommandBlock, commands
+from utils.NobleCrypto import Crypto
+from utils.CommandBlock import CommandType, sign_command_block, CommandBlock, commands
+from utils.CommandStreamResolver import CommandStreamResolver
 
 
 class device:
     def get_public_key(self) -> bytes:
-        raise ('Not Implemented')
+        raise NotImplementedError
 
-    def is_public_key_available(self) -> bool:
-        raise ('Not Implemented')
+    def sign(self, stream, tree=None) -> CommandBlock:
+        raise NotImplementedError
 
-    def sign(self, stream, tree=None):
-        raise ('Not Implemented')
+    def read_key(self, tree, path) -> None:
+        raise NotImplementedError
 
-    def read_key(self, tree, path) -> bytes:
-        raise ('Not Implemented')
+    def derive_key(self, tree, path) -> None:
+        raise NotImplementedError
 
 
 class SodiumDevice(device):
     def __init__(self, kp):
-        # print('Sodium device' + repr(kp))
         self.key_pair = kp
 
+    def read_key(self, tree, path) -> None:
+        raise NotImplementedError
+
+    def derive_key(self, tree, path) -> None:
+        raise NotImplementedError
+
     def get_public_key(self):
-        # print('Sodium' +  repr(self.key_pair))
         return self.key_pair['publicKey']
 
     def generateSharedKey(self):
@@ -49,7 +54,6 @@ class SodiumDevice(device):
         return {'xpriv': xpriv, 'publicKey': encrypted_shared_key['publicKey']}
 
     def sign(self, stream: List[CommandBlock], tree=None):
-        from .CommandStreamResolver import CommandStreamResolver
         if len(stream) == 0:
             raise ValueError("Cannot sign an empty stream")
         if len(stream[-1].commands) == 0:
@@ -67,7 +71,8 @@ class SodiumDevice(device):
 
         # Iterate through the commands to inject encrypted keys
         seedCount = 0
-        for command_index in range(len(last_block.commands)):
+        # for command_index in range(len(last_block.commands)):
+        for command_index, _ in enumerate(last_block.commands):
             command = last_block.commands[command_index]
             command_type = command.get_type()
 
@@ -77,9 +82,9 @@ class SodiumDevice(device):
                 if seedCount == 0:
                     command = cast(commands.Seed, command)
                     shared_key = self.generateSharedKey()
-                    encrypted_shared_key = self.encrypt_shared_key(
-                        shared_key, self.key_pair['publicKey'])
-                    command.group_key = shared_key['publicKey']
+                    encrypted_shared_key = self.encrypt_shared_key(shared_key, self.key_pair['publicKey'])
+                    if shared_key:
+                        command.group_key = shared_key['publicKey']
                     command.encrypted_xpriv = encrypted_shared_key['encryptedXpriv']
                     command.ephemeral_public_key = encrypted_shared_key['ephemeralPublicKey']
                     command.initialization_vector = encrypted_shared_key['initializationVector']
@@ -93,10 +98,10 @@ class SodiumDevice(device):
                 command = cast(commands.Derive, command)
                 if not tree:
                     raise ValueError("Cannot derive a key without a tree")
-                shared_key = self.derive_key(tree, command.path)
-                encrypted_derived_key = self.encrypt_shared_key(
-                    shared_key, self.key_pair['publicKey'])
-                command.group_key = shared_key['publicKey']
+                shared_key =   super().derive_key(tree, command.path)
+                encrypted_derived_key = self.encrypt_shared_key(shared_key, self.key_pair['publicKey'])
+                if shared_key:
+                    command.group_key = shared_key['publicKey']
                 command.encrypted_xpriv = encrypted_derived_key['encryptedXpriv']
                 command.initialization_vector = encrypted_derived_key['initializationVector']
                 command.ephemeral_public_key = encrypted_derived_key['ephemeralPublicKey']
@@ -119,7 +124,7 @@ class SodiumDevice(device):
                         if Crypto.to_hex(stream[0].issuer) != Crypto.to_hex(self.key_pair['publicKey']):
                             raise ValueError("Cannot read the seed key from another device")
                     else:
-                        shared_key = self.derive_key(tree, resolved.get_stream_derivation_path())
+                        shared_key = super().derive_key(tree, resolved.get_stream_derivation_path())
                     if not shared_key:
                         raise ValueError("Cannot find the shared key")
 
@@ -128,8 +133,7 @@ class SodiumDevice(device):
                 command.initialization_vector = encrypted_shared_key['initializationVector']
                 command.ephemeral_public_key = encrypted_shared_key['ephemeralPublicKey']
 
-        signature = sign_command_block(last_block, self.get_public_key(),
-                                       self.key_pair['privateKey']).signature
+        signature = sign_command_block(last_block, self.key_pair['privateKey']).signature
         last_block.signature = signature
         return last_block
 
