@@ -85,84 +85,59 @@ static int ecpoint_decompress(uint8_t prefix, const uint8_t *raw_x, uint8_t *out
     uint8_t raw_seven = 7;
     uint8_t exponent = 3;
     bool is_odd;
-    int ret = 0;
-    cx_err_t err = CX_INTERNAL_ERROR;
+    cx_err_t error = CX_INTERNAL_ERROR;
 
-    BEGIN_TRY {
-        TRY {
-            err = cx_bn_lock(32, 0);
-
-            // y_square = 0
-            err |= cx_bn_alloc(&y_square, 32);
-
-            // y_square_square_root = 0
-            err |= cx_bn_alloc(&y_square_square_root, 32);
-
-            // x = raw_x
-            err |= cx_bn_alloc_init(&x, 32, raw_x, 32);
-
-            // init p
-            err |= cx_bn_alloc_init(&p, 32, raw_p, sizeof(raw_p));
-
-            // init constant to 7
-            err |= cx_bn_alloc_init(&constant, 32, &raw_seven, sizeof(raw_seven));
-
-            // (pow_mod(x, 3, p) + 7) % p
-            //  -> y_square = pow_mod(x, 3, p)
-            err |= cx_bn_mod_pow(y_square, x, &exponent, sizeof(exponent), p);
-
-            // -> y_square = y_square + 7
-            err |= cx_bn_add(y_square, y_square, constant);
-
-            // -> y_square = y_square % p
-            err |= cx_bn_reduce(y_square_square_root, y_square, p);
-
-            // Swap y_square_square_root and y_square otherwise y_square is equal to 0
-            swap = y_square_square_root;
-            y_square_square_root = y_square;
-            y_square = swap;
-
-            // y = pow_mod(y_square, (p+1)/4, p)
-            err |= cx_bn_destroy(&constant);
-            err |= cx_bn_alloc_init(&constant,
-                                    32,
-                                    raw_p_plus_one_div_4,
-                                    sizeof(raw_p_plus_one_div_4));  // Alloc constant to (p + 1) / 4
-
-            err |= cx_bn_mod_pow_bn(y_square_square_root, y_square, constant, p);
-
-            // Check parity
-            err |= cx_bn_is_odd(y_square_square_root, &is_odd);
-
-            // prefix == "02" and y_square_square_root & 1) or (prefix == "03" and not
-            // y_square_square_root & 1
-            if ((prefix == 0x02 && is_odd) || (prefix == 0x03 && !is_odd)) {
-                // y_square_square_root = -y_square_square_root % p
-                err |= cx_bn_destroy(&constant);
-                err |= cx_bn_alloc_init(&constant,
-                                        32,
-                                        &raw_zero,
-                                        sizeof(raw_zero));  // Alloc constant to 0
-                err |= cx_bn_mod_sub(y_square, constant, y_square_square_root, p);
-                // APDU_LOG_BN(y_square)
-                err |= cx_bn_export(y_square, out_y, 32);
-            } else {
-                err |= cx_bn_export(y_square_square_root, out_y, 32);
-            }
-        }
-        CATCH_OTHER(e) {
-            ret = e;
-        }
-        FINALLY {
-            err |= cx_bn_destroy(&constant);
-            err |= cx_bn_destroy(&y_square_square_root);
-            err |= cx_bn_destroy(&y_square);
-            err |= cx_bn_unlock();
-        }
+    CX_CHECK(cx_bn_lock(32, 0));
+    // y_square = 0
+    CX_CHECK(cx_bn_alloc(&y_square, 32));
+    // y_square_square_root = 0
+    CX_CHECK(cx_bn_alloc(&y_square_square_root, 32));
+    // x = raw_x
+    CX_CHECK(cx_bn_alloc_init(&x, 32, raw_x, 32));
+    // init p
+    CX_CHECK(cx_bn_alloc_init(&p, 32, raw_p, sizeof(raw_p)));
+    // init constant to 7
+    CX_CHECK(cx_bn_alloc_init(&constant, 32, &raw_seven, sizeof(raw_seven)));
+    // (pow_mod(x, 3, p) + 7) % p
+    //  -> y_square = pow_mod(x, 3, p)
+    CX_CHECK(cx_bn_mod_pow(y_square, x, &exponent, sizeof(exponent), p));
+    // -> y_square = y_square + 7
+    CX_CHECK(cx_bn_add(y_square, y_square, constant));
+    // -> y_square = y_square % p
+    CX_CHECK(cx_bn_reduce(y_square_square_root, y_square, p));
+    // Swap y_square_square_root and y_square otherwise y_square is equal to 0
+    swap = y_square_square_root;
+    y_square_square_root = y_square;
+    y_square = swap;
+    // y = pow_mod(y_square, (p+1)/4, p)
+    CX_CHECK(cx_bn_destroy(&constant));
+    // Alloc constant to (p + 1) / 4
+    CX_CHECK(cx_bn_alloc_init(&constant, 32, raw_p_plus_one_div_4, sizeof(raw_p_plus_one_div_4)));
+    CX_CHECK(cx_bn_mod_pow_bn(y_square_square_root, y_square, constant, p));
+    // Check parity
+    CX_CHECK(cx_bn_is_odd(y_square_square_root, &is_odd));
+    // prefix == "02" and y_square_square_root & 1 or
+    // prefix == "03" and not y_square_square_root & 1
+    if ((prefix == 0x02 && is_odd) || (prefix == 0x03 && !is_odd)) {
+        // y_square_square_root = -y_square_square_root % p
+        CX_CHECK(cx_bn_destroy(&constant));
+        // Alloc constant to 0
+        CX_CHECK(cx_bn_alloc_init(&constant, 32, &raw_zero, sizeof(raw_zero)));
+        CX_CHECK(cx_bn_mod_sub(y_square, constant, y_square_square_root, p));
+        // APDU_LOG_BN(y_square)
+        CX_CHECK(cx_bn_export(y_square, out_y, 32));
+    } else {
+        CX_CHECK(cx_bn_export(y_square_square_root, out_y, 32));
     }
-    END_TRY;
-    LEDGER_ASSERT(err == CX_OK, "Crypto Error");
-    return ret;
+end:
+    LEDGER_ASSERT(error == CX_OK, "Crypto Error");
+    error |= cx_bn_destroy(&constant);
+    error |= cx_bn_destroy(&y_square_square_root);
+    error |= cx_bn_destroy(&y_square);
+    if (cx_bn_is_locked()) {
+        cx_bn_unlock();
+    }
+    return error;
 }
 
 int crypto_decompress_public_key(const uint8_t *compressed_public_key,
@@ -401,60 +376,46 @@ int crypto_ec_add_mod_n(const uint8_t *a, const uint8_t *b, uint8_t *out) {
     cx_bn_t a_bn;
     cx_bn_t b_bn;
     cx_bn_t out_bn;
-    int ret = 0;
-    cx_err_t err = CX_INTERNAL_ERROR;
+    cx_err_t error = CX_INTERNAL_ERROR;
 
-    BEGIN_TRY {
-        TRY {
-            err = cx_bn_lock(32, 0);
-            err |= cx_bn_alloc(&n, 32);
-            err |= cx_ecdomain_parameter_bn(CX_CURVE_256K1, CX_CURVE_PARAM_Order, n);
-            err |= cx_bn_alloc_init(&a_bn, 32, a, 32);
-            err |= cx_bn_alloc_init(&b_bn, 32, b, 32);
-            err |= cx_bn_alloc(&out_bn, 32);
-            err |= cx_bn_mod_add(out_bn, a_bn, b_bn, n);
-            err |= cx_bn_export(out_bn, out, 32);
-        }
-        CATCH_OTHER(e) {
-            ret = e;
-        }
-        FINALLY {
-            err |= cx_bn_destroy(&a_bn);
-            err |= cx_bn_destroy(&b_bn);
-            err |= cx_bn_destroy(&out_bn);
-            err |= cx_bn_unlock();
-        }
+    CX_CHECK(cx_bn_lock(32, 0));
+    CX_CHECK(cx_bn_alloc(&n, 32));
+    CX_CHECK(cx_ecdomain_parameter_bn(CX_CURVE_256K1, CX_CURVE_PARAM_Order, n));
+    CX_CHECK(cx_bn_alloc_init(&a_bn, 32, a, 32));
+    CX_CHECK(cx_bn_alloc_init(&b_bn, 32, b, 32));
+    CX_CHECK(cx_bn_alloc(&out_bn, 32));
+    CX_CHECK(cx_bn_mod_add(out_bn, a_bn, b_bn, n));
+    CX_CHECK(cx_bn_export(out_bn, out, 32));
+end:
+    LEDGER_ASSERT(error == CX_OK, "Crypto Error");
+    error |= cx_bn_destroy(&a_bn);
+    error |= cx_bn_destroy(&b_bn);
+    error |= cx_bn_destroy(&out_bn);
+    if (cx_bn_is_locked()) {
+        cx_bn_unlock();
     }
-    END_TRY;
-
-    LEDGER_ASSERT(err == CX_OK, "Crypto Error");
-    return ret;
+    return error;
 }
 
 bool crypto_ec_is_point_on_curve(const uint8_t *private_key) {
     cx_bn_t n;
     cx_bn_t private_key_bn;
-    int ret = 0;
-    cx_err_t err = CX_INTERNAL_ERROR;
+    int diff = 1;
+    cx_err_t error = CX_INTERNAL_ERROR;
 
-    BEGIN_TRY {
-        TRY {
-            err = cx_bn_lock(32, 0);
-            err |= cx_bn_alloc(&n, 32);
-            err |= cx_ecdomain_parameter_bn(CX_CURVE_256K1, CX_CURVE_PARAM_Order, n);
-            err |= cx_bn_alloc_init(&private_key_bn, 32, private_key, 32);
-            err |= cx_bn_cmp(private_key_bn, n, &ret);
-        }
-        CATCH_OTHER(e) {
-            ret = e;
-        }
-        FINALLY {
-            err |= cx_bn_destroy(&private_key_bn);
-            err |= cx_bn_destroy(&n);
-            err |= cx_bn_unlock();
-        }
+    CX_CHECK(cx_bn_lock(32, 0));
+    CX_CHECK(cx_bn_alloc(&n, 32));
+    CX_CHECK(cx_ecdomain_parameter_bn(CX_CURVE_256K1, CX_CURVE_PARAM_Order, n));
+    CX_CHECK(cx_bn_alloc_init(&private_key_bn, 32, private_key, 32));
+    CX_CHECK(cx_bn_cmp(private_key_bn, n, &diff));
+end:
+    if (error == CX_OK) {
+        error |= cx_bn_destroy(&private_key_bn);
+        error |= cx_bn_destroy(&n);
     }
-    END_TRY;
-    LEDGER_ASSERT(err == CX_OK, "Crypto Error");
-    return ret;
+    LEDGER_ASSERT(error == CX_OK, "Crypto Error");
+    if (cx_bn_is_locked()) {
+        cx_bn_unlock();
+    }
+    return diff;
 }
