@@ -1,6 +1,6 @@
 # ****************************************************************************
-#    Ledger App Trustchain
-#    (c) 2023 Ledger SAS.
+#    Ledger Sync App.
+#    (c) 2024 Ledger SAS.
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -25,7 +25,7 @@ include $(BOLOS_SDK)/Makefile.defines
 #        Mandatory configuration       #
 ########################################
 # Application name
-APPNAME = "Trustchain"
+APPNAME = "Ledger Sync"
 
 # Application version
 APPVERSION_M = 1
@@ -64,8 +64,8 @@ PATH_APP_LOAD_PARAMS = "99'/99'"   # purpose=coin(44) / coin_type=Testnet(1)
 # - <VARIANT_VALUES> a list of variant that can be build using this app code.
 #   * It must at least contains one value.
 #   * Values can be the app ticker or anything else but should be unique.
-VARIANT_PARAM = APPNAME
-VARIANT_VALUES = Trustchain
+VARIANT_PARAM = COIN
+VARIANT_VALUES = Ledger-Sync
 
 # Enabling DEBUG flag will enable PRINTF and disable optimizations
 #DEBUG = 1
