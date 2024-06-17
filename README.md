@@ -1,8 +1,8 @@
-# Trustchain application
+# Ledger Sync application
 
-[![Ensure compliance with Ledger guidelines](https://github.com/LedgerHQ/app-trustchain/actions/workflows/guidelines_enforcer.yml/badge.svg)](https://github.com/LedgerHQ/app-trustchain/actions/workflows/guidelines_enforcer.yml)
+[![Ensure compliance with Ledger guidelines](https://github.com/LedgerHQ/app-ledger-sync/actions/workflows/guidelines_enforcer.yml/badge.svg)](https://github.com/LedgerHQ/app-ledger-sync/actions/workflows/guidelines_enforcer.yml)
 
-[![Build and run functional tests using ragger through reusable workflow](https://github.com/LedgerHQ/app-trustchain/actions/workflows/build_and_functional_tests.yml/badge.svg)](https://github.com/LedgerHQ/app-trustchain/actions/workflows/build_and_functional_tests.yml)
+[![Build and run functional tests using ragger through reusable workflow](https://github.com/LedgerHQ/app-ledger-sync/actions/workflows/build_and_functional_tests.yml/badge.svg)](https://github.com/LedgerHQ/app-ledger-sync/actions/workflows/build_and_functional_tests.yml)
 
 ## Overview
 
@@ -31,8 +31,8 @@ to quickly **build** your apps, **test** them on **Speculos** and **load** them 
   - On Windows, install and launch [VcXsrv](https://sourceforge.net/projects/vcxsrv/)
     (make sure to configure it to disable access control).
 - Install [VScode](https://code.visualstudio.com/download) and add [Ledger's extension](https://marketplace.visualstudio.com/items?itemName=LedgerHQ.ledger-dev-tools).
-- Open a terminal and clone `app-trustchain` with `git clone git@github.com:LedgerHQ/app-trustchain.git`.
-- Open the `app-trustchain` folder with VSCode.
+- Open a terminal and clone `app-ledger-sync` with `git clone git@github.com:LedgerHQ/app-ledger-sync.git`.
+- Open the `app-ledger-sync` folder with VSCode.
 - Use Ledger extension's sidebar menu or open the tasks menu with `ctrl + shift + b`
   (`command + shift + b` on a Mac) to conveniently execute actions:
   - Build the app for the device model of your choice with `Build`.
@@ -149,7 +149,7 @@ python3 -m ledgerblue.runScript --scp --fileName bin/app.apdu --elfFile bin/app.
 
 ## Tests
 
-The trustchain app comes with different tests:
+This Application comes with different tests:
 
 - Functional Tests implemented with Ledger's [Ragger](https://github.com/LedgerHQ/ragger) test framework.
 - Unit Tests, allowing to test basic simple functions.

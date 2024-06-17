@@ -1,4 +1,4 @@
-# Trustchain Application
+# Ledger Sync Application
 
 ## Signature flow
 

@@ -1,7 +1,7 @@
 #pragma once
 
 /**
- * Instruction class of the Trustchain application
+ * Instruction class of the Ledger Sync application
  */
 #define CLA 0xE0
 

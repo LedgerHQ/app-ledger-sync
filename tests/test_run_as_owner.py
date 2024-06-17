@@ -160,7 +160,7 @@ def test_seed_and_add_bob(firmware: Firmware,
         navigator, test_name=f"{test_name}_seed", instructions=seed_instructions)
     alice.update_automation(seed_automation)
     stream = stream.edit().seed(topic).issue(alice)
-    backend.wait_for_text_on_screen("Trustchain")
+    backend.wait_for_text_on_screen("Ledger Sync")
 
     member_automation = Automation(
         navigator, test_name=f"{test_name}_member", instructions=valid_member_instructions)

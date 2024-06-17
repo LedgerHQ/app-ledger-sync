@@ -46,6 +46,6 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./unit-tests/coverage.info
           flags: unittests
-          name: codecov-app-trustchain
+          name: codecov-app-ledger-sync
           fail_ci_if_error: true
           verbose: true
