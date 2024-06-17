@@ -2,28 +2,19 @@ import pytest
 
 from ragger.error import ExceptionRAPDU
 from ragger.backend import BackendInterface
-from ragger.firmware import Firmware
-from ragger.navigator import Navigator
 
 from utils.CommandStream import CommandStream
 from utils.NobleCrypto import Crypto
 from utils.CommandBlock import CommandBlock, commands, sign_command_block
 from utils.index import device
-from utils.ApduDevice import Device, Automation
+from utils.ApduDevice import Device
 from utils.CommandStreamEncoder import CommandStreamEncoder
 
-from constants import DEFAULT_TOPIC, approve_instructions_nano, approve_instructions_stax
+from constants import DEFAULT_TOPIC
 
 
 # Basic Signature Flow
-def test_basic_signature_flow(firmware: Firmware,
-                              backend: BackendInterface,
-                              navigator: Navigator,
-                              test_name: str) -> None:
-    if firmware.is_nano:
-        valid_seed_instructions = approve_instructions_nano
-    else:
-        valid_seed_instructions = approve_instructions_stax
+def test_basic_signature_flow(backend: BackendInterface) -> None:
 
     sessionKey = Crypto.randomKeyPair()
 
@@ -42,9 +33,6 @@ def test_basic_signature_flow(firmware: Firmware,
         bytes([0] * 0)
     )
 
-    seed_automation = Automation(
-        navigator, test_name=f"{test_name}_seed", instructions=valid_seed_instructions)
-
     # Initialize flow
     Device.initFlow(backend, sessionKey['publicKey'])
 
@@ -52,22 +40,14 @@ def test_basic_signature_flow(firmware: Firmware,
     Device.signBlockHeader(backend, CommandStreamEncoder.encodeBlockHeader(block))
 
     # Commands
-    # Device.parseCommand(backend, CommandStreamEncoder.encodeCommand(block,0))
-    Device.signCommand(backend, CommandStreamEncoder.encodeCommand(block, 0), seed_automation)
+    Device.signCommand(backend, CommandStreamEncoder.encodeCommand(block, 0))
 
     # Finalize signature
     Device.finalizeSignature(backend)
 
 
 # We finalize twice, should fail.
-def test_finalize_twice(firmware: Firmware,
-                        backend: BackendInterface,
-                        navigator: Navigator,
-                        test_name: str) -> None:
-    if firmware.is_nano:
-        valid_seed_instructions = approve_instructions_nano
-    else:
-        valid_seed_instructions = approve_instructions_stax
+def test_finalize_twice(backend: BackendInterface) -> None:
 
     sessionKey = Crypto.randomKeyPair()
 
@@ -86,9 +66,6 @@ def test_finalize_twice(firmware: Firmware,
         bytes([0] * 0)
     )
 
-    seed_automation = Automation(
-        navigator, test_name=f"{test_name}_seed", instructions=valid_seed_instructions)
-
     # Initialize flow
     Device.initFlow(backend, sessionKey['publicKey'])
 
@@ -96,8 +73,7 @@ def test_finalize_twice(firmware: Firmware,
     Device.signBlockHeader(backend, CommandStreamEncoder.encodeBlockHeader(block))
 
     # Commands
-    # Device.parseCommand(backend, CommandStreamEncoder.encodeCommand(block,0))
-    Device.signCommand(backend, CommandStreamEncoder.encodeCommand(block, 0), seed_automation)
+    Device.signCommand(backend, CommandStreamEncoder.encodeCommand(block, 0))
 
     # Finalize signature
     Device.finalizeSignature(backend)
@@ -106,14 +82,7 @@ def test_finalize_twice(firmware: Firmware,
         Device.finalizeSignature(backend)
 
 
-def test_sign_header_after_finalize(firmware: Firmware,
-                                    backend: BackendInterface,
-                                    navigator: Navigator,
-                                    test_name: str) -> None:
-    if firmware.is_nano:
-        valid_seed_instructions = approve_instructions_nano
-    else:
-        valid_seed_instructions = approve_instructions_stax
+def test_sign_header_after_finalize(backend: BackendInterface) -> None:
 
     sessionKey = Crypto.randomKeyPair()
 
@@ -132,9 +101,6 @@ def test_sign_header_after_finalize(firmware: Firmware,
         bytes([0] * 0)
     )
 
-    seed_automation = Automation(
-        navigator, test_name=f"{test_name}_seed", instructions=valid_seed_instructions)
-
     # Initialize flow
     Device.initFlow(backend, sessionKey['publicKey'])
 
@@ -142,8 +108,7 @@ def test_sign_header_after_finalize(firmware: Firmware,
     Device.signBlockHeader(backend, CommandStreamEncoder.encodeBlockHeader(block))
 
     # Commands
-    # Device.parseCommand(backend, CommandStreamEncoder.encodeCommand(block,0))
-    Device.signCommand(backend, CommandStreamEncoder.encodeCommand(block, 0), seed_automation)
+    Device.signCommand(backend, CommandStreamEncoder.encodeCommand(block, 0))
 
     # Finalize signature
     Device.finalizeSignature(backend)
@@ -234,14 +199,7 @@ def test_bypass_init_header(backend: BackendInterface) -> None:
         Device.signBlockHeader(backend, CommandStreamEncoder.encodeBlockHeader(block))
 
 
-def test_bypass_one_command(firmware: Firmware,
-                            backend: BackendInterface,
-                            navigator: Navigator,
-                            test_name: str) -> None:
-    if firmware.is_nano:
-        valid_seed_instructions = approve_instructions_nano
-    else:
-        valid_seed_instructions = approve_instructions_stax
+def test_bypass_one_command(backend: BackendInterface) -> None:
 
     sessionKey = Crypto.randomKeyPair()
     block = CommandBlock(
@@ -269,16 +227,11 @@ def test_bypass_one_command(firmware: Firmware,
         bytes([0]*0)
     )
 
-    seed_automation = Automation(
-        navigator, test_name=f"{test_name}_seed", instructions=valid_seed_instructions)
-
     Device.initFlow(backend, sessionKey['publicKey'])
 
     Device.signBlockHeader(backend, CommandStreamEncoder.encodeBlockHeader(block))
 
-    Device.signCommand(backend, CommandStreamEncoder.encodeCommand(block, 0), seed_automation)
-
-    # Device.signCommand(backend, CommandStreamEncoder.encodeCommand(block 1))
+    Device.signCommand(backend, CommandStreamEncoder.encodeCommand(block, 0))
 
     with pytest.raises(ExceptionRAPDU):
         Device.finalizeSignature(backend)

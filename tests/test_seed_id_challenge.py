@@ -108,11 +108,11 @@ def parse_result(result: bytes) -> Tuple[PubKeyCredential, bytes, int, PubKeyCre
     return pubkey_credential, signature, attestation_type, attestation_pubkey_credential, attestation
 
 
-def test_seed_id(firmware: Firmware,
-                 backend: BackendInterface,
-                 navigator: Navigator,
-                 default_screenshot_path: Path,
-                 test_name: str) -> None:
+def test_seed_id_challenge(firmware: Firmware,
+                           backend: BackendInterface,
+                           navigator: Navigator,
+                           default_screenshot_path: Path,
+                           test_name: str) -> None:
     if firmware.is_nano:
         approve_seed_id_instructions = approve_instructions_nano
     else:
