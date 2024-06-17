@@ -12,3 +12,5 @@
  *
  */
 int handler_get_seed_id(buffer_t *cdata);
+
+int seed_id_callback(bool approve);

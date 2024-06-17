@@ -43,10 +43,11 @@ int seed_id_callback(bool approve) {
     if (approve) {
         error = sign_challenge(challenge_hash);
         if (error) {
-            return io_send_sw(error);
+            io_send_sw(error);
+            return -1;
         }
     } else {
-        return io_send_sw(SW_DENY);
+        io_send_sw(SW_DENY);
     }
     return 0;
 }
@@ -70,7 +71,5 @@ int handler_get_seed_id(buffer_t* buffer) {
         return io_send_sw(error);
     }
 
-    ui_display_seed_id_command(challenge_ctx.host);
-
-    return 0;
+    return ui_display_seed_id_command();
 }
