@@ -33,11 +33,11 @@ def get_default_challenge_tlv() -> bytes:
     return tlv_data
 
 
-def test_seed_id(firmware: Firmware,
-                 backend: BackendInterface,
-                 navigator: Navigator,
-                 default_screenshot_path: Path,
-                 test_name: str) -> None:
+def test_seed_id_parser(firmware: Firmware,
+                        backend: BackendInterface,
+                        navigator: Navigator,
+                        default_screenshot_path: Path,
+                        test_name: str) -> None:
     if firmware.is_nano:
         approve_seed_id_instructions = approve_instructions_nano
     else:

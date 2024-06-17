@@ -16,13 +16,10 @@ from PubKeyCredential import PubKeyCredential
 
 from constants import approve_instructions_nano, approve_instructions_stax
 
-# pylint: disable=line-too-long
-PUBLIC_KEY = bytearray.fromhex(
-    "041FBEF68DE38F9FACD182C1BC60C3F17290C294CC0D197F57EB645AA43733440A68E8352EC6A76CBF09A93E5B5A6ED2F6676D2A66ED59AFD07AAEB7A19783D8B9")
-# pylint: enable=line-too-long
-
-
-def check_signature(public_key: str, message, signature, curve: curves.Curve) -> bool:
+def check_signature(public_key: str,
+                    message,
+                    signature,
+                    curve: curves.Curve = curves.SECP256k1) -> bool:
 
     vk = VerifyingKey.from_string(public_key, curve=curve, hashfunc=hashlib.sha256)
     try:
@@ -53,27 +50,6 @@ def get_challenge_tlv() -> SeedIdChallenge:
         "3045022025d130d7ae5c48a6cf09781d04a08e9a2d07ce1bd17e84637f6ede4a043c5dcc022100a846ececf20eb53ffc2dc502ce8074ba40b241bfd13edaf1e8575559a9b2b4ea")
     # pylint: enable=line-too-long
     return seed_id_challenge
-
-
-def get_default_challenge_tlv() -> bytes:
-    seed_id_challenge = SeedIdChallenge()
-
-    # Set individual attributes
-    seed_id_challenge.payload_type = SeedIdChallenge.DEFAULT_VALUES[SeedIdChallenge.STRUCTURE_TYPE]
-    seed_id_challenge.version = SeedIdChallenge.DEFAULT_VALUES[SeedIdChallenge.VERSION]
-    seed_id_challenge.protocol_version = SeedIdChallenge.DEFAULT_VALUES[SeedIdChallenge.PROTOCOL_VERSION]
-    seed_id_challenge.challenge_data = SeedIdChallenge.DEFAULT_VALUES[SeedIdChallenge.CHALLENGE]
-    seed_id_challenge.challenge_expiry = SeedIdChallenge.DEFAULT_VALUES[SeedIdChallenge.VALID_UNTIL]
-    seed_id_challenge.host = SeedIdChallenge.DEFAULT_VALUES[SeedIdChallenge.TRUSTED_NAME]
-    seed_id_challenge.rp_credential_sign_algorithm = SeedIdChallenge.DEFAULT_VALUES[
-        SeedIdChallenge.SIGNER_ALGO]
-    seed_id_challenge.rp_credential_curve_id = SeedIdChallenge.DEFAULT_VALUES[
-        SeedIdChallenge.PUBLIC_KEY_CURVE]
-    seed_id_challenge.rp_credential_public_key = SeedIdChallenge.DEFAULT_VALUES[SeedIdChallenge.PUBLIC_KEY]
-    seed_id_challenge.rp_signature = SeedIdChallenge.DEFAULT_VALUES[SeedIdChallenge.DER_SIGNATURE]
-    tlv_data = seed_id_challenge.to_tlv()
-
-    return tlv_data
 
 
 def parse_result(result: bytes) -> Tuple[PubKeyCredential, bytes, int, PubKeyCredential, bytes]:
@@ -108,11 +84,11 @@ def parse_result(result: bytes) -> Tuple[PubKeyCredential, bytes, int, PubKeyCre
     return pubkey_credential, signature, attestation_type, attestation_pubkey_credential, attestation
 
 
-def test_seed_id(firmware: Firmware,
-                 backend: BackendInterface,
-                 navigator: Navigator,
-                 default_screenshot_path: Path,
-                 test_name: str) -> None:
+def test_seed_id_challenge(firmware: Firmware,
+                           backend: BackendInterface,
+                           navigator: Navigator,
+                           default_screenshot_path: Path,
+                           test_name: str) -> None:
     if firmware.is_nano:
         approve_seed_id_instructions = approve_instructions_nano
     else:
@@ -135,9 +111,9 @@ def test_seed_id(firmware: Firmware,
     pubkey, signature, attestation_type, attestation_pubkey, attestation_signature = parse_result(response.data)
 
     assert attestation_type == 0x00
-    assert check_signature(pubkey.public_key, challenge_hash, signature, curves.SECP256k1)
+    assert check_signature(pubkey.public_key, challenge_hash, signature)
     assert check_signature(attestation_pubkey.public_key, hashlib.sha256(
-        challenge_hash).digest() + signature, attestation_signature, curves.SECP256k1)
+        challenge_hash).digest() + signature, attestation_signature)
 
 
 # def test_seed_id_invalid_challenge(firmware, backend, navigator, test_name):
