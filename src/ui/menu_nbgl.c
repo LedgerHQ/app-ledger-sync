@@ -1,6 +1,6 @@
 /*****************************************************************************
- *   Ledger App Trustchain.
- *   (c) 2023 Ledger SAS.
+ *   Ledger Sync App.
+ *   (c) 2024 Ledger SAS.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -37,14 +37,15 @@ void ui_menu_main(void) {
     infosList.infoTypes = (const char**) INFO_TYPES;
     infosList.infoContents = (const char**) INFO_CONTENTS;
 
-    nbgl_useCaseHomeAndSettings(APPNAME,
-                                &C_app_trustchain_64px,
-                                NULL,
-                                INIT_HOME_PAGE,
-                                NULL,
-                                &infosList,
-                                NULL,
-                                app_exit);
+    nbgl_useCaseHomeAndSettings(
+        APPNAME,
+        &C_app_64px,
+        "Use this app to validate actions when managing Ledger Sync with Ledger Live.",
+        INIT_HOME_PAGE,
+        NULL,
+        &infosList,
+        NULL,
+        app_exit);
 }
 
 #endif
