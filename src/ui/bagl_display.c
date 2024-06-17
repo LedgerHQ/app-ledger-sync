@@ -34,32 +34,19 @@
 #include "menu.h"
 #include "trusted_io.h"
 #include "challenge_parser.h"
-
-static uint8_t host[HOST_LENGTH];
-static action_validate_cb g_validate_callback;
-int add_member_confirm(void);
-int add_seed_callback(bool confirm);
-int seed_id_callback(bool confirm);
+#include "get_seed_id.h"
+#include "signer.h"
 
 static action_validate_cb g_validate_callback;
 
-static int ui_display_add_member(bool approve) {
-    if (approve) {
-        add_member_confirm();
-    } else {
-        io_send_sw(SW_DENY);
-    }
-    return 0;
-}
-
-UX_STEP_CB(ux_display_member_confirmed_step, nn, ui_menu_main(), {"Wallet sync", "activated"});
+UX_STEP_CB(ux_display_member_confirmed_step, nn, ui_menu_main(), {"Ledger Sync", "enabled"});
 
 // FLOW to display add member:
 // #1 screen: eye icon + "Confirm Address"
 UX_FLOW(ux_display_member_confirmed_flow, &ux_display_member_confirmed_step);
 
 // Step with icon and text
-UX_STEP_NOCB(ux_display_confirm_member_step, pnn, {NULL, "Activate Wallet sync", NULL});
+UX_STEP_NOCB(ux_display_confirm_member_step, pnn, {NULL, "Enable Ledger Sync?", NULL});
 
 // Step with approve button
 UX_STEP_CB(ux_display_approve_step,
@@ -78,6 +65,16 @@ UX_STEP_CB(ux_display_reject_step,
                "Reject",
            });
 
+static int ui_display_add_member(bool approve) {
+    if (approve) {
+        add_member_confirm();
+        ux_flow_init(0, ux_display_member_confirmed_flow, NULL);
+    } else {
+        io_send_sw(SW_DENY);
+    }
+    return 0;
+}
+
 // FLOW to display add member:
 // #1 screen: eye icon + "Confirm Address"
 // #2 screen: display address
@@ -94,42 +91,21 @@ int ui_display_add_member_command(void) {
     return 0;
 }
 
-int ui_display_add_member_confirmed(void) {
-    ux_flow_init(0, ux_display_member_confirmed_flow, NULL);
-    return 0;
-}
-
-int ui_display_add_seed(bool approve) {
-    add_seed_callback(approve);
-    ui_menu_main();
-    return 0;
-}
-
-UX_STEP_NOCB(ux_display_confirm_seed_step, nn, {"Create a new", "sync group"});
-
-// FLOW to display add seed:
-// #1 screen: eye icon + "Confirm Address"
-// #2 screen: display address
-// #3 screen: approve button
-// #4 screen: reject button
-UX_FLOW(ux_display_add_seed_flow,
-        &ux_display_confirm_seed_step,
-        &ux_display_approve_step,
-        &ux_display_reject_step);
-
-int ui_display_add_seed_command(void) {
-    g_validate_callback = &ui_display_add_seed;
-    ux_flow_init(0, ux_display_add_seed_flow, NULL);
-    return 0;
-}
-
 int ui_display_seed_id(bool approve) {
-    seed_id_callback(approve);
+    int error;
+    error = seed_id_callback(approve);
+    if (error == -1) {
+        // TODO Add screen "sync error with substring"
+    } else if (!approve) {
+        // TODO Add screen "login cancelled"
+    } else {
+        // TODO Add screen "Login request signed"
+    }
     ui_menu_main();
     return 0;
 }
 
-UX_STEP_NOCB(ux_display_confirm_seed_id_step, bnnn_paging, {"SeedId request:", (char*) host});
+UX_STEP_NOCB(ux_display_confirm_seed_id_step, bnnn_paging, {"Login request", "for Ledger Sync"});
 
 // FLOW to display seed id:
 // #1 screen: eye icon + "Confirm Address"
@@ -141,10 +117,13 @@ UX_FLOW(ux_display_seed_id_flow,
         &ux_display_approve_step,
         &ux_display_reject_step);
 
-int ui_display_seed_id_command(uint8_t* in_host) {
-    memcpy(host, in_host, sizeof(host));
+int ui_display_seed_id_command() {
     g_validate_callback = &ui_display_seed_id;
     ux_flow_init(0, ux_display_seed_id_flow, NULL);
+    return 0;
+}
+
+int ui_display_update_instances(void) {
     return 0;
 }
 

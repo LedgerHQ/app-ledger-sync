@@ -35,3 +35,7 @@ int signer_parse_command(signer_ctx_t *signer, stream_ctx_t *stream, buffer_t *d
  * Sign the block
  */
 int signer_sign_block(signer_ctx_t *signer, stream_ctx_t *stream);
+
+int add_member_confirm(void);
+
+void update_confirm(bool confirm);

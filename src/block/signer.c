@@ -145,28 +145,16 @@ static int signer_inject_seed(block_command_t *command) {
     memcpy(G_context.stream.shared_secret, xpriv, sizeof(xpriv));
     G_context.stream.shared_secret_len = sizeof(xpriv);
 
-    // User approval
-    ui_display_add_seed_command();
-
-    error = CX_OK;
 end:
-    if (error != CX_OK) {
+    if (error == CX_OK) {
+        io_send_trusted_property(SW_OK);
+    } else {
         signer_reset();
     }
+    explicit_bzero(G_context.stream.shared_secret, G_context.stream.shared_secret_len);
     explicit_bzero(&secret, sizeof(secret));
     explicit_bzero(&xpriv, sizeof(xpriv));
     return error;
-}
-
-int add_seed_callback(bool confirm) {
-    if (confirm) {
-        io_send_trusted_property(SW_OK);
-    } else {
-        io_send_sw(SW_DENY);
-    }
-    explicit_bzero(G_context.stream.shared_secret, G_context.stream.shared_secret_len);
-
-    return 0;
 }
 
 static int signer_inject_derive(block_command_t *command) {
@@ -289,8 +277,6 @@ int add_member_confirm(void) {
 
     CX_CHECK(io_send_trusted_property(SW_OK));
 
-    ui_display_add_member_confirmed();
-
 end:
     return error;
 }
@@ -380,8 +366,10 @@ end:
     return error;
 }
 
-void signer_inject_close_stream(void) {
-    G_context.stream.is_closed = true;
+void update_confirm(bool confirm) {
+    if (confirm) {
+        G_context.stream.is_closed = true;
+    }
 }
 
 int signer_parse_command(signer_ctx_t *signer, stream_ctx_t *stream, buffer_t *data) {
@@ -439,7 +427,7 @@ int signer_parse_command(signer_ctx_t *signer, stream_ctx_t *stream, buffer_t *d
             err = signer_inject_derive(&command);
             break;
         case COMMAND_CLOSE_STREAM:
-            signer_inject_close_stream();
+            ui_display_update_instances();
             break;
         default:
             // Force fail if we don't know the command
