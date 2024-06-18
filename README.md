@@ -95,7 +95,6 @@ make DEBUG=1  # compile optionally with PRINTF
 
 You can choose which device to compile and load for by setting the `BOLOS_SDK` environment variable to the following values:
 
-- `BOLOS_SDK=$NANOS_SDK`
 - `BOLOS_SDK=$NANOX_SDK`
 - `BOLOS_SDK=$NANOSP_SDK`
 - `BOLOS_SDK=$STAX_SDK`
@@ -170,16 +169,16 @@ pip install -r tests/requirements.txt
 
 Then you can:
 
-Run the functional tests (here for `nanos` but available for any device once you have built the binaries):
+Run the functional tests (here for `nanox` but available for any device once you have built the binaries):
 
 ```shell
-pytest tests/ --tb=short -v --device nanos
+pytest tests/ --tb=short -v --device nanox
 ```
 
 Or run your app directly with Speculos
 
 ```shell
-speculos build/nanos/bin/app.elf
+speculos build/nanox/bin/app.elf
 ```
 
 #### macOS / Windows

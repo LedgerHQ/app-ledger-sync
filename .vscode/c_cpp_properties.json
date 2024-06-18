@@ -1,10 +1,10 @@
 {
     "env": {
-        "BOLOS_SDK": "/opt/nanos-secure-sdk"
+        "BOLOS_SDK": "/opt/nanox-secure-sdk"
     },
     "configurations": [
         {
-            "name": "Nano S",
+            "name": "Nano X",
             "includePath": [
                 "/usr/include",
                 "${workspaceFolder}/src",
@@ -12,7 +12,6 @@
                 "${env:BOLOS_SDK}/**"
             ],
             "defines": [
-                "TARGET_NANOS",
                 "OS_IO_SEPROXYHAL",
                 "HAVE_BAGL",
                 "HAVE_NBGL",
