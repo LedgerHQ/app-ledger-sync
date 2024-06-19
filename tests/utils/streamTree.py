@@ -1,9 +1,9 @@
+from typing import Optional
 from utils.indexedTree import IndexedTree
 from utils.NobleCrypto import DerivationPath
 from utils.InterfaceStreamTree import InterfaceStreamTree
 from utils.InterfaceStreamTree import PublishKeyEvent
 from utils.CommandStream import CommandStream
-from typing import Optional
 
 
 class StreamTree(InterfaceStreamTree):
