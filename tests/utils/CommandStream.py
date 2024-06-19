@@ -1,4 +1,4 @@
-from typing import Callable, List
+from typing import Callable, List, Optional
 
 from utils.CommandBlock import commands, hash_command_block, create_command_block, CommandType, Command, CommandBlock
 from utils.CommandStreamResolver import CommandStreamResolver
@@ -13,7 +13,9 @@ EMPTY = bytearray()
 
 
 class CommandStream:
-    def __init__(self, blocks: List[CommandBlock] = []):
+    def __init__(self, blocks: Optional[List[CommandBlock]] = None):
+        if blocks is None:
+            blocks = []
         self._blocks = blocks
 
     def get_blocks(self) -> list[CommandBlock]:
