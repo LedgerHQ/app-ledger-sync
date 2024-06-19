@@ -3,6 +3,7 @@ from utils.NobleCrypto import DerivationPath
 from utils.InterfaceStreamTree import InterfaceStreamTree
 from utils.InterfaceStreamTree import PublishKeyEvent
 from utils.CommandStream import CommandStream
+from typing import Optional
 
 
 class StreamTree(InterfaceStreamTree):
@@ -17,7 +18,7 @@ class StreamTree(InterfaceStreamTree):
         application_root = "0h"  # TODO change this
         return f"{tree_root}/{application_id}h/{application_root}"
 
-    def get_publish_key_event(self, member: bytes, path: list) -> PublishKeyEvent|None:
+    def get_publish_key_event(self, member: bytes, path: list) -> Optional[PublishKeyEvent]:
         # Iterate over the tree from leaf to root
         leaf = self.tree.find_child(path)
         if not leaf or leaf.get_value() is None:
@@ -78,7 +79,7 @@ class StreamTree(InterfaceStreamTree):
         return StreamTree(new_tree)
 
     @staticmethod
-    def create_new_tree(owner, opts: dict|None = None):
+    def create_new_tree(owner, opts: Optional[dict] = None):
         if opts is None:
             opts = {}
         stream = CommandStream()
