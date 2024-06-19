@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import List, Union, cast
+from typing import List, Union, cast, Optional
 import re
 from ragger.backend.interface import BackendInterface
 from ragger.navigator import Navigator
@@ -71,7 +71,7 @@ class Device:
                      commandIv: bytes,
                      ephemeralPublicKey: bytes,
                      groupKey: bytes,
-                     trustedMember: bytes|None):
+                     trustedMember: Optional[bytes]):
             self.iv = iv
             self.xpriv = xpriv
             self.commandIv = commandIv
@@ -97,7 +97,7 @@ class Device:
             self.trustedMember = trustedMember
 
     class PublishKeyCommandResponse:
-        def __init__(self, trustedMember: bytes|None, iv: bytes, xpriv: bytes, commandIv: bytes, ephemeralPublicKey: bytes):
+        def __init__(self, trustedMember: Optional[bytes], iv: bytes, xpriv: bytes, commandIv: bytes, ephemeralPublicKey: bytes):
             self.trustedMember = trustedMember
             self.iv = iv
             self.xpriv = xpriv
@@ -379,7 +379,7 @@ class Automation:
                  navigator: Navigator,
                  root_path: Path = ROOT_SCREENSHOT_PATH,
                  test_name: str = "",
-                 instructions: list|None = None):
+                 instructions: Optional[list] = None):
         if instructions is None:
             instructions = []
         self.navigator = navigator
@@ -396,7 +396,7 @@ class Automation:
 
 class ApduDevice(device):
     # Replace 'Any' with the actual type for the Transport class
-    def __init__(self, transport: BackendInterface, navigator: Navigator|None = None):
+    def __init__(self, transport: BackendInterface, navigator: Optional[Navigator] = None):
         self.transport = transport
         self.session_key_pair = Crypto.randomKeyPair()
         self.automation: Automation|None = None
@@ -634,5 +634,5 @@ class ApduDevice(device):
         assert version == vers_str
 
 
-def createApduDevice(transport: BackendInterface, navigator: Navigator|None = None):
+def createApduDevice(transport: BackendInterface, navigator: Optional[Navigator] = None):
     return ApduDevice(transport, navigator)

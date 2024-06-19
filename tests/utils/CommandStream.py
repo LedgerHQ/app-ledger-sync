@@ -13,9 +13,7 @@ EMPTY = bytearray()
 
 
 class CommandStream:
-    def __init__(self, blocks: List[CommandBlock]|None = None):
-        if blocks is None:
-            blocks = []
+    def __init__(self, blocks: List[CommandBlock] = []):
         self._blocks = blocks
 
     def get_blocks(self) -> list[CommandBlock]:
