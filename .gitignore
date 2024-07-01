@@ -28,3 +28,6 @@ __pycache__/
 # Doxygen
 doc/html
 doc/latex
+
+# Attestations generation
+attestations/data/prod
