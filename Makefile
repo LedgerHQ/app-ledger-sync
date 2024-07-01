@@ -43,6 +43,14 @@ ICON_NANOSP = icons/nano_app_14px.gif
 ICON_STAX = icons/stax_app_32px.gif
 ICON_FLEX = icons/flex_app_40px.gif
 
+################
+# Attestations #
+################
+PROD_PRIVATE_KEY?=0
+ifneq ($(PROD_PRIVATE_KEY),0)
+    DEFINES += PROD_PRIVATE_KEY=${PROD_PRIVATE_KEY}
+endif
+
 # Application allowed derivation curves.
 # Possibles curves are: secp256k1, secp256r1, ed25519 and bls12381g1
 # If your app needs it, you can specify multiple curves by using:
