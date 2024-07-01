@@ -4,6 +4,7 @@
 #include "sw.h"
 #include "globals.h"
 #include "crypto_helpers.h"
+#include "crypto_data.h"
 
 // Response contains:
 // - pubkey_credential_t (72 Bytes)
