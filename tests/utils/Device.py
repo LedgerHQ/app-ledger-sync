@@ -12,10 +12,10 @@ class device:
     def sign(self, stream, tree=None) -> CommandBlock:
         raise NotImplementedError
 
-    def read_key(self, tree, path) -> None:
+    def read_key(self, tree, path) -> bytes:
         raise NotImplementedError
 
-    def derive_key(self, tree, path) -> None:
+    def derive_key(self, tree, path) -> bytes:
         raise NotImplementedError
 
 
@@ -23,10 +23,25 @@ class SodiumDevice(device):
     def __init__(self, kp):
         self.key_pair = kp
 
-    def read_key(self, tree, path) -> None:
-        raise NotImplementedError
+    def read_key(self, tree, path) -> bytes:
+        event = tree.get_publish_key_event(self.get_public_key(), path)
+        if event is None:
+            raise ValueError("Cannot find the key publication event")
+        shared_key = self.decrypt_shared_key({
+            'encryptedXpriv': event.encryptedXpriv,
+            'initializationVector': event.nonce,
+            'publicKey': event.groupPublicKey,
+            'ephemeralPublicKey': event.ephemeralPublicKey
+        })
+        index = len(event.stream.get_stream_path())
+        while index < len(path):
+            derivation = self.derive_key(event.stream, path[:index])
+            shared_key['xpriv'] = derivation['xpriv'] # type:ignore
+            shared_key['publicKey'] = derivation['publicKey'] # type:ignore
+            index += 1
+        return cast(bytes, shared_key['xpriv'])
 
-    def derive_key(self, tree, path) -> None:
+    def derive_key(self, tree, path) -> bytes:
         raise NotImplementedError
 
     def get_public_key(self):
@@ -71,6 +86,7 @@ class SodiumDevice(device):
 
         # Iterate through the commands to inject encrypted keys
         seedCount = 0
+        added_members = []
         # for command_index in range(len(last_block.commands)):
         for command_index, _ in enumerate(last_block.commands):
             command = last_block.commands[command_index]
@@ -101,23 +117,24 @@ class SodiumDevice(device):
                 shared_key =   super().derive_key(tree, command.path)
                 encrypted_derived_key = self.encrypt_shared_key(shared_key, self.key_pair['publicKey'])
                 if shared_key:
-                    command.group_key = shared_key['publicKey']
-                command.encrypted_xpriv = encrypted_derived_key['encryptedXpriv']
-                command.initialization_vector = encrypted_derived_key['initializationVector']
-                command.ephemeral_public_key = encrypted_derived_key['ephemeralPublicKey']
+                    command.group_key = shared_key['publicKey'] # type:ignore
+                command.encrypted_xpriv = encrypted_derived_key['encryptedXpriv'] # type:ignore
+                command.initialization_vector = encrypted_derived_key['initializationVector'] # type:ignore
+                command.ephemeral_public_key = encrypted_derived_key['ephemeralPublicKey'] # type:ignore
 
             elif command_type == CommandType.PublishKey:
                 command = cast(commands.PublishKey, command)
-                if Crypto.to_hex(command.recipient) not in resolved.get_members():
+                is_added_in_current_block = Crypto.to_hex(command.recipient) in added_members
+                if Crypto.to_hex(command.recipient) not in resolved.get_members() and not is_added_in_current_block:
                     raise ValueError('Recipient is not part of the trustchain')
                 if not shared_key:
                     encrypted_key = resolved.get_encrypted_key(self.key_pair['publicKey'])
                     if encrypted_key:
                         shared_key = self.decrypt_shared_key({
-                            'encryptedXpriv': encrypted_key['encryptedXpriv'],
-                            'initializationVector': encrypted_key['initializationVector'],
-                            'publicKey': encrypted_key['issuer'],
-                            'ephemeralPublicKey': encrypted_key['ephemeralPublicKey']
+                            'encryptedXpriv': encrypted_key['encryptedXpriv'], # type:ignore
+                            'initializationVector': encrypted_key['initializationVector'], # type:ignore
+                            'publicKey': encrypted_key['issuer'], # type:ignore
+                            'ephemeralPublicKey': encrypted_key['ephemeralPublicKey'] # type:ignore
                         })
 
                     elif stream[0].commands[0].get_type() == CommandType.Seed:
@@ -129,9 +146,12 @@ class SodiumDevice(device):
                         raise ValueError("Cannot find the shared key")
 
                 encrypted_shared_key = self.encrypt_shared_key(shared_key, command.recipient)
-                command.encrypted_xpriv = encrypted_shared_key['encryptedXpriv']
-                command.initialization_vector = encrypted_shared_key['initializationVector']
-                command.ephemeral_public_key = encrypted_shared_key['ephemeralPublicKey']
+                command.encrypted_xpriv = encrypted_shared_key['encryptedXpriv'] # type:ignore
+                command.initialization_vector = encrypted_shared_key['initializationVector'] # type:ignore
+                command.ephemeral_public_key = encrypted_shared_key['ephemeralPublicKey'] # type:ignore
+            elif command_type == CommandType.AddMember:
+                command = cast(commands.AddMember, command)
+                added_members.append(Crypto.to_hex(command.public_key))
 
         signature = sign_command_block(last_block, self.key_pair['privateKey']).signature
         last_block.signature = signature

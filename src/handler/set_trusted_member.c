@@ -10,13 +10,12 @@
 int handler_set_trusted_member(buffer_t *cdata) {
     // Data are serialized as TLV
     // We only need the IV and member
-    PRINTF("handler_set_trusted_member\n");
     tlv_t tlv;
 
     int member_len = 0;
     uint8_t *iv = NULL;
     uint8_t *member = NULL;
-    uint8_t rawTrustedMember[TP_BUFFER_SIZE_NEW_MEMBER];
+    uint8_t rawTrustedMember[TP_BUFFER_SIZE_NEW_MEMBER + 32];
 
     if (!IS_SESSION_INITIALIAZED()) {
         return io_send_sw(SW_BAD_STATE);
@@ -38,8 +37,9 @@ int handler_set_trusted_member(buffer_t *cdata) {
     if (iv == NULL || member == NULL) {
         return io_send_sw(SW_WRONG_DATA);
     }
-    if (crypto_decrypt(G_context.signer_info.session_key,
-                       sizeof(G_context.signer_info.session_key),
+
+    if (crypto_decrypt(G_context.signer_info.session_encryption_key,
+                       sizeof(G_context.signer_info.session_encryption_key),
                        member,
                        member_len,
                        iv,
@@ -48,11 +48,12 @@ int handler_set_trusted_member(buffer_t *cdata) {
                        true) < 0) {
         return io_send_sw(SW_WRONG_DATA);
     }
+
     if (deserialize_trusted_member(rawTrustedMember,
                                    sizeof(rawTrustedMember),
                                    &G_context.stream.trusted_member) < 0) {
         return io_send_sw(SW_WRONG_DATA);
     }
-    PRINTF("handler_set_trusted_member OK\n");
+
     return io_send_sw(SW_OK);
 }

@@ -149,9 +149,9 @@ end:
     if (error == CX_OK) {
         io_send_trusted_property(SW_OK);
     } else {
+        explicit_bzero(G_context.stream.shared_secret, G_context.stream.shared_secret_len);
         signer_reset();
     }
-    explicit_bzero(G_context.stream.shared_secret, G_context.stream.shared_secret_len);
     explicit_bzero(&secret, sizeof(secret));
     explicit_bzero(&xpriv, sizeof(xpriv));
     return error;
@@ -427,6 +427,7 @@ int signer_parse_command(signer_ctx_t *signer, stream_ctx_t *stream, buffer_t *d
             err = signer_inject_derive(&command);
             break;
         case COMMAND_CLOSE_STREAM:
+            err = 0;
             ui_display_update_instances();
             break;
         default:

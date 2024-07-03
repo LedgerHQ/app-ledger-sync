@@ -17,7 +17,7 @@ int serialize_trusted_member(stream_trusted_member_t *member, uint8_t *buffer, s
     memcpy(buffer + TP_NONCE_SIZE, member, sizeof(stream_trusted_member_t));
     crypto_digest(buffer, TP_NONCE_SIZE + sizeof(stream_trusted_member_t), hash, sizeof(hash));
     memcpy(buffer + TP_NONCE_SIZE + sizeof(stream_trusted_member_t), hash, TP_CHECKSUM_LEN);
-    return TP_SUCCESS;
+    return TP_NONCE_SIZE + sizeof(stream_trusted_member_t) + TP_CHECKSUM_LEN;
 }
 
 int deserialize_trusted_member(uint8_t *buffer, size_t buffer_size, stream_trusted_member_t *out) {

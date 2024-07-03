@@ -32,12 +32,11 @@ class StreamTree(InterfaceStreamTree):
             if len(path) == 0:
                 return None
             return self.get_publish_key_event(member, path[:-1])
-
         return PublishKeyEvent(
             stream=leaf.get_value(),
-            encryptedXpriv=key.encryptedXpriv,
-            ephemeralPublicKey=key.ephemeralPublicKey,
-            nonce=key.initialiationVector,
+            encryptedXpriv=key['encryptedXpriv'],
+            ephemeralPublicKey=key['ephemeralPublicKey'],
+            nonce=key['initializationVector'],
             groupPublicKey=resolved.get_group_public_key()
         )
 

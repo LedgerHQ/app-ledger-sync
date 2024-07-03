@@ -267,7 +267,6 @@ int crypto_encrypt(const uint8_t *secret,
     cx_aes_key_t key;
 
     CX_CHECK(cx_aes_init_key_no_throw(secret, secret_len, &key));
-
     error = cx_aes_iv_no_throw(
         &key,
         CX_ENCRYPT | CX_CHAIN_CBC | CX_LAST | (padding ? CX_PAD_ISO9797M2 : CX_PAD_NONE),
@@ -298,7 +297,6 @@ int crypto_decrypt(const uint8_t *secret,
     size_t out_len = decrypted_data_len;
 
     CX_CHECK(cx_aes_init_key_no_throw(secret, secret_len, &key));
-
     error = cx_aes_iv_no_throw(
         &key,
         CX_DECRYPT | CX_CHAIN_CBC | CX_LAST | (padding ? CX_PAD_ISO9797M2 : CX_PAD_NONE),
