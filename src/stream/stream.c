@@ -34,31 +34,25 @@ int stream_parse_block_header(stream_ctx_t *ctx, buffer_t *data) {
 
     LEDGER_ASSERT(ctx != NULL, "Null ctx\n");
 
-    PRINTF("PARSE BLOCK HEADER 1\n");
     if (ctx->parsing_state != STREAM_PARSING_STATE_BLOCK_HEADER) {
         return SP_ERR_INVALID_STATE;
     }
-    PRINTF("PARSE BLOCK HEADER 2\n");
     err = parse_block_header(data, &header);
     if (err < 0) {
         return SP_ERR_INVALID_STREAM;
     }
-    PRINTF("PARSE BLOCK HEADER 3\n");
     // If the stream is created, expect the parent hash to be equal to context parent hash
     if (ctx->is_created &&
         memcmp(header.parent, ctx->last_block_hash, sizeof(header.parent)) != 0) {
         return SP_ERR_INVALID_STREAM;
     }
-    PRINTF("PARSE BLOCK HEADER 4\n");
-    PRINTF("BLOCK ISSUER: %.*H", MEMBER_KEY_LEN, header.issuer);
-    PRINTF("DEVICE KEY: %.*H", MEMBER_KEY_LEN, ctx->device_public_key);
+
     // If the stream is created we expect the issuer of the block to be a trusted member
     if (ctx->is_created &&
         memcmp(header.issuer, ctx->trusted_member.member_key, sizeof(header.issuer)) != 0 &&
         memcmp(header.issuer, ctx->device_public_key, sizeof(header.issuer)) != 0) {
         return SP_ERR_INVALID_STREAM;
     }
-    PRINTF("PARSE BLOCK HEADER 5\n");
     // Update context
     memcpy(ctx->current_block_issuer, header.issuer, sizeof(header.issuer));
     ctx->current_block_length = header.length;
@@ -68,7 +62,6 @@ int stream_parse_block_header(stream_ctx_t *ctx, buffer_t *data) {
     block_hash_header(&header, &ctx->digest);
     block_hash_header(&header, &ctx->full_block_digest);
 
-    PRINTF("PARSE BLOCK HEADER 6\n");
     // Verify if block parent is right
     if (verify_block_parent_hash(ctx, header.parent) != 1) {
         return SP_ERR_INVALID_STREAM;
@@ -86,7 +79,7 @@ inline static int stream_parse_seed_command(stream_ctx_t *ctx,
     cx_err_t error = CX_INTERNAL_ERROR;
 
     PRINTF("BLOCK ISSUER: %.*H", MEMBER_KEY_LEN, ctx->current_block_issuer);
-    PRINTF("DEVICE KEY: %.*H", MEMBER_KEY_LEN, ctx->device_public_key);
+    PRINTF(" DEVICE KEY: %.*H", MEMBER_KEY_LEN, ctx->device_public_key);
 
     // If the command was issued by the device, save the seed in the stream context
     // otherwise create and return a trusted member
