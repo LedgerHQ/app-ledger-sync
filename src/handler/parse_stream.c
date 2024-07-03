@@ -15,20 +15,20 @@ static int handler_parse_header(buffer_t *data) {
 
 static int handler_parse_command(buffer_t *data, parse_stream_output_mode_t output_mode) {
     uint8_t trusted_param_buffer[TP_BUFFER_SIZE_NEW_MEMBER];
-    bool output_data = output_mode == OUTPUT_MODE_NONE;
+    bool output_data = output_mode == OUTPUT_MODE_TRUSTED_DATA;
     buffer_t trusted_param;
 
     int len = 0;
 
     if ((len = stream_parse_command(&G_context.stream,
                                     data,
-                                    output_data == OUTPUT_MODE_NONE ? NULL : trusted_param_buffer,
+                                    output_data ? trusted_param_buffer : NULL,
                                     output_data ? sizeof(trusted_param_buffer) : 0)) < 0) {
         PRINTF("PARSE COMMAND FAILED\n");
         return io_send_sw(SW_STREAM_PARSER_INVALID_FORMAT);
     }
 
-    if (output_data && len > 0) {
+    if (output_data) {
         trusted_param.ptr = trusted_param_buffer;
         trusted_param.size = len;
         trusted_param.offset = 0;

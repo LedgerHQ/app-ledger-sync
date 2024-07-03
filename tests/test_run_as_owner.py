@@ -358,3 +358,99 @@ def test_add_member_twice(firmware: Firmware,
     alice.update_automation(member_automation)
     stream = stream.edit().add_member("Bob", bob_public_key, 0xFFFFFFFF, True).issue(alice)
     stream = stream.edit().add_member("Bob", bob_public_key, 0xFFFFFFFF, True)
+
+def test_derive_subtree_with_publish_key(firmware: Firmware,
+                                         backend: BackendInterface,
+                                         navigator: Navigator,
+                                         test_name: str) -> None:
+    if firmware.is_nano:
+        valid_member_instructions = valid_member_instructions_nano
+    else:
+        valid_member_instructions = valid_member_instructions_stax
+    alice = device.apdu(backend)
+    bob = device.software()
+    charlie = device.software()
+    charlie_public_key = charlie.get_public_key()
+    bob_public_key = bob.get_public_key()
+    stream = CommandStream()
+    stream = stream.edit().seed(Crypto.from_hex(DEFAULT_TOPIC)).issue(alice)
+    member_automation = Automation(
+        navigator, test_name=f"{test_name}", instructions=valid_member_instructions)
+    alice.update_automation(member_automation)
+    print("Adding Bob")
+    # Derive and publish to bob
+    tree = StreamTree.from_streams(stream)
+    new_stream = CommandStream()
+    new_stream = new_stream.edit().derive(get_derivation_path(0)).add_member("Bob", bob_public_key, 0xFFFFFFFF, True).issue(alice, tree)
+    tree = tree.update(new_stream)
+
+    # Read key from bob
+    xpriv = bob.read_key(tree, get_derivation_path(0))
+    assert xpriv is not None and len(xpriv) == 64
+
+
+def test_key_rotation(firmware: Firmware,
+                      backend: BackendInterface,
+                      navigator: Navigator,
+                      test_name: str) -> None:
+    if firmware.is_nano:
+        valid_member_instructions = valid_member_instructions_nano
+    else:
+        valid_member_instructions = valid_member_instructions_stax
+
+    alice = device.apdu(backend)
+    bob = device.software()
+    charlie = device.software()
+    david = device.software()
+    edward = device.software()
+
+    # Seed
+    stream = CommandStream().edit().seed(Crypto.from_hex(DEFAULT_TOPIC)).issue(alice)
+    tree = StreamTree.from_streams(stream)
+    # Create a branch
+    member_automation = Automation(
+        navigator, test_name=f"{test_name}/part1", instructions=valid_member_instructions)
+    alice.update_automation(member_automation)
+    stream = CommandStream().edit() \
+                            .derive(get_derivation_path(0)).add_member("Bob", bob.get_public_key(), 0xFFFFFFFF, True) \
+                            .issue(alice, tree)
+    tree = tree.update(stream)
+
+    # Add Charlie
+    member_automation = Automation(
+        navigator, test_name=f"{test_name}/part2", instructions=valid_member_instructions)
+    alice.update_automation(member_automation)
+    stream = CommandStream().edit() \
+                            .derive(get_derivation_path(0)).add_member("Charlie", charlie.get_public_key(), 0xFFFFFFFF, True) \
+                            .issue(alice, tree)
+    tree = tree.update(stream)
+
+    # Key rotation
+    # Close previous stream
+    stream = stream.edit().close().issue(alice, tree)
+
+    # Create new branch
+    member_automation = Automation(
+        navigator, test_name=f"{test_name}/part3", instructions=valid_member_instructions)
+    alice.update_automation(member_automation)
+    stream = CommandStream().edit() \
+                            .derive(get_derivation_path(1)).add_member("Bob", bob.get_public_key(), 0xFFFFFFFF, True) \
+                            .issue(alice, tree)
+    tree = tree.update(stream)
+    
+    # Bob (software) adds Charlie
+    stream = stream.edit().add_member("Charlie", charlie.get_public_key(), 0xFFFFFFFF, True).issue(bob, tree)
+    tree = tree.update(stream)
+
+    # Bob (software) adds David
+    stream = stream.edit().add_member("David", david.get_public_key(), 0xFFFFFFFF, True).issue(bob, tree)
+    tree = tree.update(stream)
+
+    # Alice adds Edward
+    member_automation = Automation(
+        navigator, test_name=f"{test_name}/part4", instructions=valid_member_instructions)
+    alice.update_automation(member_automation)
+
+    stream = stream.edit().add_member("Edward", edward.get_public_key(), 0xFFFFFFFF, True).issue(alice, tree)
+    tree = tree.update(stream)
+
