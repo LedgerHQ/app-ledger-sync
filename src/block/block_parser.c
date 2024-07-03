@@ -248,7 +248,6 @@ int parse_block_command(buffer_t *data, block_command_t *out) {
             PRINTF("Close stream command\n");
             break;
         default:
-            PRINTF("Close stream command\n");
             return BP_ERROR_UNKNOWN_COMMAND;
             break;
     }

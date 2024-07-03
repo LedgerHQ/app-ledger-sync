@@ -13,6 +13,8 @@ from utils.Device import device
 
 ROOT_SCREENSHOT_PATH = Path(__file__).parent.parent.resolve()
 
+# List of commands displaying a screen and needing automation
+AUTOMATION_COMMANDS = [0x11, 0x13]
 
 class Device:
     # Constants
@@ -110,11 +112,10 @@ class Device:
     @staticmethod
     def set_trusted_member(transport: BackendInterface, member):
         payload = bytearray([
-            Device.TrustedPropertiesTLV.IV, len(member.iv), *member.iv,
-            Device.TrustedPropertiesTLV.TrustedMember, len(member.data), *member.data
+            Device.TrustedPropertiesTLV.IV, len(member['iv']), *member['iv'],
+            Device.TrustedPropertiesTLV.TrustedMember, len(member['data']), *member['data']
         ])
-        transport.exchange(Device.CLA, Device.INS_SET_TRUSTED_MEMBER,
-                           Device.ParseStreamMode.Empty, Device.OutputDataMode.none, payload)
+        transport.exchange(Device.CLA, Device.INS_SET_TRUSTED_MEMBER, 0, 0, payload)
 
     @staticmethod
     def parse_block_header(transport: BackendInterface, header):
@@ -195,8 +196,8 @@ class Device:
                                         Device.OutputDataMode.none,
                                         command):
             automation.navigator.navigate_and_compare(automation.root_path,
-                                                        automation.test_name, automation.instructions,
-                                                        screen_change_after_last_instruction=False)
+                                                      automation.test_name, automation.instructions,
+                                                      screen_change_after_last_instruction=False)
         response2 = transport.last_async_response
         assert response2
         return response2.data
@@ -403,12 +404,11 @@ class ApduDevice(device):
         if navigator:
             self.automation = Automation(navigator)
 
-    def read_key(self, tree, path) -> None:
+    def read_key(self, tree, path) -> bytes:
         raise NotImplementedError
 
-    def derive_key(self, tree, path) -> None:
+    def derive_key(self, tree, path) -> bytes:
         raise NotImplementedError
-
 
     def update_automation(self, automation: Automation):
         if not self.automation:
@@ -449,11 +449,9 @@ class ApduDevice(device):
         tlvs = TLV.read_all_tlv(response_data, 0)
         member = None
         iv = None
-
         if len(public_key) == 0 or (public_key[0] != 0x02 and public_key[0] != 0x03):
             # The public key is not set if it's the device itself
             return
-
         for tlv in tlvs:
             if tlv['type'] == Device.TrustedPropertiesTLV.TrustedMember:
                 member = tlv['value']
@@ -463,11 +461,10 @@ class ApduDevice(device):
         if member is None or iv is None:
             return  # Do nothing, trusted member is optional in some cases
             # (e.g. if the trusted member is the device itself)
-
-        trusted_params.members[Crypto.to_hex(member)] = {'iv': iv, 'data': member}
+        trusted_params.members[Crypto.to_hex(public_key)] = {'iv': iv, 'data': member}
         # Set the last trusted member. This is used to prevent sending the same current trusted member
-        # to the device a""gain.
-        trusted_params.last_trusted_member = Crypto.to_hex(member)
+        # to the device again.
+        trusted_params.last_trusted_member = Crypto.to_hex(public_key)
 
     def has_trusted_member(self, trusted_params: Device.TrustedParams, public_key):
         return Crypto.to_hex(public_key) in trusted_params.members
@@ -480,20 +477,16 @@ class ApduDevice(device):
         return member
 
     def set_trusted_member(self, params: Device.TrustedParams, public_key):
-        # print("test")
         # Check if the trusted member is already set on the device
         if params.last_trusted_member == Crypto.to_hex(public_key):
             return None
-
         # Verify if the trusted member exists
         if not self.has_trusted_member(params, public_key):
             return None
 
-        # print("Setting trusted member:" + Crypto.to_hex(public_key))
         return Device.set_trusted_member(self.transport, self.get_trusted_member(params, public_key))
 
     def parse_block(self, block: CommandBlock, trusted_params: Device.TrustedParams):
-
         result = None
         # Parse the block header
         self.set_trusted_member(trusted_params, block.issuer)
@@ -520,7 +513,6 @@ class ApduDevice(device):
 
             result = Device.parseCommand(
                 self.transport, CommandStreamEncoder.encodeCommand(block, int(index)), True)
-
             # Record potential trusted member
             if command_type == CommandType.Seed:
                 self.record_trusted_member(trusted_params, block.issuer, result)
@@ -574,10 +566,12 @@ class ApduDevice(device):
         for command_index, _ in enumerate(block_to_sign.commands):
             # Pass the trusted param allowing the command to the device
             # If we have no trusted param, we need explicit approval
-
-            tp = Device.signCommand(self.transport, CommandStreamEncoder.encodeCommand(
-                block_to_sign, command_index), self.automation)
-            self.automation = None
+            serialized_command = CommandStreamEncoder.encodeCommand(
+                block_to_sign, command_index)
+            automation = self.automation if serialized_command[0] in AUTOMATION_COMMANDS else None
+            tp = Device.signCommand(self.transport, serialized_command, automation)
+            if serialized_command[0] in AUTOMATION_COMMANDS:
+                self.automation = None
             trusted_properties.append(Device.parse_trusted_properties(
                 block_to_sign.commands[command_index], tp))
             # print(Crypto.to_hex(trusted_properties[0].trustedMember))
