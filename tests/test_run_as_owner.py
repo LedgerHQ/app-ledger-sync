@@ -61,10 +61,6 @@ def test_tree_flow(firmware: Firmware,
     stream = stream.edit().add_member("Bob", bob_public_key, 0xFFFFFFFF, True).issue(alice, tree)
     tree = tree.update(stream)
 
-    # Close the subtree
-    # stream = stream.edit().close().issue(alice, tree)
-    # tree = tree.update(stream)
-
     # Derive a new subtree
     stream = CommandStream().edit().derive(get_derivation_path(1)).issue(alice, tree)
     tree = tree.update(stream)
@@ -75,18 +71,6 @@ def test_tree_flow(firmware: Firmware,
     alice.update_automation(member_automation)
     stream = stream.edit().add_member("Bob", bob_public_key, 0xFFFFFFFF, True).issue(alice, tree)
     tree = tree.update(stream)
-
-    # Bob adds charlie to the new subtree
-    # charlie = device.software()
-    # charlie_public_key = charlie.get_public_key
-    # stream = stream.edit().add_member("Charlie", charlie_public_key, 0xFFFFFFFF, True).issue(bob, tree)
-    # tree = tree.update(stream)
-
-    # Add david to the new subtree
-    # david = device.software()
-    # david_public_key = david.get_public_key()
-    # stream = stream.edit().add_member("David", david_public_key, 0xFFFFFFFF, True).issue(alice, tree)
-    # tree = tree.update(stream)
 
 
 # Test if the nano is connected
@@ -359,6 +343,7 @@ def test_add_member_twice(firmware: Firmware,
     stream = stream.edit().add_member("Bob", bob_public_key, 0xFFFFFFFF, True).issue(alice)
     stream = stream.edit().add_member("Bob", bob_public_key, 0xFFFFFFFF, True)
 
+
 def test_derive_subtree_with_publish_key(firmware: Firmware,
                                          backend: BackendInterface,
                                          navigator: Navigator,
@@ -369,8 +354,6 @@ def test_derive_subtree_with_publish_key(firmware: Firmware,
         valid_member_instructions = valid_member_instructions_stax
     alice = device.apdu(backend)
     bob = device.software()
-    charlie = device.software()
-    charlie_public_key = charlie.get_public_key()
     bob_public_key = bob.get_public_key()
     stream = CommandStream()
     stream = stream.edit().seed(Crypto.from_hex(DEFAULT_TOPIC)).issue(alice)
@@ -381,7 +364,8 @@ def test_derive_subtree_with_publish_key(firmware: Firmware,
     # Derive and publish to bob
     tree = StreamTree.from_streams(stream)
     new_stream = CommandStream()
-    new_stream = new_stream.edit().derive(get_derivation_path(0)).add_member("Bob", bob_public_key, 0xFFFFFFFF, True).issue(alice, tree)
+    new_stream = new_stream.edit().derive(get_derivation_path(0)) \
+        .add_member("Bob",bob_public_key, 0xFFFFFFFF, True).issue(alice, tree)
     tree = tree.update(new_stream)
 
     # Read key from bob
@@ -425,8 +409,10 @@ def test_key_rotation(firmware: Firmware,
                             .issue(alice, tree)
     tree = tree.update(stream)
 
-    # Key rotation
-    # Close previous stream
+    # Key rotation: Close previous stream
+    close_automation = Automation(
+        navigator, test_name=f"{test_name}/part_close", instructions=valid_member_instructions)
+    alice.update_automation(close_automation)
     stream = stream.edit().close().issue(alice, tree)
 
     # Create new branch
@@ -437,7 +423,7 @@ def test_key_rotation(firmware: Firmware,
                             .derive(get_derivation_path(1)).add_member("Bob", bob.get_public_key(), 0xFFFFFFFF, True) \
                             .issue(alice, tree)
     tree = tree.update(stream)
-    
+
     # Bob (software) adds Charlie
     stream = stream.edit().add_member("Charlie", charlie.get_public_key(), 0xFFFFFFFF, True).issue(bob, tree)
     tree = tree.update(stream)
@@ -453,4 +439,3 @@ def test_key_rotation(firmware: Firmware,
 
     stream = stream.edit().add_member("Edward", edward.get_public_key(), 0xFFFFFFFF, True).issue(alice, tree)
     tree = tree.update(stream)
-
