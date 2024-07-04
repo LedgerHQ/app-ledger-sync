@@ -427,8 +427,7 @@ int signer_parse_command(signer_ctx_t *signer, stream_ctx_t *stream, buffer_t *d
             err = signer_inject_derive(&command);
             break;
         case COMMAND_CLOSE_STREAM:
-            err = 0;
-            ui_display_update_instances();
+            err = ui_display_update_instances();
             break;
         default:
             // Force fail if we don't know the command
