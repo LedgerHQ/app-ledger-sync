@@ -28,7 +28,7 @@ static int handler_parse_command(buffer_t *data, parse_stream_output_mode_t outp
         return io_send_sw(SW_STREAM_PARSER_INVALID_FORMAT);
     }
 
-    if (output_data) {
+    if (output_data && len > 0) {
         trusted_param.ptr = trusted_param_buffer;
         trusted_param.size = len;
         trusted_param.offset = 0;
