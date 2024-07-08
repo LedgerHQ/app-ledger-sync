@@ -21,6 +21,8 @@ typedef cx_ecfp_public_key_t crypto_public_key_t;
 #define LEDGER_ASSERT(x, y) assert(x)
 #endif
 
+#define CRYPTO_BUFFER_SIZE(n) (((CX_AES_BLOCK_SIZE) - ((n) % (CX_AES_BLOCK_SIZE))) % CX_AES_BLOCK_SIZE + (n) + CX_AES_BLOCK_SIZE)
+
 /**
  * Generate a new key pair.
  * @param[out] public_key

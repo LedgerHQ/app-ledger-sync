@@ -160,16 +160,18 @@ class Crypto:
     @staticmethod
     def encrypt(secret, nonce, message):
         normalizedSecret = Crypto.normalize_key(secret)
-        encryption_cipher = AES.new(normalizedSecret, AES.MODE_CBC, nonce)
-        return encryption_cipher.encrypt(Crypto.pad(message))
+        encryption_cipher = AES.new(normalizedSecret, AES.MODE_GCM, nonce)
+        encrypted, tag = encryption_cipher.encrypt_and_digest(Crypto.pad(message))
+        return encrypted + tag
 
     # Decrypts a cipher text
-
     @staticmethod
     def decrypt(secret, nonce, cipherText):
         normalizedSecret = Crypto.normalize_key(secret)
-        decryption_cipher = AES.new(normalizedSecret, AES.MODE_CBC, nonce)
-        return Crypto.unpad(decryption_cipher.decrypt(cipherText))
+        tag = cipherText[-16:]
+        encrypted = cipherText[:-16]
+        decryption_cipher = AES.new(normalizedSecret, AES.MODE_GCM, nonce)
+        return Crypto.unpad(decryption_cipher.decrypt_and_verify(encrypted, tag))
 
     @staticmethod
     def ecdh(keyPair: dict, publicKey: bytes) -> bytes:
