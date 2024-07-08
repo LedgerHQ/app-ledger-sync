@@ -13,4 +13,9 @@
     "editor.formatOnSave": false,
     "python.terminal.activateEnvironment": false,
     "git.ignoreLimitWarning": true,
+    "ledgerDevTools.appSettings": {
+        "selectedDevice": "Nano X",
+        "selectedUseCase": "release",
+        "selectedVariant": "Ledger-Sync"
+    },
 }

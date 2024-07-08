@@ -25,15 +25,18 @@ int io_push_trusted_property(uint8_t property_type, buffer_t *rdata) {
     int length = 0;
     uint8_t *io_apdu_buffer = G_trusted_io_buffer + G_trusted_output_len;
 
+    PRINTF("Push %d bytes\n", CRYPTO_BUFFER_SIZE(rdata->size - rdata->offset) + 2);
+    PRINTF("Remaining space: %d\n", sizeof(G_trusted_io_buffer) - G_trusted_output_len);
     if (G_trusted_output_len + (rdata->size + 16 - (rdata->size % 16) + 2) >
         sizeof(G_trusted_io_buffer)) {
+        PRINTF("[ERROR] Trusted property buffer overflow\n");
         io_send_sw(SW_TP_BUFFER_OVERFLOW);
         return -1;
     }
 
     io_apdu_buffer[0] = property_type;
     G_trusted_output_len += 1;
-
+    
     // Encrypt the data using the session encryption key
     length = crypto_encrypt(G_context.signer_info.session_encryption_key,
                             sizeof(G_context.signer_info.session_encryption_key),
@@ -41,10 +44,11 @@ int io_push_trusted_property(uint8_t property_type, buffer_t *rdata) {
                             rdata->size - rdata->offset,
                             G_trusted_io_buffer + TP_IV_OFFSET,
                             io_apdu_buffer + 2,
-                            sizeof(G_trusted_io_buffer) - G_trusted_output_len,
+                            CRYPTO_BUFFER_SIZE(rdata->size - rdata->offset),
                             true);
 
     if (length < 0) {
+        PRINTF("[ERROR] Trusted property encryption failed\n");
         io_send_sw(SW_WRONG_DATA);
         return -1;
     }
