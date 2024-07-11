@@ -57,6 +57,10 @@ static void ui_add_member_callback(bool approve) {
 }
 
 int ui_display_add_member_command(void) {
+#ifdef HAVE_PIEZO_SOUND
+    // Play notification sound
+    io_seproxyhal_play_tune(TUNE_LOOK_AT_ME);
+#endif  // HAVE_PIEZO_SOUND
     nbgl_useCaseChoice(
         &C_app_64px,
         "Enable Ledger Sync?",
@@ -218,6 +222,10 @@ static void log_in_cb(bool confirm) {
 }
 
 int ui_display_seed_id_command(void) {
+#ifdef HAVE_PIEZO_SOUND
+    // Play notification sound
+    io_seproxyhal_play_tune(TUNE_LOOK_AT_ME);
+#endif  // HAVE_PIEZO_SOUND
     nbgl_useCaseChoice(&C_log_in,
                        "Log in to Ledger Sync?",
                        "Identify with your Ledger device to manage Ledger Sync.",
@@ -264,6 +272,10 @@ static void ui_update_callback(bool approve) {
 }
 
 int ui_display_update_instances(void) {
+#ifdef HAVE_PIEZO_SOUND
+    // Play notification sound
+    io_seproxyhal_play_tune(TUNE_LOOK_AT_ME);
+#endif  // HAVE_PIEZO_SOUND
     nbgl_useCaseChoice(&C_app_64px,
                        "Update Ledger Sync instances?",
                        "This will remove existing Ledger Live instances in order to re-add "
