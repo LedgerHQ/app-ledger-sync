@@ -79,7 +79,7 @@ inline static int stream_parse_seed_command(stream_ctx_t *ctx,
     cx_err_t error = CX_INTERNAL_ERROR;
 
     PRINTF("BLOCK ISSUER: %.*H", MEMBER_KEY_LEN, ctx->current_block_issuer);
-    PRINTF(" DEVICE KEY: %.*H", MEMBER_KEY_LEN, ctx->device_public_key);
+    PRINTF(" DEVICE KEY: %.*H\n", MEMBER_KEY_LEN, ctx->device_public_key);
 
     // If the command was issued by the device, save the seed in the stream context
     // otherwise create and return a trusted member
@@ -91,12 +91,12 @@ inline static int stream_parse_seed_command(stream_ctx_t *ctx,
                                                      command->command.seed.initialization_vector,
                                                      ctx->shared_secret,
                                                      sizeof(ctx->shared_secret));
-        if (ctx->shared_secret_len != 2 * PRIVATE_KEY_LEN) {
+        if (ctx->shared_secret_len != XPRIV_LEN) {
             error = SP_ERR_INVALID_STREAM;
             goto end;
         }
         error = SP_OK;
-        PRINTF("STREAM SHARED SECRET: %.*H", ctx->shared_secret_len, ctx->shared_secret);
+        PRINTF("STREAM SHARED SECRET: %.*H\n", ctx->shared_secret_len, ctx->shared_secret);
     } else {
         // Issue a trusted member for the issuer
         memcpy(ctx->trusted_member.member_key, ctx->current_block_issuer, MEMBER_KEY_LEN);

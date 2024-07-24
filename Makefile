@@ -76,7 +76,7 @@ VARIANT_PARAM = COIN
 VARIANT_VALUES = Ledger-Sync
 
 # Enabling DEBUG flag will enable PRINTF and disable optimizations
-DEBUG = 1
+DEBUG = 0
 
 ########################################
 #     Application custom permissions   #

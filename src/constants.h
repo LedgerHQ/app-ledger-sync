@@ -46,9 +46,14 @@
 #define MAX_NAME_LEN 100
 
 /**
+ * Extended private key length (unencrypted)
+ */
+#define XPRIV_LEN 64
+
+/**
  * Max encrypted key length
  */
-#define MAX_ENCRYPTED_KEY_LEN 64
+#define MAX_ENCRYPTED_KEY_LEN 80
 
 /**
  * Session encryption key length

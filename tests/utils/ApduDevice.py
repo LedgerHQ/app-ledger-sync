@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import List, Union, cast, Optional
+from typing import List, cast, Optional
 import re
 from ragger.backend.interface import BackendInterface
 from ragger.navigator import Navigator
@@ -15,6 +15,7 @@ ROOT_SCREENSHOT_PATH = Path(__file__).parent.parent.resolve()
 
 # List of commands displaying a screen and needing automation
 AUTOMATION_COMMANDS = [0x11, 0x13]
+TP_ENCRYPTED = 1 << 7
 
 class Device:
     # Constants
@@ -38,12 +39,12 @@ class Device:
 
     class TrustedPropertiesTLV:
         IV = 0x00
-        IssuerPublicKey = 0x01
-        Xpriv = 0x02
+        IssuerPublicKey = 0x01 | TP_ENCRYPTED
+        Xpriv = 0x02 | TP_ENCRYPTED
         EphemeralPublicKey = 0x03
         CommandIV = 0x04
         GroupKey = 0x05
-        TrustedMember = 0x06
+        TrustedMember = 0x06 | TP_ENCRYPTED
 
     class TrustedMember:
         def __init__(self, iv, data):
@@ -66,7 +67,11 @@ class Device:
             self.iv = iv
             self.issuer = issuer
 
-    class SeedCommandResponse:
+    class CommandResponse:
+        def __init__(self, iv: bytes):
+            self.iv = iv
+
+    class SeedCommandResponse(CommandResponse):
         def __init__(self,
                      iv: bytes,
                      xpriv: bytes,
@@ -74,7 +79,7 @@ class Device:
                      ephemeralPublicKey: bytes,
                      groupKey: bytes,
                      trustedMember: Optional[bytes]):
-            self.iv = iv
+            super().__init__(iv)
             self.xpriv = xpriv
             self.commandIv = commandIv
             self.ephemeralPublicKey = ephemeralPublicKey
@@ -90,24 +95,22 @@ class Device:
             string += f"trustedMember:{Crypto.to_hex(self.trustedMember)}"
             return string
 
-    class EmptyCommandResponse:
-        pass
+    class EmptyCommandResponse(CommandResponse):
+        def __init__(self):
+            super().__init__(bytes(0))
 
-    class AddMemberCommandResponse:
+    class AddMemberCommandResponse(CommandResponse):
         def __init__(self, iv: bytes, trustedMember: bytes):
-            self.iv = iv
+            super().__init__(iv)
             self.trustedMember = trustedMember
 
-    class PublishKeyCommandResponse:
+    class PublishKeyCommandResponse(CommandResponse):
         def __init__(self, trustedMember: Optional[bytes], iv: bytes, xpriv: bytes, commandIv: bytes, ephemeralPublicKey: bytes):
+            super().__init__(iv)
             self.trustedMember = trustedMember
-            self.iv = iv
             self.xpriv = xpriv
             self.commandIv = commandIv
             self.ephemeralPublicKey = ephemeralPublicKey
-
-    CommandResponse = Union[SeedCommandResponse, AddMemberCommandResponse,
-                            PublishKeyCommandResponse, EmptyCommandResponse]
 
     @staticmethod
     def set_trusted_member(transport: BackendInterface, member):
@@ -320,37 +323,39 @@ class Device:
         if command_type == CommandType.PublishKey:
             return Device.parse_trusted_publish_key(tlvs)
         if command_type == CommandType.CloseStream:
-            return {}
+            return Device.EmptyCommandResponse()
         raise ValueError("Unsupported command type")
 
+def read_trusted_io(secret: bytes, iv: bytes):
+    def read(ty, value):
+        if (ty & TP_ENCRYPTED) == TP_ENCRYPTED:
+            return Crypto.decrypt(secret, iv, value)
+        return value
+    return read
 
 def inject_trusted_properties(command: Command, properties: Device.CommandResponse, secret):
     command_type = command.get_type()
-
+    read = read_trusted_io(secret, properties.iv)
     if command_type == CommandType.Seed:
         seed_command = cast(commands.Seed, command)
         seed_properties = cast(Device.SeedCommandResponse, properties)
-        seed_command.encrypted_xpriv = Crypto.decrypt(
-            secret, seed_properties.iv, seed_properties.xpriv)
-        seed_command.ephemeral_public_key = Crypto.decrypt(
-            secret, seed_properties.iv, seed_properties.ephemeralPublicKey)
-        seed_command.initialization_vector = Crypto.decrypt(
-            secret, seed_properties.iv, seed_properties.commandIv)
-        seed_command.group_key = Crypto.decrypt(
-            secret, seed_properties.iv, seed_properties.groupKey)
+        seed_command.encrypted_xpriv = read(Device.TrustedPropertiesTLV.Xpriv, seed_properties.xpriv)
+        print(f"Encrypted Xpriv: {Crypto.to_hex(seed_command.encrypted_xpriv)}")
+        seed_command.ephemeral_public_key = read(Device.TrustedPropertiesTLV.EphemeralPublicKey, \
+                                                 seed_properties.ephemeralPublicKey)
+        seed_command.initialization_vector = read(Device.TrustedPropertiesTLV.CommandIV, seed_properties.commandIv)
+        seed_command.group_key = read(Device.TrustedPropertiesTLV.GroupKey, seed_properties.groupKey)
         return seed_command
 
     if command_type == CommandType.Derive:
         derive_command = cast(commands.Derive, command)
         derive_properties = cast(Device.SeedCommandResponse, properties)
-        derive_command.encrypted_xpriv = Crypto.decrypt(
-            secret, derive_properties.iv, derive_properties.xpriv)
-        derive_command.ephemeral_public_key = Crypto.decrypt(
-            secret, derive_properties.iv, derive_properties.ephemeralPublicKey)
-        derive_command.initialization_vector = Crypto.decrypt(
-            secret, derive_properties.iv, derive_properties.commandIv)
-        derive_command.group_key = Crypto.decrypt(
-            secret, derive_properties.iv, derive_properties.groupKey)
+        derive_command.encrypted_xpriv = read(Device.TrustedPropertiesTLV.Xpriv, derive_properties.xpriv)
+        derive_command.ephemeral_public_key = read(Device.TrustedPropertiesTLV.EphemeralPublicKey, \
+                                                   derive_properties.ephemeralPublicKey)
+        derive_command.initialization_vector = read(Device.TrustedPropertiesTLV.CommandIV, \
+                                                    derive_properties.commandIv)
+        derive_command.group_key = read(Device.TrustedPropertiesTLV.GroupKey, derive_properties.groupKey)
         return derive_command
     if command_type == CommandType.AddMember:
         return command  # No properties to inject
@@ -358,12 +363,11 @@ def inject_trusted_properties(command: Command, properties: Device.CommandRespon
         publish_key_command = cast(commands.PublishKey, command)
         publish_key_properties = cast(Device.PublishKeyCommandResponse, properties)
         # print('LengthIV' + (Crypto.to_hex(publish_key_properties.iv)))
-        publish_key_command.ephemeral_public_key = Crypto.decrypt(
-            secret, publish_key_properties.iv, publish_key_properties.ephemeralPublicKey)
-        publish_key_command.initialization_vector = Crypto.decrypt(
-            secret, publish_key_properties.iv, publish_key_properties.commandIv)
-        publish_key_command.encrypted_xpriv = Crypto.decrypt(
-            secret, publish_key_properties.iv, publish_key_properties.xpriv)
+        publish_key_command.ephemeral_public_key = read(Device.TrustedPropertiesTLV.EphemeralPublicKey,\
+                                                        publish_key_properties.ephemeralPublicKey)
+        publish_key_command.initialization_vector = read(Device.TrustedPropertiesTLV.CommandIV,\
+                                                         publish_key_properties.commandIv)
+        publish_key_command.encrypted_xpriv = read(Device.TrustedPropertiesTLV.Xpriv, publish_key_properties.xpriv)
         return publish_key_command
     if command_type == CommandType.CloseStream:
         return command  # No properties to inject

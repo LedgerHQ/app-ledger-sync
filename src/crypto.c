@@ -246,8 +246,7 @@ int crypto_ecdh_decrypt(const uint8_t *sender_public_key,
                            data_len,
                            initialization_vector,
                            decrypted_data,
-                           decrypted_data_len,
-                           false);
+                           decrypted_data_len);
 end:
     explicit_bzero(&secret, sizeof(secret));
     explicit_bzero(&private_key, sizeof(private_key));
@@ -260,42 +259,41 @@ int crypto_encrypt(const uint8_t *secret,
                    uint32_t data_len,
                    uint8_t *initialization_vector,
                    uint8_t *encrypted_data,
-                   uint32_t encrypted_data_len,
-                   bool padding) {
+                   uint32_t encrypted_data_len) {
     cx_err_t error = CX_INTERNAL_ERROR;
-    size_t out_len = encrypted_data_len;
+    size_t out_len = data_len + CX_AES_BLOCK_SIZE;
     cx_aes_gcm_context_t ctx;
     PRINTF("crypto_encrypt()\n");
-    cx_aes_gcm_init(&ctx);
-    error = cx_aes_gcm_set_key(&ctx, secret, secret_len);
-    if (error != CX_OK) {
-        PRINTF("Failed to encrypt data\n");
+
+    if (encrypted_data_len < data_len + CX_AES_BLOCK_SIZE) {
+        PRINTF("Buffer too small\n");
+        error = CX_INTERNAL_ERROR;
         goto end;
     }
-    error = cx_aes_gcm_encrypt_and_tag(
-        &ctx,
-        (uint8_t *)data,
-        data_len,
-        initialization_vector,
-        CX_AES_BLOCK_SIZE,
-        NULL,
-        0,
-        encrypted_data,
-        encrypted_data + (encrypted_data_len - CX_AES_BLOCK_SIZE),
-        CX_AES_BLOCK_SIZE
-    );
 
+    cx_aes_gcm_init(&ctx);
+    CX_CHECK(cx_aes_gcm_set_key(&ctx, secret, secret_len));
+    error = cx_aes_gcm_encrypt_and_tag(&ctx,
+                                       (uint8_t *) data,
+                                       data_len,
+                                       initialization_vector,
+                                       CX_AES_BLOCK_SIZE,
+                                       NULL,
+                                       0,
+                                       encrypted_data,
+                                       encrypted_data + (out_len - CX_AES_BLOCK_SIZE),
+                                       CX_AES_BLOCK_SIZE);
     if (error == CX_OK) {
         PRINTF("Data to encrypt: %.*H\n", data_len, data);
+        PRINTF("Initialization vector: %.*H\n", CX_AES_BLOCK_SIZE, initialization_vector);
+        PRINTF("Secret: %.*H\n", secret_len, secret);
         PRINTF("Successful Encrypted data: %.*H\n", out_len, encrypted_data);
         error = out_len;
     } else {
         PRINTF("Failed to encrypt data\n");
-    
     }
 end:
     explicit_bzero(&ctx, sizeof(ctx));
-    PRINTF("//crypto_encrypt()\n");
     return error;
 }
 
@@ -305,30 +303,23 @@ int crypto_decrypt(const uint8_t *secret,
                    uint32_t data_len,
                    uint8_t *initialization_vector,
                    uint8_t *decrypted_data,
-                   uint32_t decrypted_data_len,
-                   bool padding) {
+                   uint32_t decrypted_data_len) {
     cx_err_t error = CX_INTERNAL_ERROR;
     cx_aes_gcm_context_t ctx;
     size_t out_len = decrypted_data_len;
 
     cx_aes_gcm_init(&ctx);
-    error = cx_aes_gcm_set_key(&ctx, secret, secret_len);
-    if (error != CX_OK) {
-        PRINTF("Failed to decrypt data\n");
-        goto end;
-    }
-    error = cx_aes_gcm_decrypt_and_auth(
-        &ctx,
-        (uint8_t *)data,
-        data_len,
-        initialization_vector,
-        CX_AES_BLOCK_SIZE,
-        NULL,
-        0,
-        decrypted_data,
-        data + (data_len - CX_AES_BLOCK_SIZE),
-        CX_AES_BLOCK_SIZE
-    );
+    CX_CHECK(cx_aes_gcm_set_key(&ctx, secret, secret_len));
+    error = cx_aes_gcm_decrypt_and_auth(&ctx,
+                                        (uint8_t *) data,
+                                        data_len - CX_AES_BLOCK_SIZE,
+                                        initialization_vector,
+                                        CX_AES_BLOCK_SIZE,
+                                        NULL,
+                                        0,
+                                        decrypted_data,
+                                        data + (data_len - CX_AES_BLOCK_SIZE),
+                                        CX_AES_BLOCK_SIZE);
     if (error == CX_OK) {
         PRINTF("Successful Decrypted data: %.*H\n", out_len, decrypted_data);
         error = out_len;

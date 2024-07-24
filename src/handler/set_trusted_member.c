@@ -44,8 +44,7 @@ int handler_set_trusted_member(buffer_t *cdata) {
                        member_len,
                        iv,
                        rawTrustedMember,
-                       sizeof(rawTrustedMember),
-                       true) < 0) {
+                       sizeof(rawTrustedMember)) < 0) {
         return io_send_sw(SW_WRONG_DATA);
     }
 
