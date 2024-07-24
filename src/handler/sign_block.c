@@ -45,11 +45,8 @@ int handler_sign_block(buffer_t *cdata, uint8_t mode) {
         buffer_t buffer = {.ptr = PIC(G_context.stream.device_public_key),
                            .size = sizeof(G_context.stream.device_public_key),
                            .offset = 0};
-        PRINTF("TP 1\n");
         io_init_trusted_property();
-         PRINTF("TP 2\n");
         io_push_trusted_property(TP_ISSUER_PUBLIC_KEY, &buffer);
-         PRINTF("TP 3\n");
         return io_send_trusted_property(SW_OK);
 
     } else if (mode == MODE_COMMAND_PARSE) {

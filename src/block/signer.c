@@ -72,7 +72,7 @@ int signer_parse_block_header(signer_ctx_t *signer, stream_ctx_t *stream, buffer
 static int signer_inject_seed(block_command_t *command) {
     cx_ecfp_private_key_t private_key;
     cx_ecfp_public_key_t public_key;
-    uint8_t xpriv[MAX_ENCRYPTED_KEY_LEN];
+    uint8_t xpriv[XPRIV_LEN];
     uint8_t secret[32];
     buffer_t buffer;
     cx_err_t error = CX_INTERNAL_ERROR;
@@ -106,8 +106,7 @@ static int signer_inject_seed(block_command_t *command) {
                            sizeof(xpriv),
                            command->command.seed.initialization_vector,
                            command->command.seed.encrypted_xpriv,
-                           sizeof(command->command.seed.encrypted_xpriv),
-                           false);
+                           sizeof(command->command.seed.encrypted_xpriv));
     if (error < 0) {
         goto end;
     }
@@ -159,7 +158,7 @@ end:
 
 static int signer_inject_derive(block_command_t *command) {
     cx_err_t error = CX_INTERNAL_ERROR;
-    uint8_t xpriv[MAX_ENCRYPTED_KEY_LEN];
+    uint8_t xpriv[XPRIV_LEN];
     uint8_t secret[32];
     cx_ecfp_private_key_t private_key;
     cx_ecfp_public_key_t public_key;
@@ -201,8 +200,7 @@ static int signer_inject_derive(block_command_t *command) {
                            sizeof(xpriv),
                            command->command.derive.initialization_vector,
                            command->command.derive.encrypted_xpriv,
-                           sizeof(command->command.derive.encrypted_xpriv),
-                           false);
+                           sizeof(command->command.derive.encrypted_xpriv));
     if (error < 0) {
         goto end;
     }
@@ -319,8 +317,7 @@ static int signer_inject_publish_key(block_command_t *command) {
                            G_context.stream.shared_secret_len,
                            command->command.publish_key.initialization_vector,
                            command->command.publish_key.encrypted_xpriv,
-                           sizeof(command->command.publish_key.encrypted_xpriv),
-                           false);
+                           sizeof(command->command.publish_key.encrypted_xpriv));
     if (error < 0) {
         goto end;
     }

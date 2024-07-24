@@ -21,7 +21,7 @@ typedef cx_ecfp_public_key_t crypto_public_key_t;
 #define LEDGER_ASSERT(x, y) assert(x)
 #endif
 
-#define CRYPTO_BUFFER_SIZE(n) (((CX_AES_BLOCK_SIZE) - ((n) % (CX_AES_BLOCK_SIZE))) % CX_AES_BLOCK_SIZE + (n) + CX_AES_BLOCK_SIZE)
+#define CRYPTO_BUFFER_SIZE(n) ((n) + CX_AES_BLOCK_SIZE)
 
 /**
  * Generate a new key pair.
@@ -155,8 +155,7 @@ int crypto_encrypt(const uint8_t *secret,
                    uint32_t data_len,
                    uint8_t *initialization_vector,
                    uint8_t *encrypted_data,
-                   uint32_t encrypted_data_len,
-                   bool padding);
+                   uint32_t encrypted_data_len);
 
 /**
  * Decrypt data with the given secret and IV
@@ -175,8 +174,7 @@ int crypto_decrypt(const uint8_t *secret,
                    uint32_t data_len,
                    uint8_t *initialization_vector,
                    uint8_t *decrypted_data,
-                   uint32_t decrypted_data_len,
-                   bool padding);
+                   uint32_t decrypted_data_len);
 
 /**
  * Sign block hash in global context.
