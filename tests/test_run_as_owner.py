@@ -439,3 +439,10 @@ def test_key_rotation(firmware: Firmware,
 
     stream = stream.edit().add_member("Edward", edward.get_public_key(), 0xFFFFFFFF, True).issue(alice, tree)
     tree = tree.update(stream)
+
+    # Keys should be equal
+    bob_xpriv = bob.read_key(tree, get_derivation_path(1))
+    edward_xpriv = edward.read_key(tree, get_derivation_path(1))
+    assert bob_xpriv is not None and edward_xpriv is not None
+    assert len(bob_xpriv) == 64 and len(edward_xpriv) == 64
+    assert bob_xpriv == edward_xpriv
