@@ -251,7 +251,7 @@ end:
     return error;
 }
 
-static void signer_inject_add_member(block_command_t *command) {
+static int signer_inject_add_member(block_command_t *command) {
     LEDGER_ASSERT(command != NULL, "Null pointer");
 
     // Push trusted property
@@ -262,7 +262,7 @@ static void signer_inject_add_member(block_command_t *command) {
     G_context.stream.trusted_member.permissions = command->command.add_member.permissions;
 
     // User approval
-    ui_display_add_member_command();
+    return ui_display_add_member_command();
 }
 
 int add_member_confirm(void) {
@@ -366,11 +366,14 @@ end:
 void update_confirm(bool confirm) {
     if (confirm) {
         G_context.stream.is_closed = true;
+    } else {
+        io_send_sw(SW_DENY);
     }
 }
 
 int signer_parse_command(signer_ctx_t *signer, stream_ctx_t *stream, buffer_t *data) {
     block_command_t command;
+    bool ret_sw = true;
     PRINTF("SIGNER PARSE COMMAND\n");
     if (signer->command_count <= SIGNER_EMPTY_BLOCK) {
         signer_reset();
@@ -392,31 +395,19 @@ int signer_parse_command(signer_ctx_t *signer, stream_ctx_t *stream, buffer_t *d
             if (stream->is_created) {
                 return BS_INVALID_STATE;
             }
+            ret_sw = false;
             stream->is_created = true;
             stream->topic_len = command.command.seed.topic_len;
             memcpy(stream->topic, command.command.seed.topic, command.command.seed.topic_len);
             err = signer_inject_seed(&command);
-            if (err) {
-                signer_reset();
-                return err;
-            }
-
-            // Digest command
-            block_hash_command(&command, &signer->digest);
-
-            signer->parsed_command += 1;
-            return 0;
+            break;
         case COMMAND_ADD_MEMBER:
             if (!stream->is_created) {
                 return BS_INVALID_STATE;
             }
-            signer_inject_add_member(&command);
-
-            // Digest command
-            block_hash_command(&command, &signer->digest);
-
-            signer->parsed_command += 1;
-            return 0;
+            ret_sw = false;
+            err = signer_inject_add_member(&command);
+            break;
         case COMMAND_PUBLISH_KEY:
             err = signer_inject_publish_key(&command);
             break;
@@ -424,6 +415,7 @@ int signer_parse_command(signer_ctx_t *signer, stream_ctx_t *stream, buffer_t *d
             err = signer_inject_derive(&command);
             break;
         case COMMAND_CLOSE_STREAM:
+            ret_sw = false;
             err = ui_display_update_instances();
             break;
         default:
@@ -442,7 +434,7 @@ int signer_parse_command(signer_ctx_t *signer, stream_ctx_t *stream, buffer_t *d
     block_hash_command(&command, &signer->digest);
 
     signer->parsed_command += 1;
-    return io_send_trusted_property(SW_OK);
+    return ret_sw ? io_send_trusted_property(SW_OK) : 0;
 }
 
 int signer_sign_block(signer_ctx_t *signer, stream_ctx_t *stream) {
