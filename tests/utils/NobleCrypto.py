@@ -52,34 +52,6 @@ class Crypto:
         }
 
     @staticmethod
-    def pad(message):
-        # ISO9797M2 implementation
-        padlength = AES.block_size - (len(message) % AES.block_size)
-        if padlength == AES.block_size:
-            return message
-
-        padding = bytearray(padlength)
-        padding[0] = 0x80
-
-        for i in range(1, padlength):
-            padding[i] = 1
-
-        return Crypto.concat(message, padding)
-
-    @staticmethod
-    def unpad(message):
-        # ISO9797M2 implementation
-        if message[-1] != 0x00 and message[-1] != 0x80:
-            return message
-
-        for i in range(len(message) - 1, -1, -1):
-            if message[i] == 0x80:
-                return message[:i]
-            if message[i] != 0x00:
-                return message
-        raise ValueError('Invalid padding')
-
-    @staticmethod
     def sign(message, keyPair):
         privateKey = secp256k1.PrivateKey(keyPair['privateKey'])
         obj = privateKey.ecdsa_sign(message, raw=True)
@@ -161,7 +133,7 @@ class Crypto:
     def encrypt(secret, nonce, message):
         normalizedSecret = Crypto.normalize_key(secret)
         encryption_cipher = AES.new(normalizedSecret, AES.MODE_GCM, nonce)
-        encrypted, tag = encryption_cipher.encrypt_and_digest(Crypto.pad(message))
+        encrypted, tag = encryption_cipher.encrypt_and_digest(message)
         return encrypted + tag
 
     # Decrypts a cipher text
@@ -171,7 +143,7 @@ class Crypto:
         tag = cipherText[-16:]
         encrypted = cipherText[:-16]
         decryption_cipher = AES.new(normalizedSecret, AES.MODE_GCM, nonce)
-        return Crypto.unpad(decryption_cipher.decrypt_and_verify(encrypted, tag))
+        return decryption_cipher.decrypt_and_verify(encrypted, tag)
 
     @staticmethod
     def ecdh(keyPair: dict, publicKey: bytes) -> bytes:
