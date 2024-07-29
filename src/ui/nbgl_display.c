@@ -35,6 +35,7 @@
 #include "challenge_parser.h"
 #include "get_seed_id.h"
 #include "signer.h"
+#include "trusted_io.h"
 
 // #define WITH_PRIVACY_REPORT
 
@@ -237,8 +238,10 @@ int ui_display_seed_id_command(void) {
 #endif
 
 static void update_cb(int token, uint8_t index) {
-    UNUSED(token);
     UNUSED(index);
+    if (token == TOKEN_UPDATE) {
+        io_send_trusted_property(SW_OK);
+    }
     ui_menu_main();
 }
 

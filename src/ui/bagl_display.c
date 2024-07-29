@@ -168,6 +168,7 @@ UX_FLOW(ux_display_update_rejected_flow, &ux_display_update_rejected_step);
 static int ui_display_update(bool approve) {
     update_confirm(approve);
     if (approve) {
+        io_send_trusted_property(SW_OK);
         ux_flow_display(ux_display_update_confirmed_flow);
     } else {
         ux_flow_display(ux_display_update_rejected_flow);
