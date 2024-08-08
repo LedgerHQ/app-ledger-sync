@@ -1,6 +1,6 @@
 /*****************************************************************************
- *   Ledger App Boilerplate.
- *   (c) 2020 Ledger SAS.
+ *   Ledger Sync App.
+ *   (c) 2024 Ledger SAS.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -18,21 +18,21 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include "buffer.h"
+#include "io.h"
+
 #include "dispatcher.h"
 #include "../constants.h"
 #include "../globals.h"
 #include "../types.h"
-#include "io.h"
 #include "../sw.h"
-#include "buffer.h"
 #include "../handler/get_version.h"
 #include "../handler/get_app_name.h"
-#include "../handler/get_public_key.h"
+#include "../handler/get_seed_id.h"
 #include "../handler/sign_block.h"
 #include "../handler/parse_stream.h"
 #include "../handler/init_signature_flow.h"
 #include "../handler/set_trusted_member.h"
-#include "../debug.h"
 
 int apdu_dispatcher(const command_t *cmd) {
     if (cmd->cla != CLA) {
@@ -58,21 +58,17 @@ int apdu_dispatcher(const command_t *cmd) {
                 return io_send_sw(SW_WRONG_P1P2);
             }
 
-            // if (!cmd->data) {
-            //    return io_send_sw(SW_WRONG_DATA_LENGTH);
-            //}
-            // TODO THIS CALL MUST ASK FOR USER APPROVAL
             buf.ptr = cmd->data;
             buf.size = cmd->lc;
             buf.offset = 0;
-            return handler_get_public_key(&buf);
+            return handler_get_seed_id(&buf);
         case INIT:
             // Initialize the flow for signing a block or accessing the SeedID. The command receives
             // an ephemeral public and generate an ephemeral private key and create a secret. The
             // ephemeral public key will be shared to the host at the end of the flow when it is
             // approved by the user. P1 is equal to 0x00 P2 is equal to 0x00 Data is equal to the 33
             // bytes of the ephemeral public key
-            if (cmd->lc != 33) {
+            if (cmd->lc != MEMBER_KEY_LEN) {
                 return io_send_sw(SW_WRONG_DATA_LENGTH);
             }
 

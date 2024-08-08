@@ -1,16 +1,13 @@
 #pragma once
 
-#include <stdint.h>   // uint*_t
-#include <stddef.h>   // size_t
-#include <stdbool.h>  // bool
-
 #include "buffer.h"
 
-typedef struct {
-    uint8_t type;
-    uint8_t length;
-    const uint8_t *value;
-} tlv_t;
+#ifndef TEST
+#include "ledger_assert.h"
+#else
+#include <assert.h>
+#define LEDGER_ASSERT(x, y) assert(x)
+#endif
 
 typedef enum {
     // General purpose types
@@ -26,16 +23,23 @@ typedef enum {
     TLV_TYPE_CREATE_GROUP = 0x10,
     TLV_TYPE_ADD_MEMBER = 0x11,
     TLV_TYPE_PUBLISH_KEY = 0x12,
+    TLV_TYPE_CLOSE_STREAM = 0x13,
     TLV_TYPE_EDIT_MEMBER = 0x14,
-    TLV_TYPE_REVOKE_KEY = 0x15,
-
-    // Agreement protocols
-    TLV_TYPE_DEFAULT_AGGREEMENT = 0x60,
+    TLV_TYPE_DERIVE = 0x15,
 
     // Key descriptions
     TLV_TYPE_DEFAULT_KEY_DESC = 0x40,
 
-} tlv_type_t;
+    // Agreement protocols
+    TLV_TYPE_DEFAULT_AGGREEMENT = 0x60,
+
+} tlv_type_e;
+
+typedef struct {
+    uint8_t type;
+    uint8_t length;
+    const uint8_t *value;
+} tlv_t;
 
 /**
  * Read next TLV from buffer.

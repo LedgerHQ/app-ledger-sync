@@ -4,10 +4,14 @@ if(${CMAKE_VERSION} VERSION_LESS 3.10)
     cmake_policy(VERSION ${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION})
 endif()
 
+if (NOT DEFINED ENV{BOLOS_SDK})
+  message(FATAL_ERROR "BOLOS_SDK environment variable not found.")
+endif()
+
 # project information
 project(unit_tests
         VERSION 0.1
-	      DESCRIPTION "Unit tests for Ledger Nano application"
+	      DESCRIPTION "Unit tests for Ledger Application"
         LANGUAGES C)
 
 
@@ -46,6 +50,9 @@ include_directories($ENV{BOLOS_SDK}/lib_standard_app)
 include_directories(.)
 include_directories(./secp256k1/include)
 
+# Add the define for PRINTF as a macro
+add_definitions(-DPRINTF=printf)
+
 # EXECUTABLE DECLARATION
 add_executable(test_bip32 test_bip32.c)
 add_executable(test_block_parser test_block_parser.c)
@@ -64,11 +71,10 @@ add_library(apdu_parser SHARED $ENV{BOLOS_SDK}/lib_standard_app/parser.c)
 add_library(tlv SHARED ../src/common/tlv.c)
 add_library(block_parser ../src/block/block_parser.c)
 add_library(crypto SHARED ./lib/crypto.c ./lib/hmac_sha2.c ./lib/sha2.c ./lib/bn.c)
-add_library(dbg SHARED ./lib/debug.c)
 
 # LINKAGE
-target_link_libraries(test_bip32 PUBLIC cmocka gcov bip32 read crypto base58 dbg write secp256k1 dbg)
-target_link_libraries(test_block_parser PUBLIC 
+target_link_libraries(test_bip32 PUBLIC cmocka gcov bip32 read crypto base58 write secp256k1)
+target_link_libraries(test_block_parser PUBLIC
                       block_parser
                       tlv
                       buffer
@@ -79,7 +85,6 @@ target_link_libraries(test_block_parser PUBLIC
                       write
                       crypto
                       secp256k1
-                      dbg
                       read)
 
 # TESTS DECLARATION

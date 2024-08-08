@@ -86,3 +86,18 @@
 /**
  * Status for fail when the stream is closed
  */
+
+#define SW_PARSER_INVALID_FORMAT 0xB00D
+/**
+ * Status for fail to parse due to invalid format.
+ */
+
+#define SW_PARSER_INVALID_VALUE 0xB00E
+/**
+ * Status for fail to parse due to invalid format.
+ */
+
+#define SW_CHALLENGE_NOT_VERIFIED 0xB00F
+/**
+ * Status for fail to parse due to invalid format.
+ */

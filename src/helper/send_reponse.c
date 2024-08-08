@@ -1,6 +1,6 @@
 /*****************************************************************************
- *   Ledger App Boilerplate.
- *   (c) 2020 Ledger SAS.
+ *   Ledger Sync App.
+ *   (c) 2024 Ledger SAS.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -24,6 +24,7 @@
 #include "../globals.h"
 #include "../sw.h"
 #include "buffer.h"
+#define MEMBER_SIZE(type, member) (sizeof(((type *) 0)->member))
 
 int helper_send_response_pubkey() {
     return io_send_response_buffer(

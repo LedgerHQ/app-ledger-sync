@@ -9,17 +9,13 @@
 #include "stream/stream.h"
 #include "block/signer.h"
 
-#ifdef HAVE_SHA3
-#include <cx.h>
-#endif
-
 /**
  * Enumeration with expected INS of APDU commands.
  */
 typedef enum {
     GET_VERSION = 0x03,   /// version of the application
     GET_APP_NAME = 0x04,  /// name of the application
-    GET_SEED_ID = 0x05,   /// get public key NOT IMPLEMENTED
+    GET_SEED_ID = 0x05,   /// get public key
     INIT = 0x06,  /// Initialize secure flows (block signature, GET SeedID, AUTHENTICATE w/ SeedID)
     SIGN_BLOCK = 0x07,          /// sign block of a parsed stream
     PARSE_STREAM = 0x08,        /// parse a stream
@@ -48,12 +44,10 @@ typedef enum {
  * Structure for public key context information.
  */
 typedef struct {
-    uint8_t raw_public_key[64];  /// x-coordinate (32), y-coodinate (32)
-    uint8_t chain_code[33];      /// for public key derivation
-    uint8_t compressed_pk[33];   /// compressed public key
+    uint8_t raw_public_key[RAW_PUBLIC_KEY_LENGTH];  /// x-coordinate (32), y-coodinate (32)
+    uint8_t chain_code[MEMBER_KEY_LEN];             /// for public key derivation
+    uint8_t compressed_pk[MEMBER_KEY_LEN];          /// compressed public key
 } pubkey_ctx_t;
-
-#define TRUSTCHAIN_PATH_SIZE 4
 
 /**
  * Structure for global context.

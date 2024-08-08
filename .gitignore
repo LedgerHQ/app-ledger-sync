@@ -17,6 +17,7 @@ unit-tests/coverage.info
 fuzzing/build/
 
 # Python
+venv/
 *.pyc[cod]
 *.egg
 __pycache__/
@@ -27,3 +28,6 @@ __pycache__/
 # Doxygen
 doc/html
 doc/latex
+
+# Attestations generation
+attestations/data/prod

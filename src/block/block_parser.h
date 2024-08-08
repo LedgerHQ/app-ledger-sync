@@ -3,6 +3,13 @@
 #include "types.h"
 #include "buffer.h"
 
+#ifndef TEST
+#include "ledger_assert.h"
+#else
+#include <assert.h>
+#define LEDGER_ASSERT(x, y) assert(x)
+#endif
+
 typedef enum {
     BP_ERROR_UNDEFINED = -1,
     BP_ERROR_UNKNOWN_COMMAND = -2,

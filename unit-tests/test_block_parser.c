@@ -34,15 +34,17 @@ static void atohex(const uint8_t* bytes, size_t len, char* hex) {
 }
 
 typedef struct {
-    const char*     topic;
-    const uint16_t  version;
-    const char*     group_key;
-    const char*     iv;
-    const char*     xpriv;
-    const char*     ephemeral_public_key;
+    const char* topic;
+    const uint16_t version;
+    const char* group_key;
+    const char* iv;
+    const char* xpriv;
+    const char* ephemeral_public_key;
 } expected_seed_command_t;
 
-static int assert_seed_command(buffer_t *buffer, expected_seed_command_t *expectation, block_command_t *out) {
+static int assert_seed_command(buffer_t* buffer,
+                               expected_seed_command_t* expectation,
+                               block_command_t* out) {
     int offset;
     block_command_t command;
     offset = parse_block_command(buffer, &command);
@@ -59,7 +61,9 @@ static int assert_seed_command(buffer_t *buffer, expected_seed_command_t *expect
     atohex(command.command.seed.ephemeral_public_key, 33, ephemeral_public_key);
     assert_string_equal(expectation->ephemeral_public_key, ephemeral_public_key);
     char encrypted_xpriv[163];
-    atohex(command.command.seed.encrypted_xpriv, sizeof(command.command.seed.encrypted_xpriv), encrypted_xpriv);
+    atohex(command.command.seed.encrypted_xpriv,
+           sizeof(command.command.seed.encrypted_xpriv),
+           encrypted_xpriv);
     assert_string_equal(expectation->xpriv, encrypted_xpriv);
 
     assert_int_equal(command.command.seed.protocol_version, expectation->version);
@@ -71,12 +75,14 @@ static int assert_seed_command(buffer_t *buffer, expected_seed_command_t *expect
 }
 
 typedef struct {
-    const char *name;
-    const char *public_key;
+    const char* name;
+    const char* public_key;
     const int permissions;
 } expected_add_member_t;
 
-static int assert_add_member_command(buffer_t *buffer, expected_add_member_t *expectation, block_command_t *out) {
+static int assert_add_member_command(buffer_t* buffer,
+                                     expected_add_member_t* expectation,
+                                     block_command_t* out) {
     int offset;
     block_command_t command;
     offset = parse_block_command(buffer, &command);
@@ -92,13 +98,15 @@ static int assert_add_member_command(buffer_t *buffer, expected_add_member_t *ex
 }
 
 typedef struct {
-    const char*    initialization_vector;
-    const char*    encrypted_key;
-    const char*    recipient;
-    const char*    ephemeral_public_key;
+    const char* initialization_vector;
+    const char* encrypted_key;
+    const char* recipient;
+    const char* ephemeral_public_key;
 } expected_publish_key_t;
 
-static int assert_publish_key_command(buffer_t *buffer, expected_publish_key_t *expectation, block_command_t *out) {
+static int assert_publish_key_command(buffer_t* buffer,
+                                      expected_publish_key_t* expectation,
+                                      block_command_t* out) {
     int offset;
     block_command_t command;
     offset = parse_block_command(buffer, &command);
@@ -109,7 +117,9 @@ static int assert_publish_key_command(buffer_t *buffer, expected_publish_key_t *
     atohex(command.command.publish_key.initialization_vector, 16, initialization_vector);
     assert_string_equal(expectation->initialization_vector, initialization_vector);
     char encrypted_key[2 * MAX_ENCRYPTED_KEY_LEN + 1];
-    atohex(command.command.publish_key.encrypted_xpriv, command.command.publish_key.encrypted_xpriv_size, encrypted_key);
+    atohex(command.command.publish_key.encrypted_xpriv,
+           command.command.publish_key.encrypted_xpriv_size,
+           encrypted_key);
     assert_string_equal(expectation->encrypted_key, encrypted_key);
     char recipient[67];
     atohex(command.command.publish_key.recipient, 33, recipient);
@@ -170,22 +180,28 @@ static void test_block_header_parse(void** state) {
     free((void*) buffer.ptr);
 }
 
-
 static void test_block_commands_parse(void** state) {
     (void) state;
 
     const char* stream =
-        "0101010220271dfa2df29090187c03e15b566f2c3e563326ab506dea36424f8772f27b68ee06210329b172be36d4e784a770c27658a"
-        "f4d46159de85ac07b1d34e6cf50755583ac7501010110c00520c96d450545ff2836204c29af291428a5bf740304978f5dfb0b4a2614"
-        "741928510102000006210378341775ca19ebaaa432da2c796910ae0fe40d22893c9b56456c6259b82992820510baddd1ccfaa164a33"
-        "8bb264d5a3c3b290540f7364654d9b24b35c7152de05423ed3170e73782fb2ee029e75fdf02e03588fc7cf515b77d1a7f54327b950d"
-        "4bc18a7e61a80df91257e67d2574b1c0aa7e86ad0621026bd2da8a1e4fb3b1085ebf7d873b0b0b4d3cc9fe1ae1d235ee7a75510c0c0"
-        "c7c03473045022100d084f9c083dcbfdca37680fa679cbf7b8175e7e087146f1aa0f113272c485a50022068f08a702ccdbafa5e9a28"
+        "0101010220271dfa2df29090187c03e15b566f2c3e563326ab506dea36424f8772f27b68ee06210329b172be36"
+        "d4e784a770c27658a"
+        "f4d46159de85ac07b1d34e6cf50755583ac7501010110d00520c96d450545ff2836204c29af291428a5bf74030"
+        "4978f5dfb0b4a2614"
+        "741928510102000006210378341775ca19ebaaa432da2c796910ae0fe40d22893c9b56456c6259b82992820510"
+        "baddd1ccfaa164a33"
+        "8bb264d5a3c3b290550f7364654d9b24b35c7152de05423ed3170e73782fb2ee029e75fdf02e03588fc7cf515b"
+        "77d1a7f54327b950d"
+        "4bc18a7e61a80df91257e67d2574b1c0aa7e86ad000000000000000000000000000000000621026bd2da8a1e4f"
+        "b3b1085ebf7d873b0b0b4d3cc9fe1ae1d235ee7a75510c0c0"
+        "c7c03473045022100d084f9c083dcbfdca37680fa679cbf7b8175e7e087146f1aa0f113272c485a50022068f08"
+        "a702ccdbafa5e9a28"
         "7d8bab46d1925f10d11d68c86444f9c7fcbb4b43b0";
     const char* expected_topic = "c96d450545ff2836204c29af291428a5bf740304978f5dfb0b4a261474192851";
 
     const char* expected_signature =
-        "3045022100d084f9c083dcbfdca37680fa679cbf7b8175e7e087146f1aa0f113272c485a50022068f08a702ccdbafa5e9a287d8bab46d"
+        "3045022100d084f9c083dcbfdca37680fa679cbf7b8175e7e087146f1aa0f113272c485a50022068f08a702ccd"
+        "bafa5e9a287d8bab46d"
         "1925f10d11d68c86444f9c7fcbb4b43b0";
 
     const char* expected_group_key =
@@ -195,12 +211,11 @@ static void test_block_commands_parse(void** state) {
         "026bd2da8a1e4fb3b1085ebf7d873b0b0b4d3cc9fe1ae1d235ee7a75510c0c0c7c";
 
     const char* expected_encrypted_xpriv =
-        "f7364654d9b24b35c7152de05423ed3170e73782fb2ee029e75fdf02e03588fc7cf515b77d1a7f54327b950d4bc18a7e61a80df9125"
-        "7e67d2574b1c0aa7e86ad";
+        "f7364654d9b24b35c7152de05423ed3170e73782fb2ee029e75fdf02e03588fc7cf515b77d1a7f54327b950d4b"
+        "c18a7e61a80df9125"
+        "7e67d2574b1c0aa7e86ad00000000000000000000000000000000";
 
-    const char* expected_initialization_vector =
-        "baddd1ccfaa164a338bb264d5a3c3b29";
-
+    const char* expected_initialization_vector = "baddd1ccfaa164a338bb264d5a3c3b29";
 
     buffer_t buffer;
     hex_to_buffer(stream, &buffer);
@@ -237,26 +252,45 @@ static void test_block_commands_parse(void** state) {
 static void test_stream_parse(void** state) {
     (void) state;
     const char* stream =
-       "0101010220ab9565de221ab57423a4b395e0db36bfe451a11394a62b8c347bf89ac78cd967062102550febeeac572b026ff35005d7eac"
-       "961d022d6da0b3dfc09b5dd9497069b6efb01010110c00520c96d450545ff2836204c29af291428a5bf740304978f5dfb0b4a26147419"
-       "285101020000062103ab80381ce1f25cd242916bbbb99b3feb067fc49f9844ed167d28dda567ae04b605100d1cb422e09eefe91f67666"
-       "30c0f95fe05401fb8fd54a5d4e2cbc846a9d40ac770099bd95032d6db17edd3e38d6b2d8d883e3a9f6d48430ae4aa4345ede589cb5651"
-       "e179ad96b34481377749fa7c7f966ab5062103378aff702550fd188196e2a7731fc8f0958f31e47e85ae7c0d32b5137aee796e0346304"
-       "4022040a9f6b3ca8b7aab0260bc53bc5d544597cb92ab8d4736c17f5fc990137a6e0202205e4fa3f21cdce016fdfbbc1ea3c6e78c1365"
-       "94e4e8068ac5b2cccb4e7d0ac8c60101010220e0434c11beed87a586c57d5068bc59ec076b707a2ea280c9ea44cf1f618c70530621025"
-       "50febeeac572b026ff35005d7eac961d022d6da0b3dfc09b5dd9497069b6efb010102112e0403426f6206210318a83c2c4eb8505f3869"
-       "ae34a0fc0c99faad8d09441a4b6c25957878bae0986a010400000001129a05101659b1d3706ea17c56061e118e97049405400db0d57c7"
-       "0f7b263ea4c90fd9f9f5da743a046c03e8c8ac3991283dbf3bb0629ac8038b1be1638dda9bd3a7aab2a1c8eac82365bdebe73a353096a"
-       "e3a09470e306210318a83c2c4eb8505f3869ae34a0fc0c99faad8d09441a4b6c25957878bae0986a06210370c62b5825253b3aa11eaad"
-       "33de17707635ab8b3d3da6adf4e3476975cbf31c7034730450221009d863d536461b33c2f32a57f20eae9bd753a90c3ce03861711c83a"
-       "3e84acc140022079f5b9b8e3919e78f5810fa896b657c4c60b42a87d03d0ec69b3a2b325a6d2d201010102208ebdf68f9b0039c3a1694"
-       "5c547926f52cc579fe083f04e1e8f47dfb4567408d5062102550febeeac572b026ff35005d7eac961d022d6da0b3dfc09b5dd9497069b"
-       "6efb01010211320407436861726c696506210217840122f107299ce042275fa54aa7160dce2cc30927adb987247a1154ac66af0104000"
-       "00001129a051074fe5d7c6dc5f4bf6e1c9377c8af5af50540c23c37399d369c34d27aed791fefadf0c5f3f577ab435e5c0484bcc51173"
-       "16f74e757cf544cb3d8ab1ea4aed6143e6d4efe15256b9687c67c274abd4677649a006210217840122f107299ce042275fa54aa7160dc"
-       "e2cc30927adb987247a1154ac66af062102051214c6e9a39f2e2e84628bbc3f9e34535efbaa54209618b86fc3868ddd70740346304402"
-       "20080a6ee6461ba97aa20e90cbd532b0ae7bef3978ce0c3237b4e6d20af7770b92022060f2f614156cc29cc3ae428f4aef38e163a1be9"
-       "250a642799bfa2e43a88373bc";
+        "0101010220ab9565de221ab57423a4b395e0db36bfe451a11394a62b8c347bf89ac78cd967062102550febeeac"
+        "572b026ff35005d7eac"
+        "961d022d6da0b3dfc09b5dd9497069b6efb01010110d00520c96d450545ff2836204c29af291428a5bf7403049"
+        "78f5dfb0b4a26147419"
+        "285101020000062103ab80381ce1f25cd242916bbbb99b3feb067fc49f9844ed167d28dda567ae04b605100d1c"
+        "b422e09eefe91f67666"
+        "30c0f95fe05501fb8fd54a5d4e2cbc846a9d40ac770099bd95032d6db17edd3e38d6b2d8d883e3a9f6d48430ae"
+        "4aa4345ede589cb5651"
+        "e179ad96b34481377749fa7c7f966ab5b7e1ffff000000000000000000000000062103378aff702550fd188196"
+        "e2a7731fc8f0958f31e47e85ae7c0d32b5137aee796e0346304"
+        "4022040a9f6b3ca8b7aab0260bc53bc5d544597cb92ab8d4736c17f5fc990137a6e0202205e4fa3f21cdce016f"
+        "dfbbc1ea3c6e78c1365"
+        "94e4e8068ac5b2cccb4e7d0ac8c60101010220e0434c11beed87a586c57d5068bc59ec076b707a2ea280c9ea44"
+        "cf1f618c70530621025"
+        "50febeeac572b026ff35005d7eac961d022d6da0b3dfc09b5dd9497069b6efb010102112e0403426f620621031"
+        "8a83c2c4eb8505f3869"
+        "ae34a0fc0c99faad8d09441a4b6c25957878bae0986a010400000001129a05101659b1d3706ea17c56061e118e"
+        "97049405400db0d57c7"
+        "0f7b263ea4c90fd9f9f5da743a046c03e8c8ac3991283dbf3bb0629ac8038b1be1638dda9bd3a7aab2a1c8eac8"
+        "2365bdebe73a353096a"
+        "e3a09470e306210318a83c2c4eb8505f3869ae34a0fc0c99faad8d09441a4b6c25957878bae0986a06210370c6"
+        "2b5825253b3aa11eaad"
+        "33de17707635ab8b3d3da6adf4e3476975cbf31c7034730450221009d863d536461b33c2f32a57f20eae9bd753"
+        "a90c3ce03861711c83a"
+        "3e84acc140022079f5b9b8e3919e78f5810fa896b657c4c60b42a87d03d0ec69b3a2b325a6d2d201010102208e"
+        "bdf68f9b0039c3a1694"
+        "5c547926f52cc579fe083f04e1e8f47dfb4567408d5062102550febeeac572b026ff35005d7eac961d022d6da0"
+        "b3dfc09b5dd9497069b"
+        "6efb01010211320407436861726c696506210217840122f107299ce042275fa54aa7160dce2cc30927adb98724"
+        "7a1154ac66af0104000"
+        "00001129a051074fe5d7c6dc5f4bf6e1c9377c8af5af50540c23c37399d369c34d27aed791fefadf0c5f3f577a"
+        "b435e5c0484bcc51173"
+        "16f74e757cf544cb3d8ab1ea4aed6143e6d4efe15256b9687c67c274abd4677649a006210217840122f107299c"
+        "e042275fa54aa7160dc"
+        "e2cc30927adb987247a1154ac66af062102051214c6e9a39f2e2e84628bbc3f9e34535efbaa54209618b86fc38"
+        "68ddd70740346304402"
+        "20080a6ee6461ba97aa20e90cbd532b0ae7bef3978ce0c3237b4e6d20af7770b92022060f2f614156cc29cc3ae"
+        "428f4aef38e163a1be9"
+        "250a642799bfa2e43a88373bc";
 
     const int expected_block_count = 3;
 
@@ -271,15 +305,17 @@ static void test_stream_parse(void** state) {
         "8ebdf68f9b0039c3a16945c547926f52cc579fe083f04e1e8f47dfb4567408d5"};
 
     const char* expected_signatures[] = {
-        "3044022040a9f6b3ca8b7aab0260bc53bc5d544597cb92ab8d4736c17f5fc990137a6e0202205e4fa3f21cdce016fdfbbc1ea3c6e78c"
+        "3044022040a9f6b3ca8b7aab0260bc53bc5d544597cb92ab8d4736c17f5fc990137a6e0202205e4fa3f21cdce0"
+        "16fdfbbc1ea3c6e78c"
         "136594e4e8068ac5b2cccb4e7d0ac8c6",
-    
-        "30450221009d863d536461b33c2f32a57f20eae9bd753a90c3ce03861711c83a3e84acc140022079f5b9b8e3919e78f5810fa896b657"
+
+        "30450221009d863d536461b33c2f32a57f20eae9bd753a90c3ce03861711c83a3e84acc140022079f5b9b8e391"
+        "9e78f5810fa896b657"
         "c4c60b42a87d03d0ec69b3a2b325a6d2d2",
 
-        "30440220080a6ee6461ba97aa20e90cbd532b0ae7bef3978ce0c3237b4e6d20af7770b92022060f2f614156cc29cc3ae428f4aef38e"
-        "163a1be9250a642799bfa2e43a88373bc"
-    };
+        "30440220080a6ee6461ba97aa20e90cbd532b0ae7bef3978ce0c3237b4e6d20af7770b92022060f2f614156cc2"
+        "9cc3ae428f4aef38e"
+        "163a1be9250a642799bfa2e43a88373bc"};
 
     buffer_t buffer;
     hex_to_buffer(stream, &buffer);
@@ -300,49 +336,59 @@ static void test_stream_parse(void** state) {
         atohex(header.parent, sizeof(header.parent), parent_hex);
         assert_string_equal(expected_parents[block_index], parent_hex);
 
-         // Parse commands
+        // Parse commands
         for (int command_index = 0; command_index < header.length; command_index++) {
             printf("block_index: %d, command_index: %d\n", block_index, command_index);
             if (block_index == 0 && command_index == 0) {
-               expected_seed_command_t expectations = {
+                expected_seed_command_t expectations = {
                     .topic = "c96d450545ff2836204c29af291428a5bf740304978f5dfb0b4a261474192851",
                     .version = 0,
-                    .ephemeral_public_key = "03378aff702550fd188196e2a7731fc8f0958f31e47e85ae7c0d32b5137aee796e",
-                    .xpriv = "1fb8fd54a5d4e2cbc846a9d40ac770099bd95032d6db17edd3e38d6b2d8d883e3a9f6d48430ae4aa43"
-                             "45ede589cb5651e179ad96b34481377749fa7c7f966ab5",
-                    .group_key = "03ab80381ce1f25cd242916bbbb99b3feb067fc49f9844ed167d28dda567ae04b6",
-                    .iv = "0d1cb422e09eefe91f6766630c0f95fe"
-               };
-               assert_seed_command(&buffer, &expectations, NULL);
+                    .ephemeral_public_key =
+                        "03378aff702550fd188196e2a7731fc8f0958f31e47e85ae7c0d32b5137aee796e",
+                    .xpriv =
+                        "1fb8fd54a5d4e2cbc846a9d40ac770099bd95032d6db17edd3e38d6b2d8d883e3a9f6d4843"
+                        "0ae4aa43"
+                        "45ede589cb5651e179ad96b34481377749fa7c7f966ab5b7e1ffff000000000000000000000000",
+                    .group_key =
+                        "03ab80381ce1f25cd242916bbbb99b3feb067fc49f9844ed167d28dda567ae04b6",
+                    .iv = "0d1cb422e09eefe91f6766630c0f95fe"};
+                assert_seed_command(&buffer, &expectations, NULL);
             } else if (block_index == 1 && command_index == 0) {
                 expected_add_member_t expectations = {
                     .name = "Bob",
                     .permissions = 1,
-                    .public_key = "0318a83c2c4eb8505f3869ae34a0fc0c99faad8d09441a4b6c25957878bae0986a"
-                };
+                    .public_key =
+                        "0318a83c2c4eb8505f3869ae34a0fc0c99faad8d09441a4b6c25957878bae0986a"};
                 assert_add_member_command(&buffer, &expectations, NULL);
             } else if (block_index == 1 && command_index == 1) {
                 expected_publish_key_t expectations = {
-                    .recipient = "0318a83c2c4eb8505f3869ae34a0fc0c99faad8d09441a4b6c25957878bae0986a",
-                    .encrypted_key = "0db0d57c70f7b263ea4c90fd9f9f5da743a046c03e8c8ac3991283dbf3bb0629ac8038b1be1638dda9b"
-                                     "d3a7aab2a1c8eac82365bdebe73a353096ae3a09470e3",
-                    .ephemeral_public_key = "0370c62b5825253b3aa11eaad33de17707635ab8b3d3da6adf4e3476975cbf31c7",
-                    .initialization_vector = "1659b1d3706ea17c56061e118e970494"
-                };
+                    .recipient =
+                        "0318a83c2c4eb8505f3869ae34a0fc0c99faad8d09441a4b6c25957878bae0986a",
+                    .encrypted_key =
+                        "0db0d57c70f7b263ea4c90fd9f9f5da743a046c03e8c8ac3991283dbf3bb0629ac8038b1be"
+                        "1638dda9b"
+                        "d3a7aab2a1c8eac82365bdebe73a353096ae3a09470e3",
+                    .ephemeral_public_key =
+                        "0370c62b5825253b3aa11eaad33de17707635ab8b3d3da6adf4e3476975cbf31c7",
+                    .initialization_vector = "1659b1d3706ea17c56061e118e970494"};
                 assert_publish_key_command(&buffer, &expectations, NULL);
             } else if (block_index == 2 && command_index == 0) {
                 expected_add_member_t expectations = {
                     .name = "Charlie",
                     .permissions = 1,
-                    .public_key = "0217840122f107299ce042275fa54aa7160dce2cc30927adb987247a1154ac66af"
-                };
+                    .public_key =
+                        "0217840122f107299ce042275fa54aa7160dce2cc30927adb987247a1154ac66af"};
                 assert_add_member_command(&buffer, &expectations, NULL);
             } else if (block_index == 2 && command_index == 1) {
                 expected_publish_key_t expectations = {
-                    .encrypted_key = "c23c37399d369c34d27aed791fefadf0c5f3f577ab435e5c0484bcc5117316f74e757cf544cb3d8ab1ea4ae"
-                                     "d6143e6d4efe15256b9687c67c274abd4677649a0",
-                    .ephemeral_public_key = "02051214c6e9a39f2e2e84628bbc3f9e34535efbaa54209618b86fc3868ddd7074",
-                    .recipient = "0217840122f107299ce042275fa54aa7160dce2cc30927adb987247a1154ac66af",
+                    .encrypted_key =
+                        "c23c37399d369c34d27aed791fefadf0c5f3f577ab435e5c0484bcc5117316f74e757cf544"
+                        "cb3d8ab1ea4ae"
+                        "d6143e6d4efe15256b9687c67c274abd4677649a0",
+                    .ephemeral_public_key =
+                        "02051214c6e9a39f2e2e84628bbc3f9e34535efbaa54209618b86fc3868ddd7074",
+                    .recipient =
+                        "0217840122f107299ce042275fa54aa7160dce2cc30927adb987247a1154ac66af",
                     .initialization_vector = "74fe5d7c6dc5f4bf6e1c9377c8af5af5",
                 };
                 assert_publish_key_command(&buffer, &expectations, NULL);
@@ -370,7 +416,6 @@ static void test_stream_parse(void** state) {
 
 static void test_parse_derive_command(void** state) {
     (void) state;
-    const char *command = "";
     // TODO: implement
 }
 

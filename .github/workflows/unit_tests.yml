@@ -17,8 +17,8 @@ jobs:
 
     steps:
       - name: Clone
-        uses: actions/checkout@v3
-        with: 
+        uses: actions/checkout@v4
+        with:
           submodules: true
 
       - name: Build unit tests
@@ -35,7 +35,7 @@ jobs:
           lcov --directory . -b "$(realpath build/)" --remove coverage.info '*/unit-tests/*' -o coverage.info && \
           genhtml coverage.info -o coverage
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: code-coverage
           path: unit-tests/coverage
@@ -46,6 +46,6 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./unit-tests/coverage.info
           flags: unittests
-          name: codecov-app-boilerplate
+          name: codecov-app-ledger-sync
           fail_ci_if_error: true
           verbose: true

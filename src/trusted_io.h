@@ -2,13 +2,14 @@
 
 #include <stdint.h>
 #include "buffer.h"
+#include "block/trusted_properties.h"
 
 #define TRUSTED_IO_APDU_BUFFER_SIZE 258
 
 /**
  * Initialize the IO state for pushing trusted properties.
  */
-void io_init_trusted_property();
+void io_init_trusted_property(void);
 
 /**
  * Push a trusted property to the IO buffer.

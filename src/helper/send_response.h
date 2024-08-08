@@ -2,8 +2,6 @@
 
 #include "os.h"
 
-#include "../common/macros.h"
-
 /**
  * Length of public key.
  */

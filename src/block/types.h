@@ -4,11 +4,10 @@
 #include <stdint.h>   // uint*_t
 #include <stdbool.h>  // bool
 
+#include "bip32.h"
 #include "../constants.h"
-
-#ifdef HAVE_SHA256
 #include "../crypto.h"
-#endif
+#include "../common/tlv.h"
 
 typedef struct {
     uint8_t version;                 // Protocol version of the block
@@ -18,13 +17,13 @@ typedef struct {
 } block_header_t;
 
 typedef enum {
-    COMMAND_SEED = 0x10,
-    COMMAND_ADD_MEMBER = 0x11,
-    COMMAND_PUBLISH_KEY = 0x12,
-    COMMAND_EDIT_MEMBER = 0x14,
-    COMMAND_DERIVE = 0x15,
-    COMMAND_CLOSE_STREAM = 0x13
-} block_command_type_t;
+    COMMAND_SEED = TLV_TYPE_CREATE_GROUP,
+    COMMAND_ADD_MEMBER = TLV_TYPE_ADD_MEMBER,
+    COMMAND_PUBLISH_KEY = TLV_TYPE_PUBLISH_KEY,
+    COMMAND_EDIT_MEMBER = TLV_TYPE_EDIT_MEMBER,
+    COMMAND_DERIVE = TLV_TYPE_DERIVE,
+    COMMAND_CLOSE_STREAM = TLV_TYPE_CLOSE_STREAM
+} block_command_type_e;
 
 typedef enum {
     KEY_READER = 0x01,
@@ -50,7 +49,7 @@ typedef struct {
 } block_command_seed_t;
 
 typedef struct {
-    uint32_t path[MAX_DERIVATION_PATH_LEN];
+    uint32_t path[MAX_BIP32_PATH];
     uint8_t path_len;
     uint8_t group_public_key[MEMBER_KEY_LEN];
     uint8_t initialization_vector[IV_LEN];
@@ -74,7 +73,7 @@ typedef struct {
 } block_command_publish_key_t;
 
 typedef struct {
-    block_command_type_t type;
+    block_command_type_e type;
     union {
         block_command_seed_t seed;
         block_command_derive_t derive;
@@ -84,9 +83,7 @@ typedef struct {
 } block_command_t;
 
 typedef struct {
-#ifdef HAVE_SHA256
-    crypto_hash_t digest;  // Current block digest
-#endif
+    crypto_hash_t digest;                // Current block digest
     uint8_t signature[MAX_DER_SIG_LEN];  /// transaction signature encoded in DER
     uint8_t signature_len;               /// length of transaction signature
     uint8_t v;                           /// parity of y-coordinate of R in ECDSA signature

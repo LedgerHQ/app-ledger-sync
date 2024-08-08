@@ -1,9 +1,8 @@
+#include "sw.h"
 #include "signer.h"
 #include "block_parser.h"
-#include <string.h>
 #include "cx.h"
 #include "crypto.h"
-#include "debug.h"
 #include "io.h"
 #include "../trusted_io.h"
 #include "block_hasher.h"
@@ -11,26 +10,35 @@
 #include "../globals.h"
 #include "bip32.h"
 #include "../common/bip32_derivation.h"
+#include "ledger_assert.h"
+#include "sw.h"
+#include "../ui/display.h"
 
-int signer_init(signer_ctx_t *signer) {
+void signer_init(signer_ctx_t *signer) {
+    LEDGER_ASSERT(signer != NULL, "Null pointer");
+
     crypto_digest_init(&signer->digest);
-    return SP_OK;
 }
 
-void signer_reset() {
-    DEBUG_PRINT("RESET SIGNER\n")
+void signer_reset(void) {
+    PRINTF("RESET SIGNER\n");
     explicit_bzero(&G_context.signer_info, sizeof(G_context.signer_info));
     explicit_bzero(&G_context.stream, sizeof(G_context.stream));
 }
 
 static bool signer_verify_parent_hash(stream_ctx_t *stream, uint8_t *parent_hash) {
+    LEDGER_ASSERT(stream != NULL, "Null pointer");
+    LEDGER_ASSERT(parent_hash != NULL, "Null pointer");
+
     return memcmp(stream->last_block_hash, parent_hash, HASH_LEN) == 0;
 }
 
 int signer_parse_block_header(signer_ctx_t *signer, stream_ctx_t *stream, buffer_t *data) {
-    (void) signer;
     // Parse the block header
     block_header_t block_header;
+    LEDGER_ASSERT(signer != NULL, "Null signer");
+    LEDGER_ASSERT(stream != NULL, "Null stream");
+
     int err = parse_block_header(data, &block_header);
 
     if (!err) {
@@ -44,9 +52,9 @@ int signer_parse_block_header(signer_ctx_t *signer, stream_ctx_t *stream, buffer
     // Verify the parent is set to the current block hash (if stream is created)
 
     if (stream->is_created && !signer_verify_parent_hash(stream, block_header.parent)) {
-        DEBUG_PRINT("INVALID PARENT HASH\n")
-        DEBUG_LOG_BUF("EXPECTED HASH: ", stream->last_block_hash, HASH_LEN);
-        DEBUG_LOG_BUF("RECEIVED HASH: ", block_header.parent, HASH_LEN);
+        PRINTF("INVALID PARENT HASH\n");
+        PRINTF("EXPECTED HASH: %.*H", HASH_LEN, stream->last_block_hash);
+        PRINTF("RECEIVED HASH: %.*H", HASH_LEN, block_header.parent);
         return BS_INVALID_PARENT_HASH;
     }
 
@@ -61,27 +69,26 @@ int signer_parse_block_header(signer_ctx_t *signer, stream_ctx_t *stream, buffer
     return 0;
 }
 
-static int signer_inject_seed(signer_ctx_t *signer, block_command_t *command) {
-    (void) signer;
+static int signer_inject_seed(block_command_t *command) {
     cx_ecfp_private_key_t private_key;
     cx_ecfp_public_key_t public_key;
-    uint8_t xpriv[64];
+    uint8_t xpriv[XPRIV_LEN];
     uint8_t secret[32];
     buffer_t buffer;
-    int ret = 0;
+    cx_err_t error = CX_INTERNAL_ERROR;
+
+    LEDGER_ASSERT(command != NULL, "Null pointer");
 
     // Generate private key
-    ret = crypto_generate_pair(&public_key, &private_key);
-    if (ret != 0) return ret;
+    CX_CHECK(crypto_generate_pair(&public_key, &private_key));
 
     // Generate chain code
     cx_trng_get_random_data(xpriv + 32, 32);
 
     // Create ephemeral ECDH
-    ret = crypto_ephemeral_ecdh(G_context.stream.device_public_key,
-                                command->command.seed.ephemeral_public_key,
-                                secret);
-    if (ret != 0) return ret;
+    CX_CHECK(crypto_ephemeral_ecdh(G_context.stream.device_public_key,
+                                   command->command.seed.ephemeral_public_key,
+                                   secret));
 
     // Generate IV
     cx_trng_get_random_data(command->command.seed.initialization_vector,
@@ -90,17 +97,19 @@ static int signer_inject_seed(signer_ctx_t *signer, block_command_t *command) {
     // Write private key in xpriv buffer
     memcpy(xpriv, private_key.d, sizeof(private_key.d));
 
+    explicit_bzero(&private_key, sizeof(private_key));
     // Encrypt xpriv
-    DEBUG_LOG_BUF("XPRIV (SEED): ", xpriv, sizeof(xpriv));
-    ret = crypto_encrypt(secret,
-                         sizeof(secret),
-                         xpriv,
-                         sizeof(xpriv),
-                         command->command.seed.initialization_vector,
-                         command->command.seed.encrypted_xpriv,
-                         sizeof(command->command.seed.encrypted_xpriv),
-                         false);
-    if (ret < 0) return ret;
+    PRINTF("XPRIV (SEED): %.*H", sizeof(xpriv), xpriv);
+    error = crypto_encrypt(secret,
+                           sizeof(secret),
+                           xpriv,
+                           sizeof(xpriv),
+                           command->command.seed.initialization_vector,
+                           command->command.seed.encrypted_xpriv,
+                           sizeof(command->command.seed.encrypted_xpriv));
+    if (error < 0) {
+        goto end;
+    }
     command->command.seed.encrypted_xpriv_size = sizeof(command->command.seed.encrypted_xpriv);
 
     // Compress and save group key
@@ -111,95 +120,92 @@ static int signer_inject_seed(signer_ctx_t *signer, block_command_t *command) {
     buffer.ptr = command->command.seed.encrypted_xpriv;
     buffer.size = sizeof(command->command.seed.encrypted_xpriv);
     buffer.offset = 0;
-    ret = io_push_trusted_property(TP_XPRIV, &buffer);
-    if (ret != 0) return ret;
+    CX_CHECK(io_push_trusted_property(TP_XPRIV, &buffer));
+
     // - push ephemeral public key
     buffer.ptr = command->command.seed.ephemeral_public_key;
     buffer.size = sizeof(command->command.seed.ephemeral_public_key);
     buffer.offset = 0;
-    ret = io_push_trusted_property(TP_EPHEMERAL_PUBLIC_KEY, &buffer);
-    if (ret != 0) return ret;
+    CX_CHECK(io_push_trusted_property(TP_EPHEMERAL_PUBLIC_KEY, &buffer));
 
     // - push initialization vector
     buffer.ptr = command->command.seed.initialization_vector;
     buffer.size = sizeof(command->command.seed.initialization_vector);
     buffer.offset = 0;
-    ret = io_push_trusted_property(TP_COMMAND_IV, &buffer);
-    if (ret != 0) return ret;
+    CX_CHECK(io_push_trusted_property(TP_COMMAND_IV, &buffer));
 
     // - push group key
     buffer.ptr = command->command.seed.group_public_key;
     buffer.size = sizeof(command->command.seed.group_public_key);
     buffer.offset = 0;
-    ret = io_push_trusted_property(TP_GROUPKEY, &buffer);
-    if (ret != 0) return ret;
-
-    explicit_bzero(&private_key, sizeof(private_key));
-
-    // User approval
-    // TODO implement user approval
+    CX_CHECK(io_push_trusted_property(TP_GROUPKEY, &buffer));
 
     // Set the shared secret in the stream
     memcpy(G_context.stream.shared_secret, xpriv, sizeof(xpriv));
     G_context.stream.shared_secret_len = sizeof(xpriv);
 
-    return ret < 0 ? ret : 0;
+end:
+    if (error == CX_OK) {
+        io_send_trusted_property(SW_OK);
+    } else {
+        explicit_bzero(G_context.stream.shared_secret, G_context.stream.shared_secret_len);
+        signer_reset();
+    }
+    explicit_bzero(&secret, sizeof(secret));
+    explicit_bzero(&xpriv, sizeof(xpriv));
+    return error;
 }
 
-static int signer_inject_derive(signer_ctx_t *signer, block_command_t *command) {
-    (void) signer;
-    int err = SP_OK;
-    uint8_t xpriv[64];
+static int signer_inject_derive(block_command_t *command) {
+    cx_err_t error = CX_INTERNAL_ERROR;
+    uint8_t xpriv[XPRIV_LEN];
     uint8_t secret[32];
     cx_ecfp_private_key_t private_key;
     cx_ecfp_public_key_t public_key;
-    uint8_t raw_public_key[65];
+    uint8_t raw_public_key[1 + RAW_PUBLIC_KEY_LENGTH];
     buffer_t buffer;
 
-    DEBUG_PRINT("INJECT DERIVE\n")
+    PRINTF("INJECT DERIVE\n");
     // If the shared secret is not set, return an error
     if (G_context.stream.shared_secret_len == 0) {
         return SP_ERR_INVALID_STATE;
     }
-    DEBUG_PRINT("INJECT DERIVE 1\n")
+    PRINTF("INJECT DERIVE 1\n");
     // Check the derivation path is valid
     if (!bip32_path_is_hardened(command->command.derive.path, command->command.derive.path_len)) {
         // Only accept hardened derivations
         return SP_ERR_INVALID_STREAM;
     }
-    DEBUG_PRINT("INJECT DERIVE 2\n")
+    PRINTF("INJECT DERIVE 2\n");
     // Derive the xpriv with the derivation path
-    err = bip32_derive_xpriv_to_path(G_context.stream.shared_secret,
-                                     G_context.stream.shared_secret + PRIVATE_KEY_LEN,
-                                     command->command.derive.path,
-                                     command->command.derive.path_len,
-                                     xpriv,
-                                     xpriv + PRIVATE_KEY_LEN);
-    if (err != SP_OK) {
-        return err;
-    }
-    DEBUG_PRINT("INJECT DERIVE 3\n")
+    CX_CHECK(bip32_derive_xpriv_to_path(G_context.stream.shared_secret,
+                                        G_context.stream.shared_secret + PRIVATE_KEY_LEN,
+                                        command->command.derive.path,
+                                        command->command.derive.path_len,
+                                        xpriv,
+                                        xpriv + PRIVATE_KEY_LEN));
+    PRINTF("INJECT DERIVE 3\n");
     // Generate IV
     cx_trng_get_random_data(command->command.derive.initialization_vector, IV_LEN);
 
     // Perform ECDHE
-    err = crypto_ephemeral_ecdh(G_context.stream.device_public_key,
-                                command->command.derive.ephemeral_public_key,
-                                secret);
-    if (err != 0) return err;
-    DEBUG_PRINT("INJECT DERIVE 4\n")
+    CX_CHECK(crypto_ephemeral_ecdh(G_context.stream.device_public_key,
+                                   command->command.derive.ephemeral_public_key,
+                                   secret));
+    PRINTF("INJECT DERIVE 4\n");
     // Encrypt the xpriv with the shared secret
-    err = crypto_encrypt(secret,
-                         sizeof(secret),
-                         xpriv,
-                         sizeof(xpriv),
-                         command->command.derive.initialization_vector,
-                         command->command.derive.encrypted_xpriv,
-                         sizeof(command->command.derive.encrypted_xpriv),
-                         false);
-    if (err < 0) return err;
+    error = crypto_encrypt(secret,
+                           sizeof(secret),
+                           xpriv,
+                           sizeof(xpriv),
+                           command->command.derive.initialization_vector,
+                           command->command.derive.encrypted_xpriv,
+                           sizeof(command->command.derive.encrypted_xpriv));
+    if (error < 0) {
+        goto end;
+    }
     command->command.derive.encrypted_xpriv_size = sizeof(command->command.derive.encrypted_xpriv);
-    DEBUG_PRINT("INJECT DERIVE 5\n")
+    PRINTF("INJECT DERIVE 5\n");
     // Compute public key from xpriv
     crypto_init_private_key(xpriv, &private_key);
     crypto_init_public_key(&private_key, &public_key, raw_public_key + 1);
@@ -215,77 +221,81 @@ static int signer_inject_derive(signer_ctx_t *signer, block_command_t *command) 
 
     explicit_bzero(xpriv, sizeof(xpriv));
     explicit_bzero(&private_key, sizeof(private_key));
-    DEBUG_PRINT("INJECT DERIVE 6\n")
+    PRINTF("INJECT DERIVE 6\n");
     // Push trusted properties
     // - push encrypted xpriv
     buffer.ptr = command->command.derive.encrypted_xpriv;
     buffer.size = sizeof(command->command.derive.encrypted_xpriv);
     buffer.offset = 0;
-    err = io_push_trusted_property(TP_XPRIV, &buffer);
-    if (err != 0) return err;
+    CX_CHECK(io_push_trusted_property(TP_XPRIV, &buffer));
     // - push ephemeral public key
     buffer.ptr = command->command.derive.ephemeral_public_key;
     buffer.size = sizeof(command->command.derive.ephemeral_public_key);
     buffer.offset = 0;
-    err = io_push_trusted_property(TP_EPHEMERAL_PUBLIC_KEY, &buffer);
-    if (err != 0) return err;
-    DEBUG_PRINT("INJECT DERIVE 7\n")
+    CX_CHECK(io_push_trusted_property(TP_EPHEMERAL_PUBLIC_KEY, &buffer));
+    PRINTF("INJECT DERIVE 7\n");
     // - push initialization vector
     buffer.ptr = command->command.derive.initialization_vector;
     buffer.size = sizeof(command->command.derive.initialization_vector);
     buffer.offset = 0;
-    err = io_push_trusted_property(TP_COMMAND_IV, &buffer);
-    if (err != 0) return err;
-    DEBUG_PRINT("INJECT DERIVE 8\n")
+    CX_CHECK(io_push_trusted_property(TP_COMMAND_IV, &buffer));
+    PRINTF("INJECT DERIVE 8\n");
     // - push group key
     buffer.ptr = command->command.derive.group_public_key;
     buffer.size = sizeof(command->command.derive.group_public_key);
     buffer.offset = 0;
-    err = io_push_trusted_property(TP_GROUPKEY, &buffer);
-    if (err != 0) return err;
+    error = io_push_trusted_property(TP_GROUPKEY, &buffer);
 
-    return SP_OK;
+end:
+    explicit_bzero(secret, sizeof(secret));
+    return error;
 }
 
-static int signer_inject_add_member(signer_ctx_t *signer, block_command_t *command) {
-    (void) signer;
-    uint8_t buffer[TP_BUFFER_SIZE_NEW_MEMBER];
-    buffer_t trusted_property = {.ptr = buffer, .size = sizeof(buffer), .offset = 0};
-
-    // Ask user approval and return the command as trusted property
-
-    // User approval
-    // TODO implement user approval
+static int signer_inject_add_member(block_command_t *command) {
+    LEDGER_ASSERT(command != NULL, "Null pointer");
 
     // Push trusted property
-
     memcpy(G_context.stream.trusted_member.member_key,
            command->command.add_member.public_key,
            MEMBER_KEY_LEN);
     G_context.stream.trusted_member.owns_key = 0;
     G_context.stream.trusted_member.permissions = command->command.add_member.permissions;
-    serialize_trusted_member(&G_context.stream.trusted_member, buffer, sizeof(buffer));
-    return io_push_trusted_property(TP_NEW_MEMBER, &trusted_property);
+
+    // User approval
+    return ui_display_add_member_command();
 }
 
-static int signer_inject_publish_key(signer_ctx_t *signer, block_command_t *command) {
-    (void) signer;
+int add_member_confirm(void) {
+    uint8_t buffer[TP_BUFFER_SIZE_NEW_MEMBER];
+    cx_err_t error = CX_INTERNAL_ERROR;
+    buffer_t trusted_property = {.ptr = buffer, .size = sizeof(buffer), .offset = 0};
+
+    serialize_trusted_member(&G_context.stream.trusted_member, buffer, sizeof(buffer));
+    CX_CHECK(io_push_trusted_property(TP_NEW_MEMBER, &trusted_property));
+
+    CX_CHECK(io_send_trusted_property(SW_OK));
+
+end:
+    return error;
+}
+
+static int signer_inject_publish_key(block_command_t *command) {
     uint8_t buffer[TP_BUFFER_SIZE_NEW_MEMBER];
     buffer_t trusted_property = {.ptr = buffer, .size = sizeof(buffer), .offset = 0};
-    int err;
+    cx_err_t error = CX_INTERNAL_ERROR;
     uint8_t secret[32];
 
     // If trusted member don't match the an error
     if (memcmp(G_context.stream.trusted_member.member_key,
                command->command.publish_key.recipient,
                MEMBER_KEY_LEN) != 0) {
-        DEBUG_PRINT("Trusted member don't match\n");
+        PRINTF("Trusted member don't match\n");
         return BS_INVALID_STATE;
     }
 
     // If we don't have the xpriv, return an error
     if (G_context.stream.shared_secret_len == 0) {
-        DEBUG_PRINT("No shared secret\n");
+        PRINTF("No shared secret\n");
         return BS_INVALID_STATE;
     }
 
@@ -293,83 +303,78 @@ static int signer_inject_publish_key(signer_ctx_t *signer, block_command_t *comm
     cx_trng_get_random_data(command->command.publish_key.initialization_vector, IV_LEN);
 
     // Perform ECDHE
-    err = crypto_ephemeral_ecdh(command->command.publish_key.recipient,
-                                command->command.publish_key.ephemeral_public_key,
-                                secret);
-    if (err != 0) {
-        DEBUG_PRINT("ECDHE failed\n");
-        return err;
-    }
+    CX_CHECK(crypto_ephemeral_ecdh(command->command.publish_key.recipient,
+                                   command->command.publish_key.ephemeral_public_key,
+                                   secret));
 
     // Encrypt xpriv
-    DEBUG_LOG_BUF("XPRIV (PUBLISH KEY): ",
-                  G_context.stream.shared_secret,
-                  G_context.stream.shared_secret_len);
-    err = crypto_encrypt(secret,
-                         sizeof(secret),
-                         G_context.stream.shared_secret,
-                         G_context.stream.shared_secret_len,
-                         command->command.publish_key.initialization_vector,
-                         command->command.publish_key.encrypted_xpriv,
-                         sizeof(command->command.publish_key.encrypted_xpriv),
-                         false);
-    if (err < 0) {
-        DEBUG_PRINT("Encryption failed\n");
-        return err;
+    PRINTF("XPRIV (PUBLISH KEY): %.*H",
+           G_context.stream.shared_secret_len,
+           G_context.stream.shared_secret);
+    error = crypto_encrypt(secret,
+                           sizeof(secret),
+                           G_context.stream.shared_secret,
+                           G_context.stream.shared_secret_len,
+                           command->command.publish_key.initialization_vector,
+                           command->command.publish_key.encrypted_xpriv,
+                           sizeof(command->command.publish_key.encrypted_xpriv));
+    if (error < 0) {
+        goto end;
     }
     command->command.publish_key.encrypted_xpriv_size =
         sizeof(command->command.publish_key.encrypted_xpriv);
 
-    // DEBUG
-    DEBUG_LOG_BUF("[] ENCR XPRIV: ",
-                  command->command.publish_key.encrypted_xpriv,
-                  command->command.publish_key.encrypted_xpriv_size);
-    DEBUG_LOG_BUF("[] EPHEMERAL PUBLIC KEY: ",
-                  command->command.publish_key.ephemeral_public_key,
-                  sizeof(command->command.publish_key.ephemeral_public_key));
-    DEBUG_LOG_BUF("[] INITIALIZATION VECTOR: ",
-                  command->command.publish_key.initialization_vector,
-                  sizeof(command->command.publish_key.initialization_vector));
+    // PRINTF
+    PRINTF("[] ENCR XPRIV: %.*H",
+           command->command.publish_key.encrypted_xpriv_size,
+           command->command.publish_key.encrypted_xpriv);
+    PRINTF("[] EPHEMERAL PUBLIC KEY: %.*H",
+           sizeof(command->command.publish_key.ephemeral_public_key),
+           command->command.publish_key.ephemeral_public_key);
+    PRINTF("[] INITIALIZATION VECTOR: %.*H",
+           sizeof(command->command.publish_key.initialization_vector),
+           command->command.publish_key.initialization_vector);
 
     // Push trusted properties
     // - push encrypted xpriv
     trusted_property.ptr = command->command.publish_key.encrypted_xpriv;
     trusted_property.size = sizeof(command->command.publish_key.encrypted_xpriv);
     trusted_property.offset = 0;
-    err = io_push_trusted_property(TP_XPRIV, &trusted_property);
-    if (err != 0) return err;
+    CX_CHECK(io_push_trusted_property(TP_XPRIV, &trusted_property));
 
     // - push ephemeral public key
     trusted_property.ptr = command->command.publish_key.ephemeral_public_key;
     trusted_property.size = sizeof(command->command.publish_key.ephemeral_public_key);
     trusted_property.offset = 0;
-    err = io_push_trusted_property(TP_EPHEMERAL_PUBLIC_KEY, &trusted_property);
-    if (err != 0) return err;
+    CX_CHECK(io_push_trusted_property(TP_EPHEMERAL_PUBLIC_KEY, &trusted_property));
 
     // - push initialization vector
     trusted_property.ptr = command->command.publish_key.initialization_vector;
     trusted_property.size = sizeof(command->command.publish_key.initialization_vector);
     trusted_property.offset = 0;
-    err = io_push_trusted_property(TP_COMMAND_IV, &trusted_property);
-    if (err != 0) return err;
+    CX_CHECK(io_push_trusted_property(TP_COMMAND_IV, &trusted_property));
 
     // Update the trusted member
     G_context.stream.trusted_member.owns_key = 1;
     serialize_trusted_member(&G_context.stream.trusted_member, buffer, sizeof(buffer));
-    return io_push_trusted_property(TP_NEW_MEMBER, &trusted_property);
+    error = io_push_trusted_property(TP_NEW_MEMBER, &trusted_property);
+end:
+    explicit_bzero(&secret, sizeof(secret));
+    return error;
 }
 
-int signer_inject_close_stream(signer_ctx_t *signer, block_command_t *command) {
-    (void) signer;
-    (void) command;
-
-    G_context.stream.is_closed = true;
-    return 0;
+void update_confirm(bool confirm) {
+    if (confirm) {
+        G_context.stream.is_closed = true;
+    } else {
+        io_send_sw(SW_DENY);
+    }
 }
 
 int signer_parse_command(signer_ctx_t *signer, stream_ctx_t *stream, buffer_t *data) {
     block_command_t command;
-    DEBUG_PRINT("SIGNER PARSE COMMAND\n")
+    bool ret_sw = true;
+    PRINTF("SIGNER PARSE COMMAND\n");
     if (signer->command_count <= SIGNER_EMPTY_BLOCK) {
         signer_reset();
         return BS_EMPTY_BLOCK;
@@ -378,7 +383,7 @@ int signer_parse_command(signer_ctx_t *signer, stream_ctx_t *stream, buffer_t *d
     int err = parse_block_command(data, &command);
 
     if (err < 0) {
-        DEBUG_PRINT("PARSE COMMAND FAILED\n");
+        PRINTF("PARSE COMMAND FAILED\n");
         signer_reset();
         return err;
     }
@@ -390,30 +395,33 @@ int signer_parse_command(signer_ctx_t *signer, stream_ctx_t *stream, buffer_t *d
             if (stream->is_created) {
                 return BS_INVALID_STATE;
             }
+            ret_sw = false;
             stream->is_created = true;
             stream->topic_len = command.command.seed.topic_len;
             memcpy(stream->topic, command.command.seed.topic, command.command.seed.topic_len);
-            err = signer_inject_seed(signer, &command);
+            err = signer_inject_seed(&command);
             break;
         case COMMAND_ADD_MEMBER:
             if (!stream->is_created) {
                 return BS_INVALID_STATE;
             }
-            err = signer_inject_add_member(signer, &command);
+            ret_sw = false;
+            err = signer_inject_add_member(&command);
             break;
         case COMMAND_PUBLISH_KEY:
-            err = signer_inject_publish_key(signer, &command);
+            err = signer_inject_publish_key(&command);
             break;
         case COMMAND_DERIVE:
-            err = signer_inject_derive(signer, &command);
+            err = signer_inject_derive(&command);
             break;
         case COMMAND_CLOSE_STREAM:
-            err = signer_inject_close_stream(signer, &command);
+            ret_sw = false;
+            err = ui_display_update_instances();
             break;
         default:
             // Force fail if we don't know the command
             err = BP_ERROR_UNKNOWN_COMMAND;
-            DEBUG_LOG_BUF("Unknown command: ", (uint8_t *) &command.type, sizeof(command.type));
+            PRINTF("Unknown command: %.*H", sizeof(command.type), (uint8_t *) &command.type);
             break;
     }
 
@@ -426,11 +434,14 @@ int signer_parse_command(signer_ctx_t *signer, stream_ctx_t *stream, buffer_t *d
     block_hash_command(&command, &signer->digest);
 
     signer->parsed_command += 1;
-    return 0;
+    return ret_sw ? io_send_trusted_property(SW_OK) : 0;
 }
 
 int signer_sign_block(signer_ctx_t *signer, stream_ctx_t *stream) {
     // Finalize hashing and put it in stream last block hash
+
+    LEDGER_ASSERT(signer != NULL, "Null pointer");
+    LEDGER_ASSERT(stream != NULL, "Null pointer");
 
     if (signer->command_count <= SIGNER_EMPTY_BLOCK) {
         signer_reset();

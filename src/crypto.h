@@ -1,12 +1,15 @@
-
 #pragma once
 
 #include <stdint.h>  // uint*_t
+#include <stddef.h>
+#include <stdio.h>
+#include "constants.h"
 
 #ifndef TEST
 
 #include "os.h"
 #include "cx.h"
+#include "ledger_assert.h"
 
 typedef cx_sha256_t crypto_hash_t;
 typedef cx_ecfp_private_key_t crypto_private_key_t;
@@ -14,11 +17,11 @@ typedef cx_ecfp_public_key_t crypto_public_key_t;
 
 #else
 #include <lib/crypto.h>
+#include <assert.h>
+#define LEDGER_ASSERT(x, y) assert(x)
 #endif
 
-#define C_IV_LEN 16
-#define C_ERROR  -1
-#define C_OK     CX_OK
+#define CRYPTO_BUFFER_SIZE(n) ((n) + CX_AES_BLOCK_SIZE)
 
 /**
  * Generate a new key pair.
@@ -52,14 +55,15 @@ int crypto_derive_private_key(crypto_private_key_t *private_key,
  * @param[in]  key The key used to compute the HMAC.
  * @param[in]  key_len The length of the key.
  * @param[in]  data The data to compute the HMAC of.
- * @param[in]  data_len The length of the data.
- * @return 0 on success, error number otherwise.
+ * @param[out] hmac The output buffer to store the hmac
+ * @param[out] hmac_length The length of the output buffer.
  */
-int crypto_hmac_sha512(uint8_t *key,
-                       uint32_t key_len,
-                       uint8_t *data,
-                       uint32_t data_len,
-                       uint8_t *hmac);
+void crypto_hmac_sha512(uint8_t *key,
+                        uint32_t key_len,
+                        uint8_t *data,
+                        uint32_t data_len,
+                        uint8_t *hmac,
+                        uint8_t hmac_len);
 
 /**
  * Initialize public key given private key.
@@ -86,9 +90,9 @@ void crypto_init_private_key(uint8_t raw_private_key[static 32], crypto_private_
  * Compress public key.
  * @param[in]  public_key The public key to compress. Must be 65 bytes long (with 0x04 prefix).
  * @param[out] compressed_public_key The compressed public key. Must be 33 bytes long.
- * @return 0 on success, error number otherwise.
  */
-int crypto_compress_public_key(const uint8_t *public_key, uint8_t compressed_public_key[static 33]);
+void crypto_compress_public_key(const uint8_t *public_key,
+                                uint8_t compressed_public_key[static 33]);
 
 /**
  * Decompress public key.
@@ -97,7 +101,7 @@ int crypto_compress_public_key(const uint8_t *public_key, uint8_t compressed_pub
  * @return 0 on success, error number otherwise.
  */
 int crypto_decompress_public_key(const uint8_t *compressed_public_key,
-                                 uint8_t public_key[static 65]);
+                                 uint8_t public_key[static RAW_PUBLIC_KEY_LENGTH + 1]);
 
 /**
  * Perform ECDH between a private key and a compressed public key.
@@ -119,7 +123,6 @@ int crypto_ephemeral_ecdh(const uint8_t *recipient_public_key,
 
 /**
  * Performs an ephemeral ECDH and decrypts the given data.
- * @param[in]  private_key The private key of the recipient.
  * @param[in]  sender_public_key The public key of the sender.
  * @param[in]  data The data to decrypt.
  * @param[in]  data_len The length of the data to decrypt.
@@ -128,13 +131,12 @@ int crypto_ephemeral_ecdh(const uint8_t *recipient_public_key,
  * @param[in]  decrypted_data_len The length of the decrypted data buffer.
  * @return The length of the decrypted data on success, a negative number in case of error.
  */
-int crypto_ecdhe_decrypt(const crypto_private_key_t *private_key,
-                         const uint8_t *sender_public_key,
-                         const uint8_t *data,
-                         uint32_t data_len,
-                         uint8_t *initialization_vector,
-                         uint8_t *decrypted_data,
-                         uint32_t decrypted_data_len);
+int crypto_ecdh_decrypt(const uint8_t *sender_public_key,
+                        const uint8_t *data,
+                        uint32_t data_len,
+                        uint8_t *initialization_vector,
+                        uint8_t *decrypted_data,
+                        uint32_t decrypted_data_len);
 
 /**
  * Encrypt data with the given secret and IV
@@ -153,8 +155,7 @@ int crypto_encrypt(const uint8_t *secret,
                    uint32_t data_len,
                    uint8_t *initialization_vector,
                    uint8_t *encrypted_data,
-                   uint32_t encrypted_data_len,
-                   bool padding);
+                   uint32_t encrypted_data_len);
 
 /**
  * Decrypt data with the given secret and IV
@@ -173,8 +174,7 @@ int crypto_decrypt(const uint8_t *secret,
                    uint32_t data_len,
                    uint8_t *initialization_vector,
                    uint8_t *decrypted_data,
-                   uint32_t decrypted_data_len,
-                   bool padding);
+                   uint32_t decrypted_data_len);
 
 /**
  * Sign block hash in global context.
@@ -193,34 +193,31 @@ int crypto_sign_block(void);
  * @return 1 on success, 0 if the signature doesn't match, error number otherwise.
  */
 int crypto_verify_signature(const uint8_t *public_key,
-                            crypto_hash_t *message_hash,
+                            const uint8_t *digest,
                             uint8_t *signature,
                             size_t signature_len);
 
 /**
  * Initialize the hash structure.
  * @param[out] hash The hash structure to initialize.
- * @return CX_OK on success, error code otherwise.
  */
-int crypto_digest_init(crypto_hash_t *hash);
+void crypto_digest_init(crypto_hash_t *hash);
 
 /**
  * Update the hash with the given data.
  * @param[in] hash The hash structure to update.
  * @param[in] data The data to hash.
  * @param[in] len The length of the data.
- * @return CX_OK on success, error code otherwise.
  */
-int crypto_digest_update(crypto_hash_t *hash, const uint8_t *data, uint32_t len);
+void crypto_digest_update(crypto_hash_t *hash, const uint8_t *data, uint32_t len);
 
 /**
  * Finalize the hash and store the digest in the given buffer.
  * @param[in]  hash The hash structure to finalize.
  * @param[out] digest The buffer to store the digest in.
  * @param[in]  len The length of the digest buffer.
- * @return CX_OK on success, error code otherwise.
  */
-int crypto_digest_finalize(crypto_hash_t *hash, uint8_t *digest, uint32_t len);
+void crypto_digest_finalize(crypto_hash_t *hash, uint8_t *digest, uint32_t len);
 
 /**
  * Compute the digest of the given data (single shot flavour).
@@ -228,9 +225,8 @@ int crypto_digest_finalize(crypto_hash_t *hash, uint8_t *digest, uint32_t len);
  * @param[in]  len The length of the data.
  * @param[out] digest The buffer to store the digest in.
  * @param[in]  digest_len The length of the digest buffer.
- * @return CX_OK on success, error code otherwise.
  */
-int crypto_digest(const uint8_t *data, uint32_t len, uint8_t *digest, uint32_t digest_len);
+void crypto_digest(const uint8_t *data, uint32_t len, uint8_t *digest, uint32_t digest_len);
 
 /**
  * Computes (a + b) % curve_order.

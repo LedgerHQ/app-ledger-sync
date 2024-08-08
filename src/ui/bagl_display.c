@@ -1,6 +1,6 @@
 /*****************************************************************************
- *   Ledger App Boilerplate.
- *   (c) 2020 Ledger SAS.
+ *   Ledger Sync App.
+ *   (c) 2024 Ledger SAS.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,14 +17,12 @@
 
 #ifdef HAVE_BAGL
 
-#pragma GCC diagnostic ignored "-Wformat-invalid-specifier"  // snprintf
-#pragma GCC diagnostic ignored "-Wformat-extra-args"         // snprintf
-
 #include <stdbool.h>  // bool
 #include <string.h>   // memset
 
 #include "os.h"
 #include "ux.h"
+#include "ux_flow_engine.h"
 #include "glyphs.h"
 #include "io.h"
 #include "bip32.h"
@@ -34,84 +32,177 @@
 #include "constants.h"
 #include "../globals.h"
 #include "../sw.h"
-#include "action/validate.h"
-#include "../menu.h"
+#include "menu.h"
+#include "trusted_io.h"
+#include "challenge_parser.h"
+#include "get_seed_id.h"
+#include "signer.h"
 
-static action_validate_cb g_validate_callback;
-static char g_amount[30];
-static char g_address[43];
+#define ux_flow_display(f) ux_flow_init(0, f, NULL)
 
-// Step with icon and text
-UX_STEP_NOCB(ux_display_confirm_addr_step, pn, {&C_icon_eye, "Confirm Address"});
-// Step with title/text for address
-UX_STEP_NOCB(ux_display_address_step,
-             bnnn_paging,
-             {
-                 .title = "Address",
-                 .text = g_address,
-             });
-// Step with approve button
-UX_STEP_CB(ux_display_approve_step,
-           pb,
-           (*g_validate_callback)(true),
-           {
-               &C_icon_validate_14,
-               "Approve",
-           });
-// Step with reject button
-UX_STEP_CB(ux_display_reject_step,
-           pb,
-           (*g_validate_callback)(false),
-           {
-               &C_icon_crossmark,
-               "Reject",
-           });
+UX_FLOW_CALL(ux_display_member_end, ui_menu_main());
 
-// FLOW to display address:
-// #1 screen: eye icon + "Confirm Address"
-// #2 screen: display address
-// #3 screen: approve button
-// #4 screen: reject button
-UX_FLOW(ux_display_pubkey_flow,
-        &ux_display_confirm_addr_step,
-        &ux_display_address_step,
-        &ux_display_approve_step,
-        &ux_display_reject_step);
+UX_STEP_TIMEOUT(ux_display_member_confirmed_step,
+                bn_paging,
+                3000,
+                ux_display_member_end,
+                {.title = "", .text = "Ledger Sync enabled"});
+UX_FLOW(ux_display_member_confirmed_flow, &ux_display_member_confirmed_step);
 
-int ui_display_address() {
+UX_STEP_TIMEOUT(ux_display_member_rejected_step,
+                bn_paging,
+                3000,
+                ux_display_member_end,
+                {.title = "", .text = "Operation cancelled"});
+UX_FLOW(ux_display_member_rejected_flow, &ux_display_member_rejected_step);
+
+static int ui_display_add_member(bool approve) {
+    if (approve) {
+        add_member_confirm();
+        ux_flow_display(ux_display_member_confirmed_flow);
+    } else {
+        ux_flow_display(ux_display_member_rejected_flow);
+        io_send_sw(SW_DENY);
+    }
     return 0;
 }
 
-// Step with icon and text
-UX_STEP_NOCB(ux_display_review_step,
-             pnn,
-             {
-                 &C_icon_eye,
-                 "Review",
-                 "Transaction",
-             });
-// Step with title/text for amount
-UX_STEP_NOCB(ux_display_amount_step,
-             bnnn_paging,
-             {
-                 .title = "Amount",
-                 .text = g_amount,
-             });
+// FLOW to display add member:
+UX_STEP_NOCB(ux_display_add_member_sync_step, pnn, {&C_app_16px, "Ledger Sync", "request"});
+UX_STEP_NOCB(ux_display_add_member_trust_step,
+             nnnn,
+             {"Ensure you trust the", "mobile or desktop", "where Ledger Live is", "installed."});
+UX_STEP_CB(ux_display_add_member_approve_step,
+           pbb,
+           ui_display_add_member(true),
+           {&C_icon_validate_14, "Enable", "Ledger Sync"});
+UX_STEP_CB(ux_display_add_member_reject_step,
+           pb,
+           ui_display_add_member(false),
+           {
+               &C_icon_crossmark,
+               "Don't enable",
+           });
+UX_FLOW(ux_display_add_member_flow,
+        &ux_display_add_member_sync_step,
+        &ux_display_add_member_trust_step,
+        &ux_display_add_member_approve_step,
+        &ux_display_add_member_reject_step);
 
-// FLOW to display transaction information:
-// #1 screen : eye icon + "Review Transaction"
-// #2 screen : display amount
-// #3 screen : display destination address
-// #4 screen : approve button
-// #5 screen : reject button
-UX_FLOW(ux_display_transaction_flow,
-        &ux_display_review_step,
-        &ux_display_address_step,
-        &ux_display_amount_step,
-        &ux_display_approve_step,
-        &ux_display_reject_step);
+int ui_display_add_member_command(void) {
+    ux_flow_display(ux_display_add_member_flow);
+    return 0;
+}
 
-int ui_display_transaction() {
+// FLOW to display seed id callback screens:
+UX_STEP_CB(ux_display_seed_id_cb_signed_step,
+           bnnn_paging,
+           ui_menu_main(),
+           {.title = "", .text = "Login request signed"});
+UX_FLOW(ux_display_seed_id_cb_signed_flow, &ux_display_seed_id_cb_signed_step);
+
+UX_STEP_TIMEOUT(ux_display_seed_id_cb_cancel_step,
+                bn_paging,
+                3000,
+                ux_display_member_end,
+                {.title = "", .text = "Login cancelled"});
+UX_FLOW(ux_display_seed_id_cb_cancel_flow, &ux_display_seed_id_cb_cancel_step);
+
+UX_STEP_CB(ux_display_seed_id_cb_error_step,
+           bnnn_paging,
+           ui_menu_main(),
+           {.title = "Login error", .text = "If this occurs again, Contact Ledger Support."});
+UX_FLOW(ux_display_seed_id_cb_error_flow, &ux_display_seed_id_cb_error_step);
+
+static int ui_display_seed_id(bool approve) {
+    int error;
+    error = seed_id_callback(approve);
+    if (error == -1) {
+        ux_flow_display(ux_display_seed_id_cb_error_flow);
+    } else if (!approve) {
+        ux_flow_display(ux_display_seed_id_cb_cancel_flow);
+    } else {
+        ux_flow_display(ux_display_seed_id_cb_signed_flow);
+    }
+    return 0;
+}
+
+// FLOW to display seed id:
+UX_STEP_NOCB(ux_display_seed_id_log_in_step, pnn, {&C_user, "Login request", "for Ledger Sync"});
+UX_STEP_NOCB(ux_display_seed_id_identify_step,
+             nnn,
+             {"Identify with your", "Ledger Nano to use", "Ledger Sync?"});
+UX_STEP_CB(ux_display_seed_id_approve_step,
+           pbb,
+           ui_display_seed_id(true),
+           {&C_icon_validate_14, "Log in to", "Ledger Sync"});
+UX_STEP_CB(ux_display_seed_id_reject_step,
+           pb,
+           ui_display_seed_id(false),
+           {
+               &C_icon_crossmark,
+               "Cancel login",
+           });
+UX_FLOW(ux_display_seed_id_flow,
+        &ux_display_seed_id_log_in_step,
+        &ux_display_seed_id_identify_step,
+        &ux_display_seed_id_approve_step,
+        &ux_display_seed_id_reject_step);
+
+int ui_display_seed_id_command() {
+    ux_flow_display(ux_display_seed_id_flow);
+    return 0;
+}
+
+// FLOW to display update instances callback screens:
+UX_STEP_CB(ux_display_update_confirmed_step,
+           bnnn_paging,
+           ui_menu_main(),
+           {.title = "", .text = "Ledger Sync updated"});
+UX_FLOW(ux_display_update_confirmed_flow, &ux_display_update_confirmed_step);
+
+UX_STEP_TIMEOUT(ux_display_update_rejected_step,
+                bn_paging,
+                3000,
+                ux_display_member_end,
+                {.title = "", .text = "Operation cancelled"});
+UX_FLOW(ux_display_update_rejected_flow, &ux_display_update_rejected_step);
+
+static int ui_display_update(bool approve) {
+    update_confirm(approve);
+    if (approve) {
+        io_send_trusted_property(SW_OK);
+        ux_flow_display(ux_display_update_confirmed_flow);
+    } else {
+        ux_flow_display(ux_display_update_rejected_flow);
+    }
+    return 0;
+}
+
+// FLOW to display update instances:
+UX_STEP_NOCB(ux_display_update_sync_step, pnn, {&C_app_16px, "Ledger Sync", "update request"});
+UX_STEP_NOCB(ux_display_update_trust_step,
+             nnnn,
+             {"This will remove", "existing instances to", "re-add those you'll", "keep"});
+UX_STEP_CB(ux_display_update_approve_step,
+           pb,
+           ui_display_update(true),
+           {&C_icon_validate_14, "Confirm"});
+UX_STEP_CB(ux_display_update_reject_step,
+           pb,
+           ui_display_update(false),
+           {
+               &C_icon_crossmark,
+               "Cancel",
+           });
+UX_FLOW(ux_display_update_flow,
+        &ux_display_update_sync_step,
+        &ux_display_update_trust_step,
+        &ux_display_update_approve_step,
+        &ux_display_update_reject_step);
+
+int ui_display_update_instances(void) {
+    ux_flow_display(ux_display_update_flow);
     return 0;
 }
 

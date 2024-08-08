@@ -16,7 +16,6 @@
 #include "../helper/send_response.h"
 #include "../block/trusted_properties.h"
 #include "sign_block.h"
-#include "../debug.h"
 #include "../block/signer.h"
 #include "../trusted_io.h"
 
@@ -31,21 +30,19 @@ int handler_sign_block(buffer_t *cdata, uint8_t mode) {
             signer_reset();
             return io_send_sw(SW_BAD_STATE);
         }
+        PRINTF("Initialize signer\n");
         // Initialize the signer
-        error = signer_init(&G_context.signer_info);
-        if (error != 0) {
-            signer_reset();
-            return io_send_sw(SW_BAD_STATE);
-        }
+        signer_init(&G_context.signer_info);
+
+        PRINTF("Parse block header\n");
         // Expects to read a block header (version, issuer, parent...)
         error = signer_parse_block_header(&G_context.signer_info, &G_context.stream, cdata);
-
         if (error != 0) {
             signer_reset();
             return io_send_sw(SW_STREAM_PARSER_INVALID_FORMAT);
         }
         // Returns the issuer public key as trusted property
-        buffer_t buffer = {.ptr = G_context.stream.device_public_key,
+        buffer_t buffer = {.ptr = PIC(G_context.stream.device_public_key),
                            .size = sizeof(G_context.stream.device_public_key),
                            .offset = 0};
         io_init_trusted_property();
@@ -61,7 +58,7 @@ int handler_sign_block(buffer_t *cdata, uint8_t mode) {
         if (error != 0) {
             return io_send_sw(SW_BAD_STATE);
         }
-        return io_send_trusted_property(SW_OK);
+        return 0;
     } else if (mode == MODE_BLOCK_FINALIZE) {
         if (!IS_SESSION_INITIALIAZED()) {
             signer_reset();

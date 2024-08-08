@@ -9,6 +9,13 @@
 
 #include "../crypto.h"
 
+#ifndef TEST
+#include "ledger_assert.h"
+#else
+#include <assert.h>
+#define LEDGER_ASSERT(x, y) assert(x)
+#endif
+
 typedef enum {
     STREAM_PARSING_STATE_NONE = 0x00,
     STREAM_PARSING_STATE_BLOCK_HEADER = 0x01,
@@ -32,12 +39,12 @@ typedef struct {
 
 typedef struct {
     // Information about the state of the stream
-    uint8_t topic[MAX_TOPIC_LEN];                  // Topic of the chain
-    uint8_t topic_len;                             // Length of the topic
-    uint8_t last_block_hash[HASH_LEN];             // Hash of the last block of the chain
-    bool is_created;                               // Stream contains a create group command
-    bool is_closed;                                // Stream contains a close group command
-    uint8_t shared_secret[MAX_ENCRYPTED_KEY_LEN];  // Shared secret between members of the chain
+    uint8_t topic[MAX_TOPIC_LEN];       // Topic of the chain
+    uint8_t topic_len;                  // Length of the topic
+    uint8_t last_block_hash[HASH_LEN];  // Hash of the last block of the chain
+    bool is_created;                    // Stream contains a create group command
+    bool is_closed;                     // Stream contains a close group command
+    uint8_t shared_secret[XPRIV_LEN];   // Shared secret between members of the chain
     uint8_t
         shared_secret_len;  // Length of the shared secret (0 means we don't have a shared secret)
     uint8_t device_public_key[MEMBER_KEY_LEN];  // Issuer public key
