@@ -16,6 +16,9 @@ from PubKeyCredential import PubKeyCredential
 
 from constants import approve_instructions_nano, approve_instructions_stax
 
+from utils.keychain.keychain import Key, sign_data, get_pub_key
+
+
 def check_signature(public_key: str,
                     message,
                     signature,
@@ -38,17 +41,12 @@ def get_challenge_tlv() -> SeedIdChallenge:
     seed_id_challenge.protocol_version = 0x1000000
     seed_id_challenge.challenge_data = bytes.fromhex("53cafde60e5395b164eb867213bc05f6")
     seed_id_challenge.challenge_expiry = 1708678950
-    seed_id_challenge.host = b'localhost'
+    seed_id_challenge.host = b'ATTESTATION_PUBKEY'  # Must be the key trusted name in the Ledger-PKI certificate
     seed_id_challenge.rp_credential_sign_algorithm = SeedIdChallenge.DEFAULT_VALUES[
         SeedIdChallenge.SIGNER_ALGO]
     seed_id_challenge.rp_credential_curve_id = SeedIdChallenge.DEFAULT_VALUES[
         SeedIdChallenge.PUBLIC_KEY_CURVE]
-    # pylint: disable=line-too-long
-    seed_id_challenge.rp_credential_public_key = bytes.fromhex(
-        "02d89618096b7a88aafca0a2ee483a257cefe4dae1d6d7059e1549b110d3ff575c")
-    seed_id_challenge.rp_signature = bytes.fromhex(
-        "3045022025d130d7ae5c48a6cf09781d04a08e9a2d07ce1bd17e84637f6ede4a043c5dcc022100a846ececf20eb53ffc2dc502ce8074ba40b241bfd13edaf1e8575559a9b2b4ea")
-    # pylint: enable=line-too-long
+
     return seed_id_challenge
 
 
@@ -97,9 +95,12 @@ def test_seed_id_challenge(firmware: Firmware,
     client = SeedIdClient(backend)
 
     seed_id_challenge = get_challenge_tlv()
-    tlv_data = seed_id_challenge.to_tlv()
-
     challenge_hash = seed_id_challenge.get_challenge_hash()
+    # Get pub key and sign
+    seed_id_challenge.rp_credential_public_key = get_pub_key(Key.CHALLENGE)
+    seed_id_challenge.rp_signature = sign_data(Key.CHALLENGE, challenge_hash)
+
+    tlv_data = seed_id_challenge.to_tlv()
 
     with client.get_seed_id_async(challenge_data=tlv_data):
         navigator.navigate_and_compare(default_screenshot_path,
