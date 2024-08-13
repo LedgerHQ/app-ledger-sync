@@ -1,6 +1,6 @@
 {
     "env": {
-        "BOLOS_SDK": "/opt/nanox-secure-sdk"
+        "BOLOS_SDK": "/opt/ledger-secure-sdk"
     },
     "configurations": [
         {
@@ -28,7 +28,8 @@
                 "HAVE_UX_FLOW",
                 "DEBUG=1",
                 "HAVE_PRINTF",
-                "PRINTF=screen_printf"
+                "PRINTF=screen_printf",
+                "HAVE_LEDGER_PKI"
             ],
             "cStandard": "c11",
             "cppStandard": "c++17",
