@@ -80,11 +80,11 @@ typedef struct {
 #define SEED_ID_PROTOCOL_VERSION_P_UPPER 0x00
 #define SEED_ID_PROTOCOL_VERSION_P_LOWER 0x00
 
-#define SEED_ID_VERSION                          0x00
-#define TYPE_SEED_ID__AUTHENTIFICATION_CHALLENGE 0x07
-#define SEED_ID_PUBKEY_VERSION                   0x00
-#define SEED_ID_CURVE_ID                         CX_CURVE_256K1
-#define SEED_ID_SIGN_ALGORTITHM                  ECDSA_SHA256
+#define SEED_ID_VERSION                         0x00
+#define TYPE_SEED_ID_AUTHENTIFICATION_CHALLENGE 0x07
+#define SEED_ID_PUBKEY_VERSION                  0x00
+#define SEED_ID_CURVE_ID                        CX_CURVE_256K1
+#define SEED_ID_SIGN_ALGORTITHM                 ECDSA_SHA256
 
 /**
  * Parser for challenge data

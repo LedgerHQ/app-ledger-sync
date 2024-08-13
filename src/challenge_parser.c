@@ -75,7 +75,7 @@ int challenge_parse_buffer(buffer_t* buffer,
     }
 
     if (tag_label != STRUCTURE_TYPE || length != sizeof(challenge_ctx->payload_type) ||
-        *value != TYPE_SEED_ID__AUTHENTIFICATION_CHALLENGE) {
+        *value != TYPE_SEED_ID_AUTHENTIFICATION_CHALLENGE) {
         return SW_PARSER_INVALID_VALUE;
     }
 
