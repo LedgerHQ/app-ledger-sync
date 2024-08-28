@@ -5,6 +5,10 @@
  */
 #define SW_OK 0x9000
 /**
+ * Status word for Command code not supported.
+ */
+#define SW_CMD_CODE_NOT_SUPPORTED 0x911C
+/**
  * Status word for denied by user.
  */
 #define SW_DENY 0x6985
@@ -84,20 +88,16 @@
 #define SW_STREAM_CLOSED 0xB00C
 
 /**
- * Status for fail when the stream is closed
+ * Status for fail to parse due to invalid format.
  */
-
 #define SW_PARSER_INVALID_FORMAT 0xB00D
+
 /**
  * Status for fail to parse due to invalid format.
  */
-
 #define SW_PARSER_INVALID_VALUE 0xB00E
-/**
- * Status for fail to parse due to invalid format.
- */
 
-#define SW_CHALLENGE_NOT_VERIFIED 0xB00F
 /**
  * Status for fail to parse due to invalid format.
  */
+#define SW_CHALLENGE_NOT_VERIFIED 0xB00F

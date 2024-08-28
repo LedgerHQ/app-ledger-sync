@@ -76,3 +76,20 @@ Custom pytest options
     --golden_run                on Speculos, screen comparison functions will save the current screen instead of comparing
     --log_apdu_file <filepath>  log all apdu exchanges to the file in parameter. The previous file content is erased
 ```
+
+## Seed_Id Challenge key
+
+During the execution of `test_seed_id_challenge`, the _challenge data_ is generated from test hardcoded values.
+Such data include a public key, and a signature performed with the corresponding private key.
+
+The test key has been generated using the following command:
+
+```shell
+    openssl ecparam -out tests/utils/keychain/challenge.pem -name secp256k1 -genkey
+```
+
+> **Note**: The name is important, because used internally to generate the signature and extract the public key.
+
+The public key must also be extracted (compressed form) and used to generate the corresponding Ledger-PKI certificates.
+These signed certificates must be put into the dedicated client code
+(`get_seed_id_async` in the module `tests/SeedIdClient.py`).

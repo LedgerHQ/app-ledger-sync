@@ -35,6 +35,15 @@
 #include "../handler/set_trusted_member.h"
 
 int apdu_dispatcher(const command_t *cmd) {
+#ifndef HAVE_LEDGER_PKI
+    if ((cmd->cla == 0xB0) && (cmd->ins == 0x06)) {
+        // Ledger-PKI APDU not yet caught by the running OS.
+        // Command code not supported
+        PRINTF("Ledger-PKI not yet supported!\n");
+        return io_send_sw(SW_CMD_CODE_NOT_SUPPORTED);
+    }
+#endif  // HAVE_LEDGER_PKI
+
     if (cmd->cla != CLA) {
         return io_send_sw(SW_CLA_NOT_SUPPORTED);
     }
