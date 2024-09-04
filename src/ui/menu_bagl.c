@@ -27,8 +27,8 @@
 UX_STEP_NOCB(ux_menu_ready_step, pn, {&C_app_16px, APPNAME});
 UX_STEP_NOCB(ux_menu_usage_step,
              nnnn,
-             {"Use this app to", "validate actions", "when managing", " Ledger Sync."});
-UX_STEP_CB(ux_menu_about_step, pb, ui_menu_about(), {&C_icon_certificate, "About"});
+             {"Sync your crypto", "accounts across", "different phones and", "computers."});
+UX_STEP_CB(ux_menu_about_step, pb, ui_menu_about(), {&C_icon_certificate, "Info"});
 UX_STEP_VALID(ux_menu_exit_step, pb, os_sched_exit(-1), {&C_icon_dashboard_x, "Quit"});
 
 // FLOW for the main menu:

@@ -37,15 +37,15 @@ void ui_menu_main(void) {
     infosList.infoTypes = (const char**) INFO_TYPES;
     infosList.infoContents = (const char**) INFO_CONTENTS;
 
-    nbgl_useCaseHomeAndSettings(
-        APPNAME,
-        &C_app_64px,
-        "Use this app to validate actions when managing Ledger Sync with Ledger Live.",
-        INIT_HOME_PAGE,
-        NULL,
-        &infosList,
-        NULL,
-        app_exit);
+    nbgl_useCaseHomeAndSettings(APPNAME,
+                                &C_app_64px,
+                                "Use this app to sync your crypto accounts on Ledger Live across "
+                                "different phones and computers.",
+                                INIT_HOME_PAGE,
+                                NULL,
+                                &infosList,
+                                NULL,
+                                app_exit);
 }
 
 #endif

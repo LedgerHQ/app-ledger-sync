@@ -47,13 +47,14 @@ enum {
 
 nbgl_layout_t layoutCtx;
 
+// FLOW to display add member (Turn On sync):
 static void ui_add_member_callback(bool approve) {
     if (approve) {
         add_member_confirm();
-        nbgl_useCaseStatus("Ledger Sync enabled", true, ui_menu_main);
+        nbgl_useCaseStatus("Sync requested", true, ui_menu_main);
     } else {
         io_send_sw(SW_DENY);
-        nbgl_useCaseStatus("Operation cancelled", false, ui_menu_main);
+        nbgl_useCaseStatus("Sync cancelled", false, ui_menu_main);
     }
 }
 
@@ -62,16 +63,16 @@ int ui_display_add_member_command(void) {
     // Play notification sound
     io_seproxyhal_play_tune(TUNE_LOOK_AT_ME);
 #endif  // HAVE_PIEZO_SOUND
-    nbgl_useCaseChoice(
-        &C_app_64px,
-        "Enable Ledger Sync?",
-        "Make sure you trust the computer or smartphone on which Ledger Live is installed.",
-        "Enable",
-        "Cancel",
-        ui_add_member_callback);
+    nbgl_useCaseChoice(NULL,
+                       "Turn on sync for this phone or computer?",
+                       "Your crypto accounts on Ledger Live will be synced.",
+                       "Turn on sync",
+                       "Don't sync",
+                       ui_add_member_callback);
     return 0;
 }
 
+// FLOW to display Seed_ID (Connect):
 int ui_display_seed_id_command(void);
 
 static void log_in_error_cb(int token, uint8_t index) {
@@ -130,9 +131,10 @@ static void log_in_cb(int token, uint8_t index) {
                 layoutDescription.tapActionToken = TOKEN_LOG_IN;
                 layoutCtx = nbgl_layoutGet(&layoutDescription);
                 // add description
-                centeredInfo.text1 = "Ledger Sync login error";
+                centeredInfo.text1 = "Error while connecting";
                 centeredInfo.text2 =
-                    "If this error occurs, please contact Ledger Support for assistance.";
+                    "Try again. If this error repeats, contact Ledger Support at "
+                    "support.ledger.com";
                 centeredInfo.icon = &C_Denied_Circle_64px;
                 centeredInfo.style = LARGE_CASE_INFO;
                 status = nbgl_layoutAddCenteredInfo(layoutCtx, &centeredInfo);
@@ -143,9 +145,9 @@ static void log_in_cb(int token, uint8_t index) {
                 nbgl_refreshSpecialWithPostRefresh(FULL_COLOR_CLEAN_REFRESH,
                                                    POST_REFRESH_FORCE_POWER_ON);
             } else if (!index) {
-                nbgl_useCaseStatus("Login request signed", true, ui_menu_main);
+                nbgl_useCaseStatus("Connection requested", true, ui_menu_main);
             } else {
-                nbgl_useCaseStatus("Login cancelled", false, ui_menu_main);
+                nbgl_useCaseStatus("Connection cancelled", false, ui_menu_main);
             }
             break;
     }
@@ -161,9 +163,8 @@ int ui_display_seed_id_command(void) {
     layoutDescription.onActionCallback = log_in_cb;
     layoutCtx = nbgl_layoutGet(&layoutDescription);
     // add description
-    centeredInfo.text1 = "Log in to Ledger Sync?";
-    centeredInfo.text2 = "Identify with your Ledger device to manage Ledger Sync.";
-    centeredInfo.icon = &C_log_in;
+    centeredInfo.text1 = "Connect with\nLedger Sync?";
+    centeredInfo.text2 = "Make sure to use Ledger Live only on a trusted phone or computer.";
     centeredInfo.style = LARGE_CASE_INFO;
     status = nbgl_layoutAddCenteredInfo(layoutCtx, &centeredInfo);
     if (status < 0) return -1;
@@ -173,8 +174,8 @@ int ui_display_seed_id_command(void) {
     if (status < 0) return -1;
 
     // Add choice buttons
-    buttonInfo.topText = "Log in";
-    buttonInfo.bottomText = "Cancel";
+    buttonInfo.topText = "Connect";
+    buttonInfo.bottomText = "Don't connect";
     buttonInfo.token = TOKEN_LOG_IN;
     buttonInfo.style = ROUNDED_AND_FOOTER_STYLE;
     buttonInfo.tuneId = TUNE_TAP_CASUAL;
@@ -202,9 +203,9 @@ static void log_in_cb(bool confirm) {
             layoutDescription.tapActionToken = TOKEN_LOG_IN;
             layoutCtx = nbgl_layoutGet(&layoutDescription);
             // add description
-            centeredInfo.text1 = "Ledger Sync login error";
+            centeredInfo.text1 = "Error while connecting";
             centeredInfo.text2 =
-                "If this error occurs, please contact Ledger Support for assistance.";
+                "Try again. If this error repeats, contact Ledger Support at support.ledger.com.";
             centeredInfo.icon = &C_Denied_Circle_64px;
             centeredInfo.style = LARGE_CASE_INFO;
             status = nbgl_layoutAddCenteredInfo(layoutCtx, &centeredInfo);
@@ -215,10 +216,10 @@ static void log_in_cb(bool confirm) {
             nbgl_refreshSpecialWithPostRefresh(FULL_COLOR_CLEAN_REFRESH,
                                                POST_REFRESH_FORCE_POWER_ON);
         } else {
-            nbgl_useCaseStatus("Login request signed", true, ui_menu_main);
+            nbgl_useCaseStatus("Connection requested", true, ui_menu_main);
         }
     } else {
-        nbgl_useCaseStatus("Login cancelled", false, ui_menu_main);
+        nbgl_useCaseStatus("Connection cancelled", false, ui_menu_main);
     }
 }
 
@@ -227,16 +228,17 @@ int ui_display_seed_id_command(void) {
     // Play notification sound
     io_seproxyhal_play_tune(TUNE_LOOK_AT_ME);
 #endif  // HAVE_PIEZO_SOUND
-    nbgl_useCaseChoice(&C_log_in,
-                       "Log in to Ledger Sync?",
-                       "Identify with your Ledger device to manage Ledger Sync.",
-                       "Log in",
-                       "Cancel",
+    nbgl_useCaseChoice(NULL,
+                       "Connect with\nLedger Sync?",
+                       "Make sure to use Ledger Live only on a trusted phone or computer.",
+                       "Connect",
+                       "Don't connect",
                        log_in_cb);
     return 0;
 }
 #endif
 
+// FLOW to display update member (Remove and add back needed instances):
 static void update_cb(int token, uint8_t index) {
     UNUSED(index);
     if (token == TOKEN_UPDATE) {
@@ -258,10 +260,9 @@ static void ui_update_callback(bool approve) {
         layoutDescription.tapActionToken = TOKEN_UPDATE;
         layoutCtx = nbgl_layoutGet(&layoutDescription);
         // add description
-        centeredInfo.text1 = "Ledger Sync updated";
-        centeredInfo.text2 =
-            "You will be prompted to add back the remaining Ledger Live instances.";
-        centeredInfo.icon = &C_Check_Circle_64px;
+        centeredInfo.text1 = "Confirm change";
+        centeredInfo.text2 = "Next, you will be asked to turn on sync to confirm the change.";
+        centeredInfo.icon = &C_info_circle;
         centeredInfo.style = LARGE_CASE_INFO;
         status = nbgl_layoutAddCenteredInfo(layoutCtx, &centeredInfo);
         if (status < 0) return;
@@ -270,7 +271,7 @@ static void ui_update_callback(bool approve) {
         nbgl_layoutDraw(layoutCtx);
         nbgl_refreshSpecialWithPostRefresh(FULL_COLOR_CLEAN_REFRESH, POST_REFRESH_FORCE_POWER_ON);
     } else {
-        nbgl_useCaseStatus("Operation cancelled", false, ui_menu_main);
+        nbgl_useCaseStatus("Removal cancelled", false, ui_menu_main);
     }
 }
 
@@ -279,12 +280,11 @@ int ui_display_update_instances(void) {
     // Play notification sound
     io_seproxyhal_play_tune(TUNE_LOOK_AT_ME);
 #endif  // HAVE_PIEZO_SOUND
-    nbgl_useCaseChoice(&C_app_64px,
-                       "Update Ledger Sync instances?",
-                       "This will remove existing Ledger Live instances in order to re-add "
-                       "those you wish to keep active.",
-                       "Update",
-                       "Cancel",
+    nbgl_useCaseChoice(NULL,
+                       "Remove phone or computer from\nLedger Sync?",
+                       NULL,
+                       "Remove",
+                       "Keep",
                        ui_update_callback);
     return 0;
 }

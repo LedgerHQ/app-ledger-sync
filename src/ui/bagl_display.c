@@ -38,22 +38,24 @@
 #include "get_seed_id.h"
 #include "signer.h"
 
+#define POPUP_TIMEOUT 3000
+
 #define ux_flow_display(f) ux_flow_init(0, f, NULL)
 
-UX_FLOW_CALL(ux_display_member_end, ui_menu_main());
+UX_FLOW_CALL(ux_back_to_idle, ui_menu_main());
 
 UX_STEP_TIMEOUT(ux_display_member_confirmed_step,
                 bn_paging,
-                3000,
-                ux_display_member_end,
-                {.title = "", .text = "Ledger Sync enabled"});
+                POPUP_TIMEOUT,
+                ux_back_to_idle,
+                {.title = "", .text = "Sync requested"});
 UX_FLOW(ux_display_member_confirmed_flow, &ux_display_member_confirmed_step);
 
 UX_STEP_TIMEOUT(ux_display_member_rejected_step,
                 bn_paging,
-                3000,
-                ux_display_member_end,
-                {.title = "", .text = "Operation cancelled"});
+                POPUP_TIMEOUT,
+                ux_back_to_idle,
+                {.title = "", .text = "Sync cancelled"});
 UX_FLOW(ux_display_member_rejected_flow, &ux_display_member_rejected_step);
 
 static int ui_display_add_member(bool approve) {
@@ -68,20 +70,20 @@ static int ui_display_add_member(bool approve) {
 }
 
 // FLOW to display add member:
-UX_STEP_NOCB(ux_display_add_member_sync_step, pnn, {&C_app_16px, "Ledger Sync", "request"});
+UX_STEP_NOCB(ux_display_add_member_sync_step, nn, {"Turn on sync for this", "phone or computer?"});
 UX_STEP_NOCB(ux_display_add_member_trust_step,
-             nnnn,
-             {"Ensure you trust the", "mobile or desktop", "where Ledger Live is", "installed."});
+             nnn,
+             {"Your crypto accounts", "on Ledger Live will", "be synced."});
 UX_STEP_CB(ux_display_add_member_approve_step,
-           pbb,
+           pb,
            ui_display_add_member(true),
-           {&C_icon_validate_14, "Enable", "Ledger Sync"});
+           {&C_icon_validate_14, "Turn on sync?"});
 UX_STEP_CB(ux_display_add_member_reject_step,
            pb,
            ui_display_add_member(false),
            {
                &C_icon_crossmark,
-               "Don't enable",
+               "Cancel",
            });
 UX_FLOW(ux_display_add_member_flow,
         &ux_display_add_member_sync_step,
@@ -98,20 +100,21 @@ int ui_display_add_member_command(void) {
 UX_STEP_CB(ux_display_seed_id_cb_signed_step,
            bnnn_paging,
            ui_menu_main(),
-           {.title = "", .text = "Login request signed"});
+           {.title = "", .text = "Connection requested"});
 UX_FLOW(ux_display_seed_id_cb_signed_flow, &ux_display_seed_id_cb_signed_step);
 
 UX_STEP_TIMEOUT(ux_display_seed_id_cb_cancel_step,
                 bn_paging,
-                3000,
-                ux_display_member_end,
-                {.title = "", .text = "Login cancelled"});
+                POPUP_TIMEOUT,
+                ux_back_to_idle,
+                {.title = "", .text = "Connection cancelled"});
 UX_FLOW(ux_display_seed_id_cb_cancel_flow, &ux_display_seed_id_cb_cancel_step);
 
 UX_STEP_CB(ux_display_seed_id_cb_error_step,
            bnnn_paging,
            ui_menu_main(),
-           {.title = "Login error", .text = "If this occurs again, Contact Ledger Support."});
+           {.title = "Connection error",
+            .text = "If this occurs repeats, contact Ledger Support."});
 UX_FLOW(ux_display_seed_id_cb_error_flow, &ux_display_seed_id_cb_error_step);
 
 static int ui_display_seed_id(bool approve) {
@@ -128,20 +131,20 @@ static int ui_display_seed_id(bool approve) {
 }
 
 // FLOW to display seed id:
-UX_STEP_NOCB(ux_display_seed_id_log_in_step, pnn, {&C_user, "Login request", "for Ledger Sync"});
+UX_STEP_NOCB(ux_display_seed_id_log_in_step, nn, {"Connect with", "Ledger Sync?"});
 UX_STEP_NOCB(ux_display_seed_id_identify_step,
-             nnn,
-             {"Identify with your", "Ledger Nano to use", "Ledger Sync?"});
+             nnnn,
+             {"Make sure to use", "Ledger Live only on a", "trusted phone or", "computer."});
 UX_STEP_CB(ux_display_seed_id_approve_step,
            pbb,
            ui_display_seed_id(true),
-           {&C_icon_validate_14, "Log in to", "Ledger Sync"});
+           {&C_icon_validate_14, "Connect with", "Ledger Sync"});
 UX_STEP_CB(ux_display_seed_id_reject_step,
            pb,
            ui_display_seed_id(false),
            {
                &C_icon_crossmark,
-               "Cancel login",
+               "Don't connect",
            });
 UX_FLOW(ux_display_seed_id_flow,
         &ux_display_seed_id_log_in_step,
@@ -155,17 +158,18 @@ int ui_display_seed_id_command() {
 }
 
 // FLOW to display update instances callback screens:
-UX_STEP_CB(ux_display_update_confirmed_step,
-           bnnn_paging,
-           ui_menu_main(),
-           {.title = "", .text = "Ledger Sync updated"});
+UX_STEP_TIMEOUT(ux_display_update_confirmed_step,
+                bnnn_paging,
+                POPUP_TIMEOUT,
+                ux_back_to_idle,
+                {.title = "", .text = "Next, confirm change"});
 UX_FLOW(ux_display_update_confirmed_flow, &ux_display_update_confirmed_step);
 
 UX_STEP_TIMEOUT(ux_display_update_rejected_step,
                 bn_paging,
-                3000,
-                ux_display_member_end,
-                {.title = "", .text = "Operation cancelled"});
+                POPUP_TIMEOUT,
+                ux_back_to_idle,
+                {.title = "", .text = "Removal cancelled"});
 UX_FLOW(ux_display_update_rejected_flow, &ux_display_update_rejected_step);
 
 static int ui_display_update(bool approve) {
@@ -180,14 +184,16 @@ static int ui_display_update(bool approve) {
 }
 
 // FLOW to display update instances:
-UX_STEP_NOCB(ux_display_update_sync_step, pnn, {&C_app_16px, "Ledger Sync", "update request"});
+UX_STEP_NOCB(ux_display_update_sync_step,
+             nnn,
+             {"Remove phone or", "computer from", "Ledger Sync?"});
 UX_STEP_NOCB(ux_display_update_trust_step,
              nnnn,
-             {"This will remove", "existing instances to", "re-add those you'll", "keep"});
+             {"After removing, you", "will be asked to turn", "on sync to confirm", "the change."});
 UX_STEP_CB(ux_display_update_approve_step,
-           pb,
+           pbb,
            ui_display_update(true),
-           {&C_icon_validate_14, "Confirm"});
+           {&C_icon_validate_14, "Remove phone or", "computer"});
 UX_STEP_CB(ux_display_update_reject_step,
            pb,
            ui_display_update(false),
