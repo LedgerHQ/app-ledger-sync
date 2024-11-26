@@ -151,14 +151,14 @@ int verify_challenge_signature(challenge_ctx_t* challenge_ctx, uint8_t* challeng
         if (strncmp((const char*) challenge_ctx->host,
                     (const char*) trusted_name,
                     CERTIFICATE_TRUSTED_NAME_MAXLEN) != 0) {
-            PRINTF("Signature not verified!\n");
+            PRINTF("Trusted Name not verified!\n");
             return SW_CHALLENGE_NOT_VERIFIED;
         }
 
         crypto_compress_public_key(public_key.W, (uint8_t*) &comp_key);
         // Check the key received is authenticated
         if (memcmp(challenge_ctx->rp_credential_public_key, comp_key, PUBLIC_KEY_LENGTH) != 0) {
-            PRINTF("Signature not verified!\n");
+            PRINTF("Public key not verified!\n");
             return SW_CHALLENGE_NOT_VERIFIED;
         }
     } else
