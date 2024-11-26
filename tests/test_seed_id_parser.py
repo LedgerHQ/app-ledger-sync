@@ -11,6 +11,8 @@ from SeedIdChallenge import SeedIdChallenge
 
 from constants import approve_instructions_nano, approve_instructions_stax
 
+from utils.keychain.keychain import Key, sign_data, get_pub_key
+
 
 def get_default_challenge_tlv() -> bytes:
     seed_id_challenge = SeedIdChallenge()
@@ -22,12 +24,15 @@ def get_default_challenge_tlv() -> bytes:
     seed_id_challenge.challenge_data = SeedIdChallenge.DEFAULT_VALUES[SeedIdChallenge.CHALLENGE]
     seed_id_challenge.challenge_expiry = SeedIdChallenge.DEFAULT_VALUES[SeedIdChallenge.VALID_UNTIL]
     seed_id_challenge.host = SeedIdChallenge.DEFAULT_VALUES[SeedIdChallenge.TRUSTED_NAME]
+    seed_id_challenge.host = b'ATTESTATION_PUBKEY'
     seed_id_challenge.rp_credential_sign_algorithm = SeedIdChallenge.DEFAULT_VALUES[
         SeedIdChallenge.SIGNER_ALGO]
     seed_id_challenge.rp_credential_curve_id = SeedIdChallenge.DEFAULT_VALUES[
         SeedIdChallenge.PUBLIC_KEY_CURVE]
-    seed_id_challenge.rp_credential_public_key = SeedIdChallenge.DEFAULT_VALUES[SeedIdChallenge.PUBLIC_KEY]
-    seed_id_challenge.rp_signature = SeedIdChallenge.DEFAULT_VALUES[SeedIdChallenge.DER_SIGNATURE]
+    # Get pub key and sign
+    challenge_hash = seed_id_challenge.get_challenge_hash()
+    seed_id_challenge.rp_credential_public_key = get_pub_key(Key.CHALLENGE)
+    seed_id_challenge.rp_signature = sign_data(Key.CHALLENGE, challenge_hash)
     tlv_data = seed_id_challenge.to_tlv()
 
     return tlv_data
