@@ -25,6 +25,7 @@ static int send_challenge(uint8_t* compressed_seed_id_public_key,
                           uint8_t* attestation_pubkey,
                           uint8_t* attestation_signature,
                           size_t attestation_signature_len) {
+    int status = 0;
     // Return SeedID public key + SeedID signature + Attestion PublicKey
 
     static uint8_t resp[MAX_CHALLENGE_RESP_SIZE] = {0};
@@ -68,7 +69,13 @@ static int send_challenge(uint8_t* compressed_seed_id_public_key,
     memcpy(resp + offset, attestation_signature, attestation_signature_len);
     offset += attestation_signature_len;
 
-    return io_send_response_pointer(resp, offset, SW_OK);
+    status = io_send_response_pointer(resp, offset, SW_OK);
+    if (status > 0) {
+        // API_LEVEL >= 24 status can be positive (response length) / negative (error)
+        // API_LEVEL  < 24 status is 0 / -1
+        status = 0;
+    }
+    return status;
 }
 
 static int sign_attestion(uint8_t* attestation,
