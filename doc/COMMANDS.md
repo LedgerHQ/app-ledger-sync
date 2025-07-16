@@ -303,7 +303,7 @@ _Note:_ **This command will fail if the device is not currently in a signing ses
 
 | CLA | INS | P1 | P2 | Lc | CData |
 | --- | --- | --- | --- | --- | --- |
-| 0xE0 | 0x09 | 0x00 Digest block header <br> 0x01 Digest a single command <br> 0x02 Digest the last command and output the signature | 0x00 | var | 0x00 \|\| 0x10 \|\| `IV` \|\|0x06 \|\| `trusted_member_length` \|\| `trusted_member` |
+| 0xE0 | 0x09 | 0x00 | 0x00 | var | 0x00 \|\| 0x10 \|\| `IV` \|\|0x06 \|\| `trusted_member_length` \|\| `trusted_member` |
 
 #### Response
 
