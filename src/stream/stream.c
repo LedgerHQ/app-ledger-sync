@@ -46,11 +46,15 @@ int stream_parse_block_header(stream_ctx_t *ctx, buffer_t *data) {
         memcmp(header.parent, ctx->last_block_hash, sizeof(header.parent)) != 0) {
         return SP_ERR_INVALID_STREAM;
     }
-
     // If the stream is created we expect the issuer of the block to be a trusted member
+    // and that it can add blocks
     if (ctx->is_created &&
         memcmp(header.issuer, ctx->trusted_member.member_key, sizeof(header.issuer)) != 0 &&
         memcmp(header.issuer, ctx->device_public_key, sizeof(header.issuer)) != 0) {
+        return SP_ERR_INVALID_STREAM;
+    }
+    if (memcmp(header.issuer, ctx->device_public_key, sizeof(header.issuer)) != 0 &&
+        (ctx->trusted_member.permissions & CAN_ADD_BLOCK) == 0) {
         return SP_ERR_INVALID_STREAM;
     }
     // Update context

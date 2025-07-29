@@ -18,13 +18,9 @@ class CommandType:
 
 
 class Permissions:
-    KEY_READER = 0x01
-    KEY_CREATOR = 0x02
-    KEY_REVOKER = 0x04
-    ADD_MEMBER = 0x08
-    REMOVE_MEMBER = 0x16
-    CHANGE_MEMBER_PERMISSIONS = 0x32
-    CHANGE_MEMBER_NAME = 0x64
+    CAN_ENCRYPT = 0x01
+    CAN_DERIVE = 0x01 << 1
+    CAN_ADD_BLOCK = 0x01 << 2
     OWNER = 0xFFFFFFFF
 
 

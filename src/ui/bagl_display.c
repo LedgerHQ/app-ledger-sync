@@ -32,6 +32,7 @@
 #include "constants.h"
 #include "../globals.h"
 #include "../sw.h"
+#include "../block/types.h"
 #include "menu.h"
 #include "trusted_io.h"
 #include "challenge_parser.h"
@@ -91,8 +92,58 @@ UX_FLOW(ux_display_add_member_flow,
         &ux_display_add_member_approve_step,
         &ux_display_add_member_reject_step);
 
-int ui_display_add_member_command(void) {
-    ux_flow_display(ux_display_add_member_flow);
+// FLOW for owner member:
+UX_STEP_NOCB(ux_display_add_owner_sync_step, nn, {"Add full owner", "to sync?"});
+UX_STEP_NOCB(ux_display_add_owner_trust_step,
+             nnn,
+             {"This device will have", "complete control over", "sync settings."});
+UX_STEP_CB(ux_display_add_owner_approve_step,
+           pb,
+           ui_display_add_member(true),
+           {&C_icon_validate_14, "Add owner"});
+UX_STEP_CB(ux_display_add_owner_reject_step,
+           pb,
+           ui_display_add_member(false),
+           {
+               &C_icon_crossmark,
+               "Reject",
+           });
+UX_FLOW(ux_display_add_owner_flow,
+        &ux_display_add_owner_sync_step,
+        &ux_display_add_owner_trust_step,
+        &ux_display_add_owner_approve_step,
+        &ux_display_add_owner_reject_step);
+
+// FLOW for restricted owner member:
+UX_STEP_NOCB(ux_display_add_restricted_sync_step, nn, {"Add restricted owner", "to sync?"});
+UX_STEP_NOCB(ux_display_add_restricted_trust_step,
+             nnn,
+             {"This device will have", "limited control and", "cannot add devices."});
+UX_STEP_CB(ux_display_add_restricted_approve_step,
+           pb,
+           ui_display_add_member(true),
+           {&C_icon_validate_14, "Add restricted"});
+UX_STEP_CB(ux_display_add_restricted_reject_step,
+           pb,
+           ui_display_add_member(false),
+           {
+               &C_icon_crossmark,
+               "Reject",
+           });
+UX_FLOW(ux_display_add_restricted_flow,
+        &ux_display_add_restricted_sync_step,
+        &ux_display_add_restricted_trust_step,
+        &ux_display_add_restricted_approve_step,
+        &ux_display_add_restricted_reject_step);
+
+int ui_display_add_member_command(uint32_t permissions) {
+    if (permissions == OWNER) {
+        // Full owner permissions
+        ux_flow_display(ux_display_add_owner_flow);
+    } else if (permissions == (OWNER & ~CAN_ADD_BLOCK)) {
+        // Restricted owner permissions
+        ux_flow_display(ux_display_add_restricted_flow);
+    }
     return 0;
 }
 

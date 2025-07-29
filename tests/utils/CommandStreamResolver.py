@@ -24,23 +24,30 @@ class CommandStreamResolver:
     def assert_issuer_can_publish(issuer, internals: ResolvedCommandStreamInternals):
         if issuer not in internals.members:
             raise ValueError(f"Issuer is not a member of the group at height {internals.height}")
-        if internals.permission[Crypto.to_hex(issuer)] & 0x02 == Permissions.KEY_READER:
+        issuer_permissions = internals.permission[Crypto.to_hex(issuer)]
+        if not issuer_permissions & Permissions.CAN_ENCRYPT:
             raise ValueError(
                 f"Issuer does not have permission to publish keys at height {internals.height}")
-        if internals.keys.get(Crypto.to_hex(issuer)) is None and internals.permission[Crypto.to_hex(issuer)] & \
-            Permissions.KEY_CREATOR != Permissions.KEY_CREATOR:
+        if internals.keys.get(Crypto.to_hex(issuer)) is None:
             raise ValueError(f"Issuer does not have a key to publish at height {internals.height}")
-        if Crypto.to_hex(issuer) not in internals.keys and internals.permission[Crypto.to_hex(issuer)] & \
-            Permissions.KEY_CREATOR != Permissions.KEY_CREATOR and len(internals.keys.keys()) > 0:
-            raise ValueError(f"Issuer is trying to publish a new key at height {internals.height}")
 
     @staticmethod
     def assert_issuer_can_add_member(issuer, internals: ResolvedCommandStreamInternals):
         if issuer not in internals.members:
             raise ValueError(f"Issuer is not a member of the group at height {internals.height}")
-        if internals.permission[Crypto.to_hex(issuer)] & Permissions.ADD_MEMBER != Permissions.ADD_MEMBER:
+        issuer_permissions = internals.permission[Crypto.to_hex(issuer)]
+        if not issuer_permissions & Permissions.CAN_ADD_BLOCK:
             raise ValueError(
                 f"Issuer does not have permission to add members at height {internals.height}")
+
+    @staticmethod
+    def assert_issuer_can_add_block(issuer, internals: ResolvedCommandStreamInternals):
+        if issuer not in internals.members:
+            raise ValueError(f"Issuer is not a member of the group at height {internals.height}")
+        issuer_permissions = internals.permission[Crypto.to_hex(issuer)]
+        if not issuer_permissions & Permissions.CAN_ADD_BLOCK:
+            raise ValueError(
+                f"Issuer does not have permission to add blocks at height {internals.height}")
 
     @staticmethod
     def assert_stream_is_created(internals: ResolvedCommandStreamInternals):
@@ -107,9 +114,13 @@ class CommandStreamResolver:
         if not verify_command_block(block):
             raise ValueError(f"Invalid block signature at height {height}")
 
-        # Check if issuer is part of the group
+        # Check if issuer is part of the group (except for seed block)
         if height > 0 and block.issuer not in internals.members:
             raise ValueError(f"Issuer is not part of the group at height {height}")
+
+        # Check if issuer has permission to add blocks (except for seed block)
+        if height > 0:
+            CommandStreamResolver.assert_issuer_can_add_block(block.issuer, internals)
 
         block_hash = Crypto.to_hex(hash_command_block(block))
 
@@ -151,18 +162,18 @@ class ResolvedCommandStream:
 
     def is_key_creator(self, public_key):
         return (self._internals.permission.get(Crypto.to_hex(public_key)) & \
-                Permissions.KEY_CREATOR) == Permissions.KEY_CREATOR
+                Permissions.CAN_DERIVE | Permissions.CAN_ENCRYPT) == Permissions.CAN_DERIVE | Permissions.CAN_ENCRYPT
 
     def owns_key(self, public_key):
         return self._internals.keys.get(Crypto.to_hex(public_key)) is not None
 
     def is_member_adder(self, public_key):
         return (self._internals.permission.get(Crypto.to_hex(public_key)) & \
-                Permissions.ADD_MEMBER) == Permissions.ADD_MEMBER
+                Permissions.CAN_ADD_BLOCK) == Permissions.CAN_ADD_BLOCK
 
     def is_member_remover(self, public_key):
         return (self._internals.permission.get(Crypto.to_hex(public_key)) & \
-                Permissions.REMOVE_MEMBER) == Permissions.REMOVE_MEMBER
+                Permissions.CAN_ADD_BLOCK) == Permissions.CAN_ADD_BLOCK
 
     def key_count(self):
         return len(self._internals.keys)

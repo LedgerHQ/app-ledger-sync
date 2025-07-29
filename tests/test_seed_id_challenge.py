@@ -5,7 +5,6 @@ from typing import Tuple
 from ecdsa import VerifyingKey, curves, BadSignatureError  # type: ignore
 from ecdsa.util import sigdecode_der  # type: ignore
 
-from ragger.firmware import Firmware
 from ragger.navigator import Navigator
 from ragger.backend import BackendInterface
 
@@ -82,12 +81,11 @@ def parse_result(result: bytes) -> Tuple[PubKeyCredential, bytes, int, PubKeyCre
     return pubkey_credential, signature, attestation_type, attestation_pubkey_credential, attestation
 
 
-def test_seed_id_challenge(firmware: Firmware,
-                           backend: BackendInterface,
+def test_seed_id_challenge(backend: BackendInterface,
                            navigator: Navigator,
                            default_screenshot_path: Path,
                            test_name: str) -> None:
-    if firmware.is_nano:
+    if backend.device.is_nano:
         approve_seed_id_instructions = approve_instructions_nano
     else:
         approve_seed_id_instructions = approve_instructions_stax
@@ -117,6 +115,6 @@ def test_seed_id_challenge(firmware: Firmware,
         challenge_hash).digest() + signature, attestation_signature)
 
 
-# def test_seed_id_invalid_challenge(firmware, backend, navigator, test_name):
+# def test_seed_id_invalid_challenge(backend, navigator, test_name):
     # Should be rejected if challenge is different from what is signed in payload
     # TODO

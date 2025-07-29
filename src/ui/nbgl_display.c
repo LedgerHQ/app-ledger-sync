@@ -31,6 +31,7 @@
 #include "constants.h"
 #include "../globals.h"
 #include "../sw.h"
+#include "../block/types.h"
 #include "menu.h"
 #include "challenge_parser.h"
 #include "get_seed_id.h"
@@ -58,17 +59,29 @@ static void ui_add_member_callback(bool approve) {
     }
 }
 
-int ui_display_add_member_command(void) {
+int ui_display_add_member_command(uint32_t permissions) {
 #ifdef HAVE_PIEZO_SOUND
     // Play notification sound
     io_seproxyhal_play_tune(TUNE_LOOK_AT_ME);
 #endif  // HAVE_PIEZO_SOUND
-    nbgl_useCaseChoice(NULL,
-                       "Turn on sync for this phone or computer?",
-                       "Your crypto accounts on Ledger Live will be synced.",
-                       "Turn on sync",
-                       "Don't sync",
-                       ui_add_member_callback);
+
+    if (permissions == OWNER) {
+        nbgl_useCaseChoice(
+            NULL,
+            "Add full owner to sync?",
+            "This device will have complete control over sync settings and can add other devices.",
+            "Add",
+            "Reject",
+            ui_add_member_callback);
+    } else if (permissions == (OWNER & ~CAN_ADD_BLOCK)) {
+        nbgl_useCaseChoice(
+            NULL,
+            "Add restricted owner to sync?",
+            "This device will have limited control and cannot add new devices to sync.",
+            "Add",
+            "Reject",
+            ui_add_member_callback);
+    }
     return 0;
 }
 
