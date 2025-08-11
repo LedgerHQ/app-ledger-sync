@@ -24,7 +24,7 @@
 #include "../globals.h"
 #include "menu.h"
 
-UX_STEP_NOCB(ux_menu_ready_step, pn, {&C_app_16px, APPNAME});
+UX_STEP_NOCB(ux_menu_ready_step, pn, {&ICON_APP, APPNAME});
 UX_STEP_NOCB(ux_menu_usage_step,
              nnnn,
              {"Sync your crypto", "accounts across", "different phones and", "computers."});

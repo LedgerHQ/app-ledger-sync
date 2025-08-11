@@ -38,9 +38,9 @@ void ui_menu_main(void) {
     infosList.infoContents = (const char**) INFO_CONTENTS;
 
     nbgl_useCaseHomeAndSettings(APPNAME,
-                                &C_app_64px,
-                                "Use this app to sync your crypto accounts on Ledger Live across "
-                                "different phones and computers.",
+                                &ICON_APP,
+                                "Use this app to sync your Ledger crypto accounts across "
+                                "different devices and dApps.",
                                 INIT_HOME_PAGE,
                                 NULL,
                                 &infosList,

@@ -66,21 +66,20 @@ int ui_display_add_member_command(uint32_t permissions) {
 #endif  // HAVE_PIEZO_SOUND
 
     if (permissions == OWNER) {
-        nbgl_useCaseChoice(
-            NULL,
-            "Add full owner to sync?",
-            "This device will have complete control over sync settings and can add other devices.",
-            "Add",
-            "Reject",
-            ui_add_member_callback);
+        nbgl_useCaseChoice(NULL,
+                           "Turn on sync for\nLedger Live?",
+                           "Ledger Live will be able to view and update your synced accounts.",
+                           "Turn On sync",
+                           "Don't sync",
+                           ui_add_member_callback);
     } else if (permissions == (OWNER & ~CAN_ADD_BLOCK)) {
-        nbgl_useCaseChoice(
-            NULL,
-            "Add restricted owner to sync?",
-            "This device will have limited control and cannot add new devices to sync.",
-            "Add",
-            "Reject",
-            ui_add_member_callback);
+        nbgl_useCaseChoice(NULL,
+                           "Turn on sync for this website?",
+                           "The website or dApp connected to your Ledger will be able to view your "
+                           "synced accounts.",
+                           "Turn On sync",
+                           "Don't sync",
+                           ui_add_member_callback);
     }
     return 0;
 }
@@ -148,7 +147,7 @@ static void log_in_cb(int token, uint8_t index) {
                 centeredInfo.text2 =
                     "Try again. If this error repeats, contact Ledger Support at "
                     "support.ledger.com";
-                centeredInfo.icon = &C_Denied_Circle_64px;
+                centeredInfo.icon = &ICON_DENIED;
                 centeredInfo.style = LARGE_CASE_INFO;
                 status = nbgl_layoutAddCenteredInfo(layoutCtx, &centeredInfo);
                 if (status < 0) return;
@@ -183,7 +182,8 @@ int ui_display_seed_id_command(void) {
     if (status < 0) return -1;
 
     // Add top icon for Privacy Report
-    status = nbgl_layoutAddTopRightButton(layoutCtx, &C_privacy, TOKEN_PRIVACY, TUNE_TAP_CASUAL);
+    status =
+        nbgl_layoutAddTopRightButton(layoutCtx, &C_privacy_32px, TOKEN_PRIVACY, TUNE_TAP_CASUAL);
     if (status < 0) return -1;
 
     // Add choice buttons
@@ -219,7 +219,7 @@ static void log_in_cb(bool confirm) {
             centeredInfo.text1 = "Error while connecting";
             centeredInfo.text2 =
                 "Try again. If this error repeats, contact Ledger Support at support.ledger.com.";
-            centeredInfo.icon = &C_Denied_Circle_64px;
+            centeredInfo.icon = &ICON_DENIED;
             centeredInfo.style = LARGE_CASE_INFO;
             status = nbgl_layoutAddCenteredInfo(layoutCtx, &centeredInfo);
             if (status < 0) return;
@@ -241,9 +241,9 @@ int ui_display_seed_id_command(void) {
     // Play notification sound
     io_seproxyhal_play_tune(TUNE_LOOK_AT_ME);
 #endif  // HAVE_PIEZO_SOUND
-    nbgl_useCaseChoice(NULL,
-                       "Connect with\nLedger Sync?",
-                       "Make sure to use Ledger Live only on a trusted phone or computer.",
+    nbgl_useCaseChoice(&ICON_CONNECT,
+                       "Connect to\nLedger Sync?",
+                       NULL,
                        "Connect",
                        "Don't connect",
                        log_in_cb);
@@ -275,7 +275,7 @@ static void ui_update_callback(bool approve) {
         // add description
         centeredInfo.text1 = "Confirm change";
         centeredInfo.text2 = "Next, you will be asked to turn on sync to confirm the change.";
-        centeredInfo.icon = &C_info_circle;
+        centeredInfo.icon = &ICON_INFO;
         centeredInfo.style = LARGE_CASE_INFO;
         status = nbgl_layoutAddCenteredInfo(layoutCtx, &centeredInfo);
         if (status < 0) return;
@@ -293,8 +293,8 @@ int ui_display_update_instances(void) {
     // Play notification sound
     io_seproxyhal_play_tune(TUNE_LOOK_AT_ME);
 #endif  // HAVE_PIEZO_SOUND
-    nbgl_useCaseChoice(NULL,
-                       "Remove phone or computer from\nLedger Sync?",
+    nbgl_useCaseChoice(&ICON_TRASH,
+                       "Remove from\nLedger Sync?",
                        NULL,
                        "Remove",
                        "Keep",

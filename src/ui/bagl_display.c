@@ -78,12 +78,12 @@ UX_STEP_NOCB(ux_display_add_member_trust_step,
 UX_STEP_CB(ux_display_add_member_approve_step,
            pb,
            ui_display_add_member(true),
-           {&C_icon_validate_14, "Turn on sync?"});
+           {&ICON_CONNECT, "Turn on sync?"});
 UX_STEP_CB(ux_display_add_member_reject_step,
            pb,
            ui_display_add_member(false),
            {
-               &C_icon_crossmark,
+               &ICON_DENIED,
                "Cancel",
            });
 UX_FLOW(ux_display_add_member_flow,
@@ -100,12 +100,12 @@ UX_STEP_NOCB(ux_display_add_owner_trust_step,
 UX_STEP_CB(ux_display_add_owner_approve_step,
            pb,
            ui_display_add_member(true),
-           {&C_icon_validate_14, "Add owner"});
+           {&ICON_CONNECT, "Add owner"});
 UX_STEP_CB(ux_display_add_owner_reject_step,
            pb,
            ui_display_add_member(false),
            {
-               &C_icon_crossmark,
+               &ICON_DENIED,
                "Reject",
            });
 UX_FLOW(ux_display_add_owner_flow,
@@ -122,12 +122,12 @@ UX_STEP_NOCB(ux_display_add_restricted_trust_step,
 UX_STEP_CB(ux_display_add_restricted_approve_step,
            pb,
            ui_display_add_member(true),
-           {&C_icon_validate_14, "Add restricted"});
+           {&ICON_CONNECT, "Add restricted"});
 UX_STEP_CB(ux_display_add_restricted_reject_step,
            pb,
            ui_display_add_member(false),
            {
-               &C_icon_crossmark,
+               &ICON_DENIED,
                "Reject",
            });
 UX_FLOW(ux_display_add_restricted_flow,
@@ -189,12 +189,12 @@ UX_STEP_NOCB(ux_display_seed_id_identify_step,
 UX_STEP_CB(ux_display_seed_id_approve_step,
            pbb,
            ui_display_seed_id(true),
-           {&C_icon_validate_14, "Connect with", "Ledger Sync"});
+           {&ICON_CONNECT, "Connect with", "Ledger Sync"});
 UX_STEP_CB(ux_display_seed_id_reject_step,
            pb,
            ui_display_seed_id(false),
            {
-               &C_icon_crossmark,
+               &ICON_DENIED,
                "Don't connect",
            });
 UX_FLOW(ux_display_seed_id_flow,
@@ -244,12 +244,12 @@ UX_STEP_NOCB(ux_display_update_trust_step,
 UX_STEP_CB(ux_display_update_approve_step,
            pbb,
            ui_display_update(true),
-           {&C_icon_validate_14, "Remove phone or", "computer"});
+           {&ICON_CONNECT, "Remove phone or", "computer"});
 UX_STEP_CB(ux_display_update_reject_step,
            pb,
            ui_display_update(false),
            {
-               &C_icon_crossmark,
+               &ICON_DENIED,
                "Cancel",
            });
 UX_FLOW(ux_display_update_flow,
