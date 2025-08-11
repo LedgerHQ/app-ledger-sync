@@ -19,7 +19,7 @@ ifeq ($(BOLOS_SDK),)
 $(error Environment variable BOLOS_SDK is not set)
 endif
 
-include $(BOLOS_SDK)/Makefile.defines
+include $(BOLOS_SDK)/Makefile.target
 
 ########################################
 #        Mandatory configuration       #
@@ -42,6 +42,10 @@ ICON_NANOX = icons/nano_app_14px.gif
 ICON_NANOSP = icons/nano_app_14px.gif
 ICON_STAX = icons/stax_app_32px.gif
 ICON_FLEX = icons/flex_app_40px.gif
+
+ifeq ($(TARGET_NAME),$(filter $(TARGET_NAME),TARGET_NANOX TARGET_NANOS2))
+    ICON_HOME_NANO = glyphs/home_app_14px.gif
+endif
 
 ################
 # Attestations #
@@ -92,6 +96,7 @@ DEBUG = 0
 ########################################
 ENABLE_BLUETOOTH = 1
 #ENABLE_NFC = 1
+ENABLE_NBGL_FOR_NANO_DEVICES = 1
 
 ########################################
 #         NBGL custom features         #
@@ -111,6 +116,5 @@ ENABLE_BLUETOOTH = 1
 #DISABLE_STANDARD_SNPRINTF = 1
 #DISABLE_STANDARD_USB = 1
 #DISABLE_STANDARD_WEBUSB = 1
-#DISABLE_STANDARD_BAGL_UX_FLOW = 1
 
 include $(BOLOS_SDK)/Makefile.standard_app

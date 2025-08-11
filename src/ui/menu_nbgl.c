@@ -32,19 +32,28 @@ static const char* const INFO_CONTENTS[] = {APPVERSION, "Ledger"};
 
 void ui_menu_main(void) {
     static nbgl_contentInfoList_t infosList = {0};
+    static nbgl_homeAction_t homeAction = {0};
 
     infosList.nbInfos = NB_INFO_FIELDS;
     infosList.infoTypes = (const char**) INFO_TYPES;
     infosList.infoContents = (const char**) INFO_CONTENTS;
 
+#ifdef SCREEN_SIZE_NANO
+    homeAction.text = "Sync your Ledger crypto accounts across different devices and dApps.";
+#endif
+
     nbgl_useCaseHomeAndSettings(APPNAME,
                                 &ICON_APP,
+#ifdef SCREEN_SIZE_WALLET
                                 "Use this app to sync your Ledger crypto accounts across "
                                 "different devices and dApps.",
+#else
+                                NULL,
+#endif
                                 INIT_HOME_PAGE,
                                 NULL,
                                 &infosList,
-                                NULL,
+                                &homeAction,
                                 app_exit);
 }
 

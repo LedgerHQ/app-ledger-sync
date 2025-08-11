@@ -67,16 +67,29 @@ int ui_display_add_member_command(uint32_t permissions) {
 
     if (permissions == OWNER) {
         nbgl_useCaseChoice(NULL,
-                           "Turn on sync for\nLedger Live?",
+#ifdef SCREEN_SIZE_WALLET
+                           "Turn on sync\nfor Ledger Live?",
                            "Ledger Live will be able to view and update your synced accounts.",
+#else
+                           "Turn on sync\nfor Ledger Live?\f"
+                           "Ledger Live will be able to view and update your synced accounts.",
+                           NULL,
+#endif
                            "Turn On sync",
                            "Don't sync",
                            ui_add_member_callback);
     } else if (permissions == (OWNER & ~CAN_ADD_BLOCK)) {
         nbgl_useCaseChoice(NULL,
+#ifdef SCREEN_SIZE_WALLET
                            "Turn on sync for this website?",
                            "The website or dApp connected to your Ledger will be able to view your "
                            "synced accounts.",
+#else
+                           "Turn on sync for this website?\f"
+                           "The website or dApp connected to your Ledger will be able to view your "
+                           "synced accounts.",
+                           NULL,
+#endif
                            "Turn On sync",
                            "Don't sync",
                            ui_add_member_callback);
@@ -87,11 +100,19 @@ int ui_display_add_member_command(uint32_t permissions) {
 // FLOW to display Seed_ID (Connect):
 int ui_display_seed_id_command(void);
 
+#ifdef SCREEN_SIZE_WALLET
 static void log_in_error_cb(int token, uint8_t index) {
     UNUSED(token);
     UNUSED(index);
     ui_menu_main();
 }
+#else
+static void log_in_error_cb(nbgl_layout_t *layout, nbgl_buttonEvent_t event) {
+    UNUSED(layout);
+    UNUSED(event);
+    ui_menu_main();
+}
+#endif
 
 #ifdef WITH_PRIVACY_REPORT
 static void log_in_privacy_cb(void) {
@@ -212,15 +233,22 @@ static void log_in_cb(bool confirm) {
         if (error == -1) {
             // add layout
             layoutDescription.onActionCallback = log_in_error_cb;
+#ifdef SCREEN_SIZE_WALLET
             layoutDescription.tapActionText = "Tap to dismiss";
             layoutDescription.tapActionToken = TOKEN_LOG_IN;
+#endif
             layoutCtx = nbgl_layoutGet(&layoutDescription);
             // add description
+#ifdef SCREEN_SIZE_WALLET
             centeredInfo.text1 = "Error while connecting";
             centeredInfo.text2 =
                 "Try again. If this error repeats, contact Ledger Support at support.ledger.com.";
             centeredInfo.icon = &ICON_DENIED;
             centeredInfo.style = LARGE_CASE_INFO;
+#else
+            centeredInfo.text1 = "Connection error";
+            centeredInfo.text2 = "If this error repeats, contact Ledger Support.";
+#endif
             status = nbgl_layoutAddCenteredInfo(layoutCtx, &centeredInfo);
             if (status < 0) return;
 
@@ -252,6 +280,7 @@ int ui_display_seed_id_command(void) {
 #endif
 
 // FLOW to display update member (Remove and add back needed instances):
+#ifdef SCREEN_SIZE_WALLET
 static void update_cb(int token, uint8_t index) {
     UNUSED(index);
     if (token == TOKEN_UPDATE) {
@@ -259,6 +288,14 @@ static void update_cb(int token, uint8_t index) {
     }
     ui_menu_main();
 }
+#else
+static void update_cb(nbgl_layout_t *layout, nbgl_buttonEvent_t event) {
+    UNUSED(layout);
+    UNUSED(event);
+    io_send_trusted_property(SW_OK);
+    ui_menu_main();
+}
+#endif
 
 static void ui_update_callback(bool approve) {
     static nbgl_layoutDescription_t layoutDescription = {0};
@@ -269,14 +306,20 @@ static void ui_update_callback(bool approve) {
     if (approve) {
         // add layout
         layoutDescription.onActionCallback = update_cb;
+#ifdef SCREEN_SIZE_WALLET
         layoutDescription.tapActionText = "Tap to continue";
         layoutDescription.tapActionToken = TOKEN_UPDATE;
+#endif
         layoutCtx = nbgl_layoutGet(&layoutDescription);
         // add description
+#ifdef SCREEN_SIZE_WALLET
         centeredInfo.text1 = "Confirm change";
         centeredInfo.text2 = "Next, you will be asked to turn on sync to confirm the change.";
         centeredInfo.icon = &ICON_INFO;
         centeredInfo.style = LARGE_CASE_INFO;
+#else
+        centeredInfo.text1 = "Next, you will be asked to turn on sync to confirm the change.";
+#endif
         status = nbgl_layoutAddCenteredInfo(layoutCtx, &centeredInfo);
         if (status < 0) return;
 
