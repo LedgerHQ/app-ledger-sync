@@ -17,6 +17,8 @@ from constants import DEFAULT_TOPIC
 ROOT_DERIVATION_PATH = "16'/0'"
 
 valid_member_instructions_nano = [NavInsID.RIGHT_CLICK, NavInsID.RIGHT_CLICK, NavInsID.BOTH_CLICK, NavInsID.BOTH_CLICK]
+valid_member_instructions1_nano = [NavInsID.RIGHT_CLICK, NavInsID.RIGHT_CLICK, NavInsID.RIGHT_CLICK, NavInsID.BOTH_CLICK]
+valid_member_instructions2_nano = [NavInsID.RIGHT_CLICK, NavInsID.BOTH_CLICK, NavInsID.BOTH_CLICK]
 valid_member_instructions_stax = [NavInsID.USE_CASE_CHOICE_CONFIRM, NavInsID.USE_CASE_STATUS_DISMISS]
 
 
@@ -28,28 +30,28 @@ def create_seed_and_derive_stream(device_instance, derivation_index: int = 0, to
     """
     Utility function to create a root seed stream and derive a new stream from it.
     This prevents adding blocks directly to the root stream and follows the proper flow.
-    
+
     Args:
         device_instance: The device instance to use for issuing commands
         derivation_index: The index for the derivation path (default: 0)
         topic: The topic bytes to use for seeding (default: DEFAULT_TOPIC)
-    
+
     Returns:
         tuple: (derived_stream, stream_tree)
     """
     if topic is None:
         topic = Crypto.from_hex(DEFAULT_TOPIC)
-    
+
     # Create the root seed stream
     root_stream = CommandStream()
     root_stream = root_stream.edit().seed(topic).issue(device_instance)
     tree = StreamTree.from_streams(root_stream)
-    
+
     # Derive a new stream from the root
     derived_stream = CommandStream()
     derived_stream = derived_stream.edit().derive(get_derivation_path(derivation_index)).issue(device_instance, tree)
     tree = tree.update(derived_stream)
-    
+
     return derived_stream, tree
 
 
@@ -128,7 +130,7 @@ def test_seed_and_add_bob(backend: BackendInterface,
 
     bob = device.software()
     bob_public_key = bob.get_public_key()
-    
+
     # Use utility function to create seed and derive stream
     stream, tree = create_seed_and_derive_stream(alice, 0)
     backend.wait_for_text_on_screen("Ledger Sync")
@@ -153,7 +155,7 @@ def seed_tree_and_derive_subtree(backend: BackendInterface) -> None:
     alice = device.apdu(backend)
     bob = device.software()
     bob_public_key = bob.get_public_key()
-    
+
     # Use utility function to create seed and derive stream, then add member
     stream, tree = create_seed_and_derive_stream(alice, 0)
     stream = stream.edit().add_member("Bob", bob_public_key, 0xFFFFFFF, True).issue(alice, tree)
@@ -162,7 +164,7 @@ def seed_tree_and_derive_subtree(backend: BackendInterface) -> None:
 def test_standard_tree_derive(backend: BackendInterface) -> None:
     alice = device.apdu(backend)
     # Use utility function to create seed and derive stream
-    stream, tree = create_seed_and_derive_stream(alice, 0)
+    _, _ = create_seed_and_derive_stream(alice, 0)
 
 
 # Test Add Member Without Creating Seed
@@ -182,7 +184,7 @@ def test_add_member_from_non_member(backend: BackendInterface) -> None:
     alice = device.apdu(backend)
     charlie = device.software()
     charlie_public_key = charlie.get_public_key()
-    
+
     # Use utility function to create seed and derive stream
     stream, tree = create_seed_and_derive_stream(alice, 0)
 
@@ -357,7 +359,7 @@ def test_add_member_twice(backend: BackendInterface,
     alice = device.apdu(backend)
     bob = device.software()
     bob_public_key = bob.get_public_key()
-    
+
     # Use utility function to create seed and derive stream
     stream, tree = create_seed_and_derive_stream(alice, 0)
     member_automation = Automation(
@@ -379,13 +381,13 @@ def test_derive_subtree_with_publish_key(backend: BackendInterface,
     alice = device.apdu(backend)
     bob = device.software()
     bob_public_key = bob.get_public_key()
-    
+
     # Use utility function to create seed and derive stream, then add member
     member_automation = Automation(
         navigator, test_name=f"{test_name}", instructions=valid_member_instructions)
     alice.update_automation(member_automation)
     print("Adding Bob")
-    
+
     stream, tree = create_seed_and_derive_stream(alice, 0)
     stream = stream.edit().add_member("Bob", bob_public_key, 0xFFFFFFFF, True).issue(alice, tree)
     tree = tree.update(stream)
@@ -411,7 +413,7 @@ def test_key_rotation(backend: BackendInterface,
 
     # Use utility function to create seed and derive initial stream
     stream, tree = create_seed_and_derive_stream(alice, 0)
-    
+
     # Add Bob to the derived stream
     member_automation = Automation(
         navigator, test_name=f"{test_name}/part1", instructions=valid_member_instructions)
@@ -428,7 +430,7 @@ def test_key_rotation(backend: BackendInterface,
 
     # Key rotation: Close previous stream
     close_automation = Automation(
-        navigator, test_name=f"{test_name}/part_close", instructions=valid_member_instructions)
+        navigator, test_name=f"{test_name}/part_close", instructions=valid_member_instructions2_nano)
     alice.update_automation(close_automation)
     stream = stream.edit().close().issue(alice, tree)
 
@@ -466,26 +468,26 @@ def test_key_rotation(backend: BackendInterface,
 
 
 def test_add_restricted_member(backend: BackendInterface,
-                                                    navigator: Navigator,
-                                                    test_name: str) -> None:
+                               navigator: Navigator,
+                               test_name: str) -> None:
     """Test that a member without CAN_ADD_BLOCK permission cannot add other members."""
     if backend.device.is_nano:
-        valid_member_instructions = valid_member_instructions_nano
+        valid_member_instructions = valid_member_instructions1_nano
     else:
         valid_member_instructions = valid_member_instructions_stax
-        
+
     alice = device.apdu(backend)
     bob = device.software()
     charlie = device.software()
-    
+
     bob_public_key = bob.get_public_key()
     charlie_public_key = charlie.get_public_key()
-    
+
     # Use utility function to create seed and derive stream
     stream, tree = create_seed_and_derive_stream(alice, 0)
 
     permissions_without_add_block = Permissions.OWNER & ~Permissions.CAN_ADD_BLOCK
-    
+
     member_automation = Automation(
         navigator, test_name=f"{test_name}_member", instructions=valid_member_instructions)
     alice.update_automation(member_automation)
