@@ -262,13 +262,10 @@ static int signer_inject_add_member(block_command_t *command) {
     member_permission_t permissions = command->command.add_member.permissions;
     G_context.stream.trusted_member.owns_key = 0;
     G_context.stream.trusted_member.permissions = permissions;
-    if (permissions == OWNER) {
+    if (permissions == OWNER || permissions == (OWNER & ~CAN_ADD_BLOCK)) {
         return ui_display_add_member_command(permissions);
-    } else if (permissions == (OWNER & ~CAN_ADD_BLOCK)) {
-        return ui_display_add_member_command(permissions);
-    } else {
-        return SW_WRONG_DATA;
     }
+    return SW_WRONG_DATA;
 }
 
 int add_member_confirm(void) {

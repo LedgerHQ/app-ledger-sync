@@ -11,48 +11,14 @@ from utils.NobleCrypto import Crypto, DerivationPath
 from utils.index import device
 from utils.streamTree import StreamTree
 from utils.CommandBlock import Permissions
+from utils.test_helpers import get_derivation_path, create_seed_and_derive_stream
 
 from constants import DEFAULT_TOPIC
-
-ROOT_DERIVATION_PATH = "16'/0'"
 
 valid_member_instructions_nano = [NavInsID.RIGHT_CLICK, NavInsID.RIGHT_CLICK, NavInsID.BOTH_CLICK, NavInsID.BOTH_CLICK]
 valid_member_instructions1_nano = [NavInsID.RIGHT_CLICK, NavInsID.RIGHT_CLICK, NavInsID.RIGHT_CLICK, NavInsID.BOTH_CLICK]
 valid_member_instructions2_nano = [NavInsID.RIGHT_CLICK, NavInsID.BOTH_CLICK, NavInsID.BOTH_CLICK]
 valid_member_instructions_stax = [NavInsID.USE_CASE_CHOICE_CONFIRM, NavInsID.USE_CASE_STATUS_DISMISS]
-
-
-def get_derivation_path(index: int) -> List[int]:
-    return DerivationPath.to_index_array(f"{ROOT_DERIVATION_PATH}/{index}'")
-
-
-def create_seed_and_derive_stream(device_instance, derivation_index: int = 0, topic: bytes = None):
-    """
-    Utility function to create a root seed stream and derive a new stream from it.
-    This prevents adding blocks directly to the root stream and follows the proper flow.
-
-    Args:
-        device_instance: The device instance to use for issuing commands
-        derivation_index: The index for the derivation path (default: 0)
-        topic: The topic bytes to use for seeding (default: DEFAULT_TOPIC)
-
-    Returns:
-        tuple: (derived_stream, stream_tree)
-    """
-    if topic is None:
-        topic = Crypto.from_hex(DEFAULT_TOPIC)
-
-    # Create the root seed stream
-    root_stream = CommandStream()
-    root_stream = root_stream.edit().seed(topic).issue(device_instance)
-    tree = StreamTree.from_streams(root_stream)
-
-    # Derive a new stream from the root
-    derived_stream = CommandStream()
-    derived_stream = derived_stream.edit().derive(get_derivation_path(derivation_index)).issue(device_instance, tree)
-    tree = tree.update(derived_stream)
-
-    return derived_stream, tree
 
 
 def test_basic(backend: BackendInterface) -> None:
