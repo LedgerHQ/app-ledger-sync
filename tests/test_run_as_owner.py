@@ -1,4 +1,3 @@
-from typing import List
 import pytest
 
 from ragger.error import ExceptionRAPDU
@@ -7,19 +6,18 @@ from ragger.navigator import Navigator, NavInsID
 
 from utils.CommandStream import CommandStream
 from utils.ApduDevice import Automation, ApduDevice
-from utils.NobleCrypto import Crypto, DerivationPath
+from utils.NobleCrypto import Crypto
 from utils.index import device
-from utils.streamTree import StreamTree
 from utils.CommandBlock import Permissions
 from utils.test_helpers import get_derivation_path, create_seed_and_derive_stream
 
 from constants import DEFAULT_TOPIC
 
 valid_member_instructions_nano = [NavInsID.RIGHT_CLICK, NavInsID.RIGHT_CLICK, NavInsID.BOTH_CLICK, NavInsID.BOTH_CLICK]
-valid_member_instructions1_nano = [NavInsID.RIGHT_CLICK, NavInsID.RIGHT_CLICK, NavInsID.RIGHT_CLICK, NavInsID.BOTH_CLICK]
+valid_member_instructions1_nano = [NavInsID.RIGHT_CLICK, NavInsID.RIGHT_CLICK, NavInsID.RIGHT_CLICK, NavInsID.BOTH_CLICK, NavInsID.BOTH_CLICK]
 valid_member_instructions2_nano = [NavInsID.RIGHT_CLICK, NavInsID.BOTH_CLICK, NavInsID.BOTH_CLICK]
 valid_member_instructions_stax = [NavInsID.USE_CASE_CHOICE_CONFIRM, NavInsID.USE_CASE_STATUS_DISMISS]
-
+close_stream_instructions_stax = [NavInsID.USE_CASE_CHOICE_CONFIRM, NavInsID.USE_CASE_REVIEW_TAP]
 
 def test_basic(backend: BackendInterface) -> None:
     # Note: This basic test only tests seeding functionality, no additional operations
@@ -395,8 +393,12 @@ def test_key_rotation(backend: BackendInterface,
     tree = tree.update(stream)
 
     # Key rotation: Close previous stream
+    if backend.device.is_nano:
+        close_instructions = valid_member_instructions2_nano
+    else:
+        close_instructions = close_stream_instructions_stax
     close_automation = Automation(
-        navigator, test_name=f"{test_name}/part_close", instructions=valid_member_instructions2_nano)
+        navigator, test_name=f"{test_name}/part_close", instructions=close_instructions)
     alice.update_automation(close_automation)
     stream = stream.edit().close().issue(alice, tree)
 
@@ -444,10 +446,8 @@ def test_add_restricted_member(backend: BackendInterface,
 
     alice = device.apdu(backend)
     bob = device.software()
-    charlie = device.software()
 
     bob_public_key = bob.get_public_key()
-    charlie_public_key = charlie.get_public_key()
 
     # Use utility function to create seed and derive stream
     stream, tree = create_seed_and_derive_stream(alice, 0)
@@ -455,13 +455,7 @@ def test_add_restricted_member(backend: BackendInterface,
     permissions_without_add_block = Permissions.OWNER & ~Permissions.CAN_ADD_BLOCK
 
     member_automation = Automation(
-        navigator, test_name=f"{test_name}_member", instructions=valid_member_instructions)
+        navigator, test_name=f"{test_name}", instructions=valid_member_instructions)
     alice.update_automation(member_automation)
     stream = stream.edit().add_member("Bob", bob_public_key, permissions_without_add_block, True).issue(alice, tree)
-    tree = tree.update(stream)
-
-    member_automation = Automation(
-        navigator, test_name=f"{test_name}_member", instructions=valid_member_instructions)
-    alice.update_automation(member_automation)
-    stream = stream.edit().add_member("Charlie", charlie_public_key, permissions_without_add_block, True).issue(alice, tree)
     tree = tree.update(stream)

@@ -14,7 +14,7 @@
     "python.terminal.activateEnvironment": false,
     "git.ignoreLimitWarning": true,
     "ledgerDevTools.appSettings": {
-        "selectedDevice": "Flex",
+        "selectedDevice": "Stax",
         "selectedUseCase": "release",
         "selectedVariant": "Ledger-Sync",
         "testsList": [
