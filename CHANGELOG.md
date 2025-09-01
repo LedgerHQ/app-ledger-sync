@@ -9,8 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Change wording on screens (both NBGL & BAGL)
+- Change wording/design on screens
 - Change some icons
+- Migrate Nano on NBGL
 
 ## [1.1.0] - 2024-08-12
 

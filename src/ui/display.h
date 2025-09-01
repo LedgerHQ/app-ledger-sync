@@ -7,7 +7,7 @@
  */
 typedef int (*action_validate_cb)(bool);
 
-int ui_display_add_member_command(void);
+int ui_display_add_member_command(uint32_t permissions);
 
 int ui_display_seed_id_command(void);
 

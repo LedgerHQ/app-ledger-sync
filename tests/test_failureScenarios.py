@@ -2,16 +2,21 @@ import pytest
 
 from ragger.error import ExceptionRAPDU
 from ragger.backend import BackendInterface
+from ragger.navigator import Navigator, NavInsID
 
 from utils.CommandStream import CommandStream
+from utils.CommandBlock import Permissions
 from utils.NobleCrypto import Crypto
-from utils.CommandBlock import CommandBlock, commands, sign_command_block
+from utils.CommandBlock import CommandBlock, commands
 from utils.index import device
-from utils.ApduDevice import Device
+from utils.ApduDevice import Device, Automation
 from utils.CommandStreamEncoder import CommandStreamEncoder
+from utils.test_helpers import create_seed_and_derive_stream
 
 from constants import DEFAULT_TOPIC
 
+valid_member_instructions_nano = [NavInsID.RIGHT_CLICK, NavInsID.RIGHT_CLICK, NavInsID.RIGHT_CLICK, NavInsID.BOTH_CLICK]
+valid_member_instructions_stax = [NavInsID.USE_CASE_CHOICE_CONFIRM, NavInsID.USE_CASE_STATUS_DISMISS]
 
 # Basic Signature Flow
 def test_basic_signature_flow(backend: BackendInterface) -> None:
@@ -262,32 +267,53 @@ def test_false_signature_with_resolve(backend: BackendInterface) -> None:
         stream.resolve()
 
 
-def test_false_signature_with_parsing(backend: BackendInterface) -> None:
+def test_add_member_with_zero_permissions(backend: BackendInterface) -> None:
+    alice = device.apdu(backend)
     bob = device.software()
     bob_public_key = bob.get_public_key()
-    sessionKey = Crypto.randomKeyPair()
 
-    block = CommandBlock(
-        0,  # Version
-        Crypto.random_bytes(32),  # Parent
-        bob_public_key,
-        [commands.Seed(
-            Crypto.from_hex(DEFAULT_TOPIC),
-            0,
-            Crypto.random_bytes(32),
-            bytes([0] * 16),
-            bytes([0] * 64),
-            bytes([0] * 33),
-        )],
-        bytes([0]*0)
-    )
+    stream, tree = create_seed_and_derive_stream(alice, 0)
 
-    signedBlock = sign_command_block(block, bob.key_pair['privateKey'])
+    # Alice adds Bob with zero permissions
+    with pytest.raises((ExceptionRAPDU)):
+        stream = stream.edit().add_member("Bob", bob_public_key, 0, True).issue(alice, tree)
 
-    stream = [signedBlock]
-    Device.initFlow(backend, sessionKey['publicKey'])
-    Device.parse_block_header(backend, CommandStreamEncoder.encodeBlockHeader(stream[0]))
-    Device.parseCommand(backend, CommandStreamEncoder.encodeCommand(stream[0], 0))
 
+def test_add_member_without_can_add_block_permission(backend: BackendInterface,
+                                                     navigator: Navigator,
+                                                     test_name: str) -> None:
+    """Test that a member without CAN_ADD_BLOCK permission should not be able to add blocks,
+        and APDU device should refuse to sign subsequent blocks."""
+    if backend.device.is_nano:
+        valid_member_instructions = valid_member_instructions_nano
+    else:
+        valid_member_instructions = valid_member_instructions_stax
+
+    alice = device.apdu(backend)
+    bob = device.software()
+    bob_public_key = bob.get_public_key()
+
+    # Use utility function to create seed and derive stream
+    stream, tree = create_seed_and_derive_stream(alice, 0)
+
+    # Alice adds Bob with permissions that don't include CAN_ADD_BLOCK
+    permissions = Permissions.OWNER & ~(Permissions.CAN_ADD_BLOCK)
+
+    member_automation = Automation(
+        navigator, test_name=f"{test_name}", instructions=valid_member_instructions)
+    alice.update_automation(member_automation)
+    stream = stream.edit().add_member("Bob", bob_public_key, permissions, True).issue(alice, tree)
+    tree = tree.update(stream)
+
+    # Bob adds a block
+    charlie = device.software()
+    charlie_public_key = charlie.get_public_key()
+    # Bob issues this in software - this will create a tampered stream
+    tampered_stream = stream.edit().add_member("Charlie", charlie_public_key, Permissions.OWNER, True).issue(bob, tree)
+    tampered_tree = tree.update(tampered_stream)
+
+    # Alice tries to sign another operation on the tampered stream - APDU device should reject
+    dany = device.software()
+    dany_public_key = dany.get_public_key()
     with pytest.raises(ExceptionRAPDU):
-        Device.parse_signature(backend, stream[0].signature)
+        tampered_stream.edit().add_member("Dany", dany_public_key, Permissions.OWNER, True).issue(alice, tampered_tree)

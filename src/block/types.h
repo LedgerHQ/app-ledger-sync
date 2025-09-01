@@ -25,17 +25,13 @@ typedef enum {
     COMMAND_CLOSE_STREAM = TLV_TYPE_CLOSE_STREAM
 } block_command_type_e;
 
-typedef enum {
-    KEY_READER = 0x01,
-    KEY_CREATOR = 0x02,
-    KEY_REVOKER = 0x04,
-    ADD_MEMBER = 0x08,
-    REMOVE_MEMBER = 0x16,
-    CHANGE_MEMBER_PERMISSIONS = 0x32,
-    CHANGE_MEMBER_NAME = 0x64,
-
-    OWNER = (int) 0xFFFFFFFF,
-} member_permission_t;
+enum member_permission_e {
+    CAN_ENCRYPT = 0x01,
+    CAN_DERIVE = 0x01 << 1,
+    CAN_ADD_BLOCK = 0x01 << 2,
+};
+typedef uint32_t member_permission_t;
+#define OWNER (member_permission_t) 0xFFFFFFFF
 
 typedef struct {
     uint8_t topic[MAX_TOPIC_LEN];

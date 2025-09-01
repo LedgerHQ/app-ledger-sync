@@ -3,7 +3,6 @@ import pytest
 
 from ragger.error import ExceptionRAPDU
 from ragger.backend import BackendInterface
-from ragger.firmware import Firmware
 from ragger.navigator import Navigator
 
 from SeedIdClient import SeedIdClient, Errors
@@ -38,12 +37,11 @@ def get_default_challenge_tlv() -> bytes:
     return tlv_data
 
 
-def test_seed_id_parser(firmware: Firmware,
-                        backend: BackendInterface,
+def test_seed_id_parser(backend: BackendInterface,
                         navigator: Navigator,
                         default_screenshot_path: Path,
                         test_name: str) -> None:
-    if firmware.is_nano:
+    if backend.device.is_nano:
         approve_seed_id_instructions = approve_instructions_nano
     else:
         approve_seed_id_instructions = approve_instructions_stax
