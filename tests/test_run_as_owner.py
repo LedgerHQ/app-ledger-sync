@@ -13,11 +13,13 @@ from utils.test_helpers import get_derivation_path, create_seed_and_derive_strea
 
 from constants import DEFAULT_TOPIC
 
+# pylint: disable=line-too-long
 valid_member_instructions_nano = [NavInsID.RIGHT_CLICK, NavInsID.RIGHT_CLICK, NavInsID.BOTH_CLICK, NavInsID.BOTH_CLICK]
 valid_member_instructions1_nano = [NavInsID.RIGHT_CLICK, NavInsID.RIGHT_CLICK, NavInsID.RIGHT_CLICK, NavInsID.BOTH_CLICK, NavInsID.BOTH_CLICK]
 valid_member_instructions2_nano = [NavInsID.RIGHT_CLICK, NavInsID.BOTH_CLICK, NavInsID.BOTH_CLICK]
 valid_member_instructions_stax = [NavInsID.USE_CASE_CHOICE_CONFIRM, NavInsID.USE_CASE_STATUS_DISMISS]
 close_stream_instructions_stax = [NavInsID.USE_CASE_CHOICE_CONFIRM, NavInsID.USE_CASE_REVIEW_TAP]
+# pylint: enable=line-too-long
 
 def test_basic(backend: BackendInterface) -> None:
     # Note: This basic test only tests seeding functionality, no additional operations
