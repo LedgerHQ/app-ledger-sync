@@ -12,6 +12,12 @@
 #define ICON_INFO    C_Info_Circle_64px
 #define ICON_CONNECT C_Login_64px
 #define ICON_TRASH   C_Trash_64px
+#elif defined(TARGET_APEX)
+#define ICON_APP     C_app_48px
+#define ICON_DENIED  C_Denied_Circle_48px
+#define ICON_INFO    C_Info_Circle_48px
+#define ICON_CONNECT C_Login_48px
+#define ICON_TRASH   C_Trash_48px
 #endif
 
 /**
