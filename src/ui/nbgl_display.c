@@ -31,6 +31,7 @@
 #include "constants.h"
 #include "../globals.h"
 #include "../sw.h"
+#include "../block/types.h"
 #include "menu.h"
 #include "challenge_parser.h"
 #include "get_seed_id.h"
@@ -58,28 +59,60 @@ static void ui_add_member_callback(bool approve) {
     }
 }
 
-int ui_display_add_member_command(void) {
+int ui_display_add_member_command(uint32_t permissions) {
 #ifdef HAVE_PIEZO_SOUND
     // Play notification sound
     io_seproxyhal_play_tune(TUNE_LOOK_AT_ME);
 #endif  // HAVE_PIEZO_SOUND
-    nbgl_useCaseChoice(NULL,
-                       "Turn on sync for this phone or computer?",
-                       "Your crypto accounts on Ledger Live will be synced.",
-                       "Turn on sync",
-                       "Don't sync",
-                       ui_add_member_callback);
+
+    if (permissions == OWNER) {
+        nbgl_useCaseChoice(NULL,
+#ifdef SCREEN_SIZE_WALLET
+                           "Turn on sync\nfor Ledger Live?",
+                           "Ledger Live will be able to view and update your synced accounts.",
+#else
+                           "Turn on sync\nfor Ledger Live?\f"
+                           "Ledger Live will be able to view and update your synced accounts.",
+                           NULL,
+#endif
+                           "Turn On sync",
+                           "Don't sync",
+                           ui_add_member_callback);
+    } else if (permissions == (OWNER & ~CAN_ADD_BLOCK)) {
+        nbgl_useCaseChoice(NULL,
+#ifdef SCREEN_SIZE_WALLET
+                           "Turn on sync for this website?",
+                           "The website or dApp connected to your Ledger will be able to view your "
+                           "synced accounts.",
+#else
+                           "Turn on sync for this website?\f"
+                           "The website or dApp connected to your Ledger will be able to view your "
+                           "synced accounts.",
+                           NULL,
+#endif
+                           "Turn On sync",
+                           "Don't sync",
+                           ui_add_member_callback);
+    }
     return 0;
 }
 
 // FLOW to display Seed_ID (Connect):
 int ui_display_seed_id_command(void);
 
+#ifdef SCREEN_SIZE_WALLET
 static void log_in_error_cb(int token, uint8_t index) {
     UNUSED(token);
     UNUSED(index);
     ui_menu_main();
 }
+#else
+static void log_in_error_cb(nbgl_layout_t *layout, nbgl_buttonEvent_t event) {
+    UNUSED(layout);
+    UNUSED(event);
+    ui_menu_main();
+}
+#endif
 
 #ifdef WITH_PRIVACY_REPORT
 static void log_in_privacy_cb(void) {
@@ -135,7 +168,7 @@ static void log_in_cb(int token, uint8_t index) {
                 centeredInfo.text2 =
                     "Try again. If this error repeats, contact Ledger Support at "
                     "support.ledger.com";
-                centeredInfo.icon = &C_Denied_Circle_64px;
+                centeredInfo.icon = &ICON_DENIED;
                 centeredInfo.style = LARGE_CASE_INFO;
                 status = nbgl_layoutAddCenteredInfo(layoutCtx, &centeredInfo);
                 if (status < 0) return;
@@ -170,7 +203,8 @@ int ui_display_seed_id_command(void) {
     if (status < 0) return -1;
 
     // Add top icon for Privacy Report
-    status = nbgl_layoutAddTopRightButton(layoutCtx, &C_privacy, TOKEN_PRIVACY, TUNE_TAP_CASUAL);
+    status =
+        nbgl_layoutAddTopRightButton(layoutCtx, &C_privacy_32px, TOKEN_PRIVACY, TUNE_TAP_CASUAL);
     if (status < 0) return -1;
 
     // Add choice buttons
@@ -199,15 +233,22 @@ static void log_in_cb(bool confirm) {
         if (error == -1) {
             // add layout
             layoutDescription.onActionCallback = log_in_error_cb;
+#ifdef SCREEN_SIZE_WALLET
             layoutDescription.tapActionText = "Tap to dismiss";
             layoutDescription.tapActionToken = TOKEN_LOG_IN;
+#endif
             layoutCtx = nbgl_layoutGet(&layoutDescription);
             // add description
+#ifdef SCREEN_SIZE_WALLET
             centeredInfo.text1 = "Error while connecting";
             centeredInfo.text2 =
                 "Try again. If this error repeats, contact Ledger Support at support.ledger.com.";
-            centeredInfo.icon = &C_Denied_Circle_64px;
+            centeredInfo.icon = &ICON_DENIED;
             centeredInfo.style = LARGE_CASE_INFO;
+#else
+            centeredInfo.text1 = "Connection error";
+            centeredInfo.text2 = "If this error repeats, contact Ledger Support.";
+#endif
             status = nbgl_layoutAddCenteredInfo(layoutCtx, &centeredInfo);
             if (status < 0) return;
 
@@ -228,9 +269,9 @@ int ui_display_seed_id_command(void) {
     // Play notification sound
     io_seproxyhal_play_tune(TUNE_LOOK_AT_ME);
 #endif  // HAVE_PIEZO_SOUND
-    nbgl_useCaseChoice(NULL,
-                       "Connect with\nLedger Sync?",
-                       "Make sure to use Ledger Live only on a trusted phone or computer.",
+    nbgl_useCaseChoice(&ICON_CONNECT,
+                       "Connect to\nLedger Sync?",
+                       NULL,
                        "Connect",
                        "Don't connect",
                        log_in_cb);
@@ -239,6 +280,7 @@ int ui_display_seed_id_command(void) {
 #endif
 
 // FLOW to display update member (Remove and add back needed instances):
+#ifdef SCREEN_SIZE_WALLET
 static void update_cb(int token, uint8_t index) {
     UNUSED(index);
     if (token == TOKEN_UPDATE) {
@@ -246,6 +288,14 @@ static void update_cb(int token, uint8_t index) {
     }
     ui_menu_main();
 }
+#else
+static void update_cb(nbgl_layout_t *layout, nbgl_buttonEvent_t event) {
+    UNUSED(layout);
+    UNUSED(event);
+    io_send_trusted_property(SW_OK);
+    ui_menu_main();
+}
+#endif
 
 static void ui_update_callback(bool approve) {
     static nbgl_layoutDescription_t layoutDescription = {0};
@@ -256,14 +306,20 @@ static void ui_update_callback(bool approve) {
     if (approve) {
         // add layout
         layoutDescription.onActionCallback = update_cb;
+#ifdef SCREEN_SIZE_WALLET
         layoutDescription.tapActionText = "Tap to continue";
         layoutDescription.tapActionToken = TOKEN_UPDATE;
+#endif
         layoutCtx = nbgl_layoutGet(&layoutDescription);
         // add description
+#ifdef SCREEN_SIZE_WALLET
         centeredInfo.text1 = "Confirm change";
         centeredInfo.text2 = "Next, you will be asked to turn on sync to confirm the change.";
-        centeredInfo.icon = &C_info_circle;
+        centeredInfo.icon = &ICON_INFO;
         centeredInfo.style = LARGE_CASE_INFO;
+#else
+        centeredInfo.text1 = "Next, you will be asked to turn on sync to confirm the change.";
+#endif
         status = nbgl_layoutAddCenteredInfo(layoutCtx, &centeredInfo);
         if (status < 0) return;
 
@@ -280,8 +336,8 @@ int ui_display_update_instances(void) {
     // Play notification sound
     io_seproxyhal_play_tune(TUNE_LOOK_AT_ME);
 #endif  // HAVE_PIEZO_SOUND
-    nbgl_useCaseChoice(NULL,
-                       "Remove phone or computer from\nLedger Sync?",
+    nbgl_useCaseChoice(&ICON_TRASH,
+                       "Remove from\nLedger Sync?",
                        NULL,
                        "Remove",
                        "Keep",

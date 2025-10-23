@@ -348,7 +348,8 @@ static void test_stream_parse(void** state) {
                     .xpriv =
                         "1fb8fd54a5d4e2cbc846a9d40ac770099bd95032d6db17edd3e38d6b2d8d883e3a9f6d4843"
                         "0ae4aa43"
-                        "45ede589cb5651e179ad96b34481377749fa7c7f966ab5b7e1ffff000000000000000000000000",
+                        "45ede589cb5651e179ad96b34481377749fa7c7f966ab5b7e1ffff00000000000000000000"
+                        "0000",
                     .group_key =
                         "03ab80381ce1f25cd242916bbbb99b3feb067fc49f9844ed167d28dda567ae04b6",
                     .iv = "0d1cb422e09eefe91f6766630c0f95fe"};

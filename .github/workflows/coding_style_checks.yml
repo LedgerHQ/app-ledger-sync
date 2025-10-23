@@ -21,7 +21,6 @@ jobs:
     with:
       source: './src'
       extensions: 'h,c'
-      version: 12
 
   yamllint:
     name: Check yaml files

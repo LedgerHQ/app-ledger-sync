@@ -1,6 +1,7 @@
 #include "sw.h"
 #include "signer.h"
 #include "block_parser.h"
+#include "types.h"
 #include "cx.h"
 #include "crypto.h"
 #include "io.h"
@@ -258,11 +259,13 @@ static int signer_inject_add_member(block_command_t *command) {
     memcpy(G_context.stream.trusted_member.member_key,
            command->command.add_member.public_key,
            MEMBER_KEY_LEN);
+    member_permission_t permissions = command->command.add_member.permissions;
     G_context.stream.trusted_member.owns_key = 0;
-    G_context.stream.trusted_member.permissions = command->command.add_member.permissions;
-
-    // User approval
-    return ui_display_add_member_command();
+    G_context.stream.trusted_member.permissions = permissions;
+    if (permissions == OWNER || permissions == (OWNER & ~CAN_ADD_BLOCK)) {
+        return ui_display_add_member_command(permissions);
+    }
+    return SW_WRONG_DATA;
 }
 
 int add_member_confirm(void) {

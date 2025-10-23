@@ -7,6 +7,24 @@
 #include "../crypto.h"
 #include "../block/trusted_properties.h"
 
+// clang-format off
+typedef enum {
+    MEMBER_TYPE_SELF,
+    MEMBER_TYPE_TRUSTED,
+    MEMBER_TYPE_UNKNOWN
+} member_type_t;
+// clang-format on
+
+static member_type_t get_member_type(stream_ctx_t *ctx, uint8_t *member_key) {
+    if (memcmp(member_key, ctx->device_public_key, MEMBER_KEY_LEN) == 0) {
+        return MEMBER_TYPE_SELF;
+    }
+    if (memcmp(member_key, ctx->trusted_member.member_key, MEMBER_KEY_LEN) == 0) {
+        return MEMBER_TYPE_TRUSTED;
+    }
+    return MEMBER_TYPE_UNKNOWN;
+}
+
 void stream_init(stream_ctx_t *ctx) {
     // Expect the next item to be a block header
     ctx->parsing_state = STREAM_PARSING_STATE_BLOCK_HEADER;
@@ -30,6 +48,7 @@ static int verify_block_parent_hash(stream_ctx_t *ctx, uint8_t *parent_hash) {
 
 int stream_parse_block_header(stream_ctx_t *ctx, buffer_t *data) {
     block_header_t header;
+    member_type_t member_type;
     int err = 0;
 
     LEDGER_ASSERT(ctx != NULL, "Null ctx\n");
@@ -46,11 +65,14 @@ int stream_parse_block_header(stream_ctx_t *ctx, buffer_t *data) {
         memcmp(header.parent, ctx->last_block_hash, sizeof(header.parent)) != 0) {
         return SP_ERR_INVALID_STREAM;
     }
-
     // If the stream is created we expect the issuer of the block to be a trusted member
-    if (ctx->is_created &&
-        memcmp(header.issuer, ctx->trusted_member.member_key, sizeof(header.issuer)) != 0 &&
-        memcmp(header.issuer, ctx->device_public_key, sizeof(header.issuer)) != 0) {
+    // and that it can add blocks
+    member_type = get_member_type(ctx, header.issuer);
+    if (ctx->is_created && member_type == MEMBER_TYPE_UNKNOWN) {
+        return SP_ERR_INVALID_STREAM;
+    }
+    if (member_type == MEMBER_TYPE_TRUSTED &&
+        (ctx->trusted_member.permissions & CAN_ADD_BLOCK) == 0) {
         return SP_ERR_INVALID_STREAM;
     }
     // Update context
