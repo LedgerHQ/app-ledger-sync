@@ -32,10 +32,10 @@ repos:
         types_or: [yaml]
         args: [-shellcheck='' -pyflakes='']
 
-  - repo: https://github.com/markdownlint/markdownlint
-    rev: v0.12.0
+  - repo: https://github.com/DavidAnson/markdownlint-cli2
+    rev: v0.13.0
     hooks:
-      - id: markdownlint
+      - id: markdownlint-cli2
         types_or: [markdown]
 
   - repo: https://github.com/PyCQA/pylint

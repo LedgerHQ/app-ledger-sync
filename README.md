@@ -6,8 +6,8 @@
 
 ## Overview
 
-This application aims at improving the user experience of Ledger Live, allowing users to synchronize
-their data between their instances of Ledger Live (desktop, mobile or extensions).
+This application aims at improving the user experience of Ledger Wallet, allowing users to synchronize
+their data between their instances of Ledger Wallet (desktop, mobile or extensions).
 
 ## Quick start guide
 

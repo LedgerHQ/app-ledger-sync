@@ -68,11 +68,11 @@ int ui_display_add_member_command(uint32_t permissions) {
     if (permissions == OWNER) {
         nbgl_useCaseChoice(NULL,
 #ifdef SCREEN_SIZE_WALLET
-                           "Turn on sync\nfor Ledger Live?",
-                           "Ledger Live will be able to view and update your synced accounts.",
+                           "Turn on sync\nfor Ledger Wallet?",
+                           "Ledger Wallet will be able to view and update your synced accounts.",
 #else
-                           "Turn on sync\nfor Ledger Live?\f"
-                           "Ledger Live will be able to view and update your synced accounts.",
+                           "Turn on sync\nfor Ledger Wallet?\f"
+                           "Ledger Wallet will be able to view and update your synced accounts.",
                            NULL,
 #endif
                            "Turn On sync",
@@ -138,7 +138,7 @@ static void log_in_cb(int token, uint8_t index) {
             nbPairs++;
             pairs[nbPairs].item = "Why it's needed";
             pairs[nbPairs].value =
-                "Uniquely identifying your Ledger device grants access to your Ledger Live "
+                "Uniquely identifying your Ledger device grants access to your Ledger Wallet "
                 "features.";
             nbPairs++;
             pairs[nbPairs].item = "Data retrieval";
@@ -197,7 +197,7 @@ int ui_display_seed_id_command(void) {
     layoutCtx = nbgl_layoutGet(&layoutDescription);
     // add description
     centeredInfo.text1 = "Connect with\nLedger Sync?";
-    centeredInfo.text2 = "Make sure to use Ledger Live only on a trusted phone or computer.";
+    centeredInfo.text2 = "Make sure to use Ledger Wallet only on a trusted phone or computer.";
     centeredInfo.style = LARGE_CASE_INFO;
     status = nbgl_layoutAddCenteredInfo(layoutCtx, &centeredInfo);
     if (status < 0) return -1;

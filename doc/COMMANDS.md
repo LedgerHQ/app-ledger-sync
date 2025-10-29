@@ -198,7 +198,7 @@ The Challenge data is a TLV structure containing the following fields:
 | PUBLIC_KEY | 0x21 |
 | PROTOCOL_VERSION | 0x04 |
 
-### Response
+#### Response
 
 | Response length (bytes) | SW | RData |
 | --- | --- | --- |
@@ -234,7 +234,7 @@ once the application received user approbation.
 | --- | --- | --- | --- | --- | --- |
 | 0xE0 | 0x06 | 0x00 | 0x00 | 0x21 | `EPHEMERAL PUBLIC KEY (SEC1 compressed form)` |
 
-### Response
+#### Response
 
 | Response length (bytes) | SW | RData |
 | --- | --- | --- |
@@ -253,7 +253,8 @@ _Note: The application requires streams to always start by a block with a Seed c
 
 _Note:_ **Calling this command without having called INIT will result with an error**
 
-_Note:_ **Any error during a call to this command will reset the signer and require the client to call INIT to initialize a new signer**
+_Note:_ **Any error during a call to this command will reset the signer and \
+require the client to call INIT to initialize a new signer**
 
 #### Command
 
@@ -278,7 +279,8 @@ Each command must then be send to the device separately.
 
 _Note:_ **Calling this command without having called INIT will result with an error**
 
-_Note:_ **Any error or user disapproval during a call to this command will reset the signer and require the client to call INIT to initialize a new signer**
+_Note:_ **Any error or user disapproval during a call to this command will \
+reset the signer and require the client to call INIT to initialize a new signer**
 
 #### Command
 
