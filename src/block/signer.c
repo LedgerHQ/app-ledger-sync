@@ -275,11 +275,25 @@ static int signer_inject_add_member(block_command_t *command) {
     G_context.stream.trusted_member.owns_key = 0;
     G_context.stream.trusted_member.permissions = permissions;
 
-    uint32_t app_id = G_context.stream.app_id;
-    if (app_id == APP_ID_LEDGER_SYNC) {
-        if (permissions == OWNER || permissions == (OWNER & ~CAN_ADD_BLOCK)) {
-            return ui_display_add_member_command(permissions);
-        }
+    switch (G_context.stream.app_id) {
+        case APP_ID_LEDGER_SYNC:
+        case APP_ID_WALLET_CLI_RING:
+            if (permissions == OWNER || permissions == (OWNER & ~CAN_ADD_BLOCK)) {
+                ui_display_add_member_command(permissions, command->command.add_member.name);
+                return SWO_NO_RESPONSE;
+            }
+            break;
+        case APP_ID_AGENT_INTENT:
+            if (permissions == (CAN_ENCRYPT | CAN_DERIVE)) {
+                ui_display_enable_agent_access();
+                return SWO_NO_RESPONSE;
+            } else if (permissions == CAN_ENCRYPT) {
+                ui_display_register_agent_command(command->command.add_member.public_key);
+                return SWO_NO_RESPONSE;
+            }
+            break;
+        default:
+            break;
     }
     return SW_WRONG_DATA;
 }
@@ -435,7 +449,8 @@ int signer_parse_command(signer_ctx_t *signer, stream_ctx_t *stream, buffer_t *d
             break;
         case COMMAND_CLOSE_STREAM:
             ret_sw = false;
-            err = ui_display_update_instances();
+            ui_display_update_instances();
+            err = SWO_NO_RESPONSE;
             break;
         default:
             // Force fail if we don't know the command

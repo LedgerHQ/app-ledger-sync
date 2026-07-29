@@ -1,14 +1,14 @@
 #pragma once
 
 #include <stdbool.h>  // bool
+#include <stdint.h>   // uint8_t
 
-/**
- * Callback to reuse action with approve/reject in step FLOW.
- */
-typedef int (*action_validate_cb)(bool);
+void ui_display_add_member_command(uint32_t permissions, const char *name);
 
-int ui_display_add_member_command(uint32_t permissions);
+void ui_display_seed_id_command(void);
 
-int ui_display_seed_id_command(void);
+void ui_display_update_instances(void);
 
-int ui_display_update_instances(void);
+void ui_display_register_agent_command(const uint8_t *pubkey);
+
+void ui_display_enable_agent_access(void);

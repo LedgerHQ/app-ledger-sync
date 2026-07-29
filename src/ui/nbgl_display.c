@@ -22,14 +22,18 @@
  * immediately (NBGL is async); the APDU response is sent later from a callback.
  *
  * Flows in this file:
- *   1. ADD_MEMBER  — AppID 16: "Turn on sync for {name}?"         (1 screen)
- *   2. GET_SEED_ID — "Connect to Ledger Sync?"                    (1 screen)
- *   3. CLOSE_STREAM — "Remove from Ledger Sync?"                  (1 screen)
+ *   1. ADD_MEMBER   — AppID 16 OWNER:                "Turn on sync for Ledger Wallet?"  (1 screen)
+ *      ADD_MEMBER   — AppID 16 OWNER&~CAN_ADD_BLOCK: "Turn on sync for {name}?"         (1 screen)
+ *   2. GET_SEED_ID  — "Connect to Ledger Sync?"                                         (1 screen)
+ *   3. CLOSE_STREAM — "Remove from Ledger Sync?"                                       (1 screen)
+ *   4. ADD_MEMBER   — AppID 18 CAN_ENCRYPT|CAN_DERIVE: "Enable website access"          (2 screens)
+ *   5. ADD_MEMBER   — AppID 18 CAN_ENCRYPT:            "Register agent"                 (1 screen)
  */
 
 #ifdef HAVE_NBGL
 
 #include <stdbool.h>  // bool
+#include <stdio.h>    // snprintf
 #include <string.h>   // memset
 
 #include "os.h"
@@ -60,19 +64,52 @@ enum {
 
 nbgl_layout_t layoutCtx;
 
+/* Buffer sizes for UI strings — derived from MAX_NAME_LEN (= 100).
+ * UI_TEXT_LEN: Nano worst case is Register Agent screen 3, name appears twice:
+ *   "Turn on sync for {name}?\f{name} will be able to view your synced accounts"
+ *   = 2*MAX_NAME_LEN + 62 → rounded to 2*MAX_NAME_LEN + 80.
+ * UI_BODY_LEN: WALLET body or subtext with name once:
+ *   "{name} will be able to sync your accounts with Ledger Intent." = MAX_NAME_LEN + 56
+ *   → rounded to MAX_NAME_LEN + 64.
+ * UNIQUE_ID_STR_LEN: UNIQUE_ID_BYTES hex-encoded = UNIQUE_ID_BYTES*2 chars + null.
+ */
+#define UI_TEXT_LEN       (2 * MAX_NAME_LEN + 80)
+#define UI_BODY_LEN       (MAX_NAME_LEN + 64)
+#define UNIQUE_ID_BYTES   MEMBER_KEY_LEN            /* full compressed public key: 33 bytes */
+#define UNIQUE_ID_STR_LEN (UNIQUE_ID_BYTES * 2 + 1) /* 66 hex chars + null */
+
+/* Dynamic string buffers — NBGL holds raw pointers to these across async callbacks,
+ * so they must be static (stack frames are gone by the time callbacks fire). */
+static char s_agent_unique_id[UNIQUE_ID_STR_LEN];
+static char s_agent_sync_text[UI_TEXT_LEN];
+static char s_agent_sync_subtext[UI_BODY_LEN];
+
 /* ─────────────────────────────────────────────────────────────────────────────
- * FLOW 1 — ADD_MEMBER AppID 16: "Turn on sync for Ledger Wallet / this website?"
- * Called by signer_inject_add_member when app_id == APP_ID_LEDGER_SYNC.
- * Strings are hardcoded per permission level; the member name is not displayed.
+ * Shared helpers — used across multiple flows.
  * ───────────────────────────────────────────────────────────────────────────── */
 
+/* Sent as the nbgl_useCaseStatus callback for every rejection path.
+ * SW_DENY must be deferred here (not before nbgl_useCaseStatus) so that
+ * ragger's _check_async_error does not interrupt the screen-change wait
+ * and fail to capture the cancel notification in snapshots. */
+static void ui_deny_cb(void) {
+    io_send_sw(SW_DENY);
+    ui_menu_main();
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+ * FLOW ADD_MEMBER AppID 16: "Turn on sync for Ledger Wallet / {name}?"
+ * Called by signer_inject_add_member when app_id == APP_ID_LEDGER_SYNC.
+ * OWNER uses hardcoded "Ledger Wallet" wording; OWNER&~CAN_ADD_BLOCK uses member name.
+ * ───────────────────────────────────────────────────────────────────────────── */
+
+/** Shared approval callback for all ADD_MEMBER flows (AppID 16, AppID 18 OWNER and AGENT). */
 static void ui_add_member_callback(bool approve) {
     if (approve) {
         add_member_confirm();
         nbgl_useCaseStatus("Sync requested", true, ui_menu_main);
     } else {
-        io_send_sw(SW_DENY);
-        nbgl_useCaseStatus("Sync cancelled", false, ui_menu_main);
+        nbgl_useCaseStatus("Sync cancelled", false, ui_deny_cb);
     }
 }
 
@@ -80,10 +117,11 @@ static void ui_add_member_callback(bool approve) {
  * @brief Ask the user to enable Ledger Sync for a new member (AppID 16).
  *
  * @param permissions  OWNER shows "Ledger Wallet" wording (view and update);
- *                     OWNER & ~CAN_ADD_BLOCK shows "this website" wording (view only).
+ *                     OWNER & ~CAN_ADD_BLOCK shows the member name (view only).
+ * @param name         Member name; used only for the OWNER & ~CAN_ADD_BLOCK case.
  * @return 0; APDU response sent asynchronously via ui_add_member_callback.
  */
-int ui_display_add_member_command(uint32_t permissions) {
+void ui_display_add_member_command(uint32_t permissions, const char *name) {
 #ifdef HAVE_PIEZO_SOUND
     // Play notification sound
     io_seproxyhal_play_tune(TUNE_LOOK_AT_ME);
@@ -92,10 +130,10 @@ int ui_display_add_member_command(uint32_t permissions) {
     if (permissions == OWNER) {
         nbgl_useCaseChoice(NULL,
 #ifdef SCREEN_SIZE_WALLET
-                           "Turn on sync\nfor Ledger Wallet?",
+                           "Turn on sync for Ledger Wallet?",
                            "Ledger Wallet will be able to view and update your synced accounts.",
 #else
-                           "Turn on sync\nfor Ledger Wallet?\f"
+                           "Turn on sync for Ledger Wallet?\f"
                            "Ledger Wallet will be able to view and update your synced accounts.",
                            NULL,
 #endif
@@ -103,31 +141,40 @@ int ui_display_add_member_command(uint32_t permissions) {
                            "Don't sync",
                            ui_add_member_callback);
     } else if (permissions == (OWNER & ~CAN_ADD_BLOCK)) {
+        snprintf(s_agent_sync_subtext,
+                 sizeof(s_agent_sync_subtext),
+                 "%s will be able to view your synced accounts",
+                 name);
+#ifdef SCREEN_SIZE_WALLET
+        snprintf(s_agent_sync_text, sizeof(s_agent_sync_text), "Turn on sync for %s?", name);
+#else
+        snprintf(s_agent_sync_text,
+                 sizeof(s_agent_sync_text),
+                 "Turn on sync for %s?\f%s",
+                 name,
+                 s_agent_sync_subtext);
+#endif
+
         nbgl_useCaseChoice(NULL,
 #ifdef SCREEN_SIZE_WALLET
-                           "Turn on sync for this website?",
-                           "The website or dApp connected to your Ledger will be able to view your "
-                           "synced accounts.",
+                           s_agent_sync_text,
+                           s_agent_sync_subtext,
 #else
-                           "Turn on sync for this website?\f"
-                           "The website or dApp connected to your Ledger will be able to view your "
-                           "synced accounts.",
+                           s_agent_sync_text,
                            NULL,
 #endif
                            "Turn On sync",
                            "Don't sync",
                            ui_add_member_callback);
     }
-    return 0;
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
- * FLOW 2 — GET_SEED_ID: "Connect to Ledger Sync?"
+ * FLOW GET_SEED_ID: "Connect to Ledger Sync?"
  * ───────────────────────────────────────────────────────────────────────────── */
 
 /* Forward declaration needed because the SCREEN_SIZE_WALLET variant of log_in_cb
  * calls ui_display_seed_id_command to restart the flow on error. */
-int ui_display_seed_id_command(void);
 
 #ifdef SCREEN_SIZE_WALLET
 static void log_in_error_cb(int token, uint8_t index) {
@@ -187,9 +234,8 @@ static void log_in_cb(bool confirm) {
 
 /**
  * @brief Ask the user to authenticate with Ledger Sync (GET_SEED_ID flow).
- * @return 0; response sent asynchronously via log_in_cb → seed_id_callback.
  */
-int ui_display_seed_id_command(void) {
+void ui_display_seed_id_command(void) {
 #ifdef HAVE_PIEZO_SOUND
     // Play notification sound
     io_seproxyhal_play_tune(TUNE_LOOK_AT_ME);
@@ -200,11 +246,10 @@ int ui_display_seed_id_command(void) {
                        "Connect",
                        "Don't connect",
                        log_in_cb);
-    return 0;
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
- * FLOW 3 — CLOSE_STREAM: "Remove from Ledger Sync?"
+ * FLOW CLOSE_STREAM: "Remove from Ledger Sync?"
  * Triggered by CLOSE_STREAM command; on approval shows an info screen before
  * the subsequent ADD_MEMBER that confirms the change.
  * ───────────────────────────────────────────────────────────────────────────── */
@@ -263,9 +308,8 @@ static void ui_update_callback(bool approve) {
 
 /**
  * @brief Ask the user to confirm removing their Ledger Sync instances (CLOSE_STREAM).
- * @return 0; response sent asynchronously via ui_update_callback → update_confirm.
  */
-int ui_display_update_instances(void) {
+void ui_display_update_instances(void) {
 #ifdef HAVE_PIEZO_SOUND
     // Play notification sound
     io_seproxyhal_play_tune(TUNE_LOOK_AT_ME);
@@ -276,7 +320,88 @@ int ui_display_update_instances(void) {
                        "Remove",
                        "Keep",
                        ui_update_callback);
-    return 0;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+ * FLOW ADD_MEMBER AppID 18 + CAN_ENCRYPT|CAN_DERIVE: "Enable website access"
+ *
+ * add_member_confirm() is called on approval of the final screen in each flow.
+ * Rejecting any screen shows a cancel notification; SW_DENY is deferred to ui_deny_cb.
+ * ───────────────────────────────────────────────────────────────────────────── */
+
+static void frontend_cb(bool approve) {
+    if (approve) {
+        add_member_confirm();
+        nbgl_useCaseStatus("Access requested", true, ui_menu_main);
+    } else {
+        nbgl_useCaseStatus("Access cancelled", false, ui_deny_cb);
+    }
+}
+
+/**
+ * @brief Show "Enable website access for your agent?" screen (AppID 18, CAN_ENCRYPT|CAN_DERIVE).
+ *
+ * Pre-fills all dynamic string buffers before showing the first screen, because
+ * NBGL holds raw pointers to these strings across the async callback chain.
+ */
+void ui_display_enable_agent_access(void) {
+#ifdef HAVE_PIEZO_SOUND
+    io_seproxyhal_play_tune(TUNE_LOOK_AT_ME);
+#endif
+    nbgl_useCaseChoice(NULL,
+                       "Enable website access for your agent?",
+#ifdef SCREEN_SIZE_WALLET
+                       "Your agent will be able to send you transaction intents",
+#else
+                       NULL,
+#endif
+                       "Enable",
+                       "Reject",
+                       frontend_cb);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+ * FLOW ADD_MEMBER AppID 18 + CAN_ENCRYPT: "Register agent" (1 screen)
+ *
+ * add_member_confirm() is called on approval of the final screen in each flow.
+ * Rejecting any screen shows a cancel notification; SW_DENY is deferred to ui_deny_cb.
+ * ───────────────────────────────────────────────────────────────────────────── */
+
+static void register_cb(bool approve) {
+    if (approve) {
+        add_member_confirm();
+        nbgl_useCaseStatus("Registration requested", true, ui_menu_main);
+    } else {
+        nbgl_useCaseStatus("Registration cancelled", false, ui_deny_cb);
+    }
+}
+
+/**
+ * @brief Show "Register agent" screen only (AppID 18, CAN_ENCRYPT).
+ *
+ * @param pubkey Agent compressed public key (MEMBER_KEY_LEN bytes); shown as hex unique ID.
+ * @return 0; APDU response sent asynchronously after the screen is confirmed.
+ */
+void ui_display_register_agent_command(const uint8_t *pubkey) {
+#ifdef HAVE_PIEZO_SOUND
+    io_seproxyhal_play_tune(TUNE_LOOK_AT_ME);
+#endif
+    format_hex(pubkey, UNIQUE_ID_BYTES, s_agent_unique_id, sizeof(s_agent_unique_id));
+
+    nbgl_useCaseAdvancedChoiceWithDetails(&ICON_ROBOT,
+                                          NULL,
+                                          "Register agent",
+#ifdef SCREEN_SIZE_WALLET
+                                          NULL,
+                                          s_agent_unique_id,
+#else
+                                          s_agent_unique_id,
+                                          NULL,
+#endif
+                                          "Register",
+                                          "Don't register",
+                                          NULL,
+                                          register_cb);
 }
 
 #endif
