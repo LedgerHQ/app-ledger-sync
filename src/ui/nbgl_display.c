@@ -15,6 +15,18 @@
  *  limitations under the License.
  *****************************************************************************/
 
+/* NBGL implementation of all user-facing UI flows for this app.
+ *
+ * Each public ui_display_*() function is called from signer.c when a command
+ * requires user approval. The function sets up the screen(s) and returns
+ * immediately (NBGL is async); the APDU response is sent later from a callback.
+ *
+ * Flows in this file:
+ *   1. ADD_MEMBER  — AppID 16: "Turn on sync for {name}?"         (1 screen)
+ *   2. GET_SEED_ID — "Connect to Ledger Sync?"                    (1 screen)
+ *   3. CLOSE_STREAM — "Remove from Ledger Sync?"                  (1 screen)
+ */
+
 #ifdef HAVE_NBGL
 
 #include <stdbool.h>  // bool
@@ -38,6 +50,8 @@
 #include "signer.h"
 #include "trusted_io.h"
 
+/* Tokens for the SCREEN_SIZE_WALLET action-callback variant of GET_SEED_ID.
+ * Nano uses a bool callback; WALLET uses a token-indexed callback — different NBGL APIs. */
 enum {
     TOKEN_PRIVACY = FIRST_USER_TOKEN,
     TOKEN_LOG_IN,
@@ -46,7 +60,12 @@ enum {
 
 nbgl_layout_t layoutCtx;
 
-// FLOW to display add member (Turn On sync):
+/* ─────────────────────────────────────────────────────────────────────────────
+ * FLOW 1 — ADD_MEMBER AppID 16: "Turn on sync for Ledger Wallet / this website?"
+ * Called by signer_inject_add_member when app_id == APP_ID_LEDGER_SYNC.
+ * Strings are hardcoded per permission level; the member name is not displayed.
+ * ───────────────────────────────────────────────────────────────────────────── */
+
 static void ui_add_member_callback(bool approve) {
     if (approve) {
         add_member_confirm();
@@ -57,6 +76,13 @@ static void ui_add_member_callback(bool approve) {
     }
 }
 
+/**
+ * @brief Ask the user to enable Ledger Sync for a new member (AppID 16).
+ *
+ * @param permissions  OWNER shows "Ledger Wallet" wording (view and update);
+ *                     OWNER & ~CAN_ADD_BLOCK shows "this website" wording (view only).
+ * @return 0; APDU response sent asynchronously via ui_add_member_callback.
+ */
 int ui_display_add_member_command(uint32_t permissions) {
 #ifdef HAVE_PIEZO_SOUND
     // Play notification sound
@@ -95,7 +121,12 @@ int ui_display_add_member_command(uint32_t permissions) {
     return 0;
 }
 
-// FLOW to display Seed_ID (Connect):
+/* ─────────────────────────────────────────────────────────────────────────────
+ * FLOW 2 — GET_SEED_ID: "Connect to Ledger Sync?"
+ * ───────────────────────────────────────────────────────────────────────────── */
+
+/* Forward declaration needed because the SCREEN_SIZE_WALLET variant of log_in_cb
+ * calls ui_display_seed_id_command to restart the flow on error. */
 int ui_display_seed_id_command(void);
 
 #ifdef SCREEN_SIZE_WALLET
@@ -154,6 +185,10 @@ static void log_in_cb(bool confirm) {
     }
 }
 
+/**
+ * @brief Ask the user to authenticate with Ledger Sync (GET_SEED_ID flow).
+ * @return 0; response sent asynchronously via log_in_cb → seed_id_callback.
+ */
 int ui_display_seed_id_command(void) {
 #ifdef HAVE_PIEZO_SOUND
     // Play notification sound
@@ -168,7 +203,13 @@ int ui_display_seed_id_command(void) {
     return 0;
 }
 
-// FLOW to display update member (Remove and add back needed instances):
+/* ─────────────────────────────────────────────────────────────────────────────
+ * FLOW 3 — CLOSE_STREAM: "Remove from Ledger Sync?"
+ * Triggered by CLOSE_STREAM command; on approval shows an info screen before
+ * the subsequent ADD_MEMBER that confirms the change.
+ * ───────────────────────────────────────────────────────────────────────────── */
+
+/* SCREEN_SIZE_WALLET: post-approval info screen uses tap-to-continue token callback. */
 #ifdef SCREEN_SIZE_WALLET
 static void update_cb(int token, uint8_t index) {
     UNUSED(index);
@@ -220,6 +261,10 @@ static void ui_update_callback(bool approve) {
     }
 }
 
+/**
+ * @brief Ask the user to confirm removing their Ledger Sync instances (CLOSE_STREAM).
+ * @return 0; response sent asynchronously via ui_update_callback → update_confirm.
+ */
 int ui_display_update_instances(void) {
 #ifdef HAVE_PIEZO_SOUND
     // Play notification sound
