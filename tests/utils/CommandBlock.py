@@ -20,6 +20,9 @@ class Permissions:
     CAN_DERIVE = 0x01 << 1
     CAN_ADD_BLOCK = 0x01 << 2
     OWNER = 0xFFFFFFFF
+    AGENT = 0xFFFFFFFF & ~(0x01 << 2)  # OWNER without CAN_ADD_BLOCK = 0xFFFFFFFB (AppID 16 only)
+    AGENT_FULL = CAN_ENCRYPT | CAN_DERIVE  # AppID 18: enable website access + sync
+    AGENT_REGISTER = CAN_ENCRYPT  # AppID 18: register agent only
 
 
 class commands:

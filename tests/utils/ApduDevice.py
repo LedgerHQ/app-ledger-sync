@@ -216,9 +216,17 @@ class Device:
         with transport.exchange_async(
             Device.CLA, Device.INS_SIGN_BLOCK, Device.ParseStreamMode.Command, Device.OutputDataMode.none, command
         ):
+            # Nano: True — notification appears after last BOTH_CLICK, must wait to capture it
+            # Wallet: False — notification captured as snap before STATUS_DISMISS (last instruction)
+            screen_change = transport.device.is_nano
             automation.navigator.navigate_and_compare(
-                automation.root_path, automation.test_name, automation.instructions, screen_change_after_last_instruction=False
+                automation.root_path,
+                automation.test_name,
+                automation.instructions,
+                screen_change_after_last_instruction=screen_change,
             )
+            transport.wait_for_home_screen()
+
         response2 = transport.last_async_response
         assert response2
         return response2.data
