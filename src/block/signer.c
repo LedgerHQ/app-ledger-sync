@@ -23,8 +23,13 @@ void signer_init(signer_ctx_t *signer) {
 
 void signer_reset(void) {
     PRINTF("RESET SIGNER\n");
+    // app_id comes from the Derive block path and is set during PARSE_STREAM.
+    // It must survive SIGN_BLOCK resets so that signer_inject_add_member can
+    // route correctly when ADD_MEMBER is signed in a later SIGN_BLOCK session.
+    uint32_t app_id = G_context.stream.app_id;
     explicit_bzero(&G_context.signer_info, sizeof(G_context.signer_info));
     explicit_bzero(&G_context.stream, sizeof(G_context.stream));
+    G_context.stream.app_id = app_id;
 }
 
 static bool signer_verify_parent_hash(stream_ctx_t *stream, uint8_t *parent_hash) {
@@ -177,6 +182,12 @@ static int signer_inject_derive(block_command_t *command) {
         // Only accept hardened derivations
         return SP_ERR_INVALID_STREAM;
     }
+    // Extract AppID from path[1] (format: {treeIndex}h/{appId}h/...): mirrors
+    // stream_parse_derive_command, needed when Derive and ADD_MEMBER appear in
+    // the same SIGN_BLOCK session.
+    if (command->command.derive.path_len > 1) {
+        G_context.stream.app_id = command->command.derive.path[1] & 0x7FFFFFFF;
+    }
     PRINTF("INJECT DERIVE 2\n");
     // Derive the xpriv with the derivation path
     CX_CHECK(bip32_derive_xpriv_to_path(G_context.stream.shared_secret,
@@ -255,15 +266,20 @@ end:
 static int signer_inject_add_member(block_command_t *command) {
     LEDGER_ASSERT(command != NULL, "Null pointer");
 
-    // Push trusted property
+    // Populate trusted_member before showing UI: add_member_confirm() reads these
+    // from the context asynchronously after the user approves.
     memcpy(G_context.stream.trusted_member.member_key,
            command->command.add_member.public_key,
            MEMBER_KEY_LEN);
     member_permission_t permissions = command->command.add_member.permissions;
     G_context.stream.trusted_member.owns_key = 0;
     G_context.stream.trusted_member.permissions = permissions;
-    if (permissions == OWNER || permissions == (OWNER & ~CAN_ADD_BLOCK)) {
-        return ui_display_add_member_command(permissions);
+
+    uint32_t app_id = G_context.stream.app_id;
+    if (app_id == APP_ID_LEDGER_SYNC) {
+        if (permissions == OWNER || permissions == (OWNER & ~CAN_ADD_BLOCK)) {
+            return ui_display_add_member_command(permissions);
+        }
     }
     return SW_WRONG_DATA;
 }

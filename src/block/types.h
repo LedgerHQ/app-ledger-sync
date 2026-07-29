@@ -33,6 +33,9 @@ enum member_permission_e {
 typedef uint32_t member_permission_t;
 #define OWNER (member_permission_t) 0xFFFFFFFF
 
+#define APP_ID_LEDGER_SYNC  16u
+#define APP_ID_AGENT_INTENT 18u
+
 typedef struct {
     uint8_t topic[MAX_TOPIC_LEN];
     uint8_t topic_len;
