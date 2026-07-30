@@ -46,7 +46,7 @@ bool tlv_read_varint_u16(tlv_t *tlv, uint16_t *out) {
     if (tlv->type != TLV_TYPE_VARINT || tlv->length != sizeof(uint16_t)) {
         return false;
     }
-    buffer_t buffer = {.ptr = tlv->value, .size = tlv->length, .offset = 0};
+    buffer_t buffer = {.ptr = (uint8_t *) tlv->value, .size = tlv->length, .offset = 0};
     return buffer_read_u16(&buffer, out, BE);
 }
 
@@ -57,7 +57,7 @@ bool tlv_read_varint_u32(tlv_t *tlv, uint32_t *out) {
     if (tlv->type != TLV_TYPE_VARINT || tlv->length != sizeof(uint32_t)) {
         return false;
     }
-    buffer_t buffer = {.ptr = tlv->value, .size = tlv->length, .offset = 0};
+    buffer_t buffer = {.ptr = (uint8_t *) tlv->value, .size = tlv->length, .offset = 0};
     return buffer_read_u32(&buffer, out, BE);
 }
 

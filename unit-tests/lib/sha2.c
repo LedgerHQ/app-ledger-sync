@@ -91,11 +91,15 @@
 
 /* Macros used for loops unrolling */
 
-#define SHA256_SCR(i) \
-    { w[i] = SHA256_F4(w[i - 2]) + w[i - 7] + SHA256_F3(w[i - 15]) + w[i - 16]; }
+#define SHA256_SCR(i)                                                             \
+    {                                                                             \
+        w[i] = SHA256_F4(w[i - 2]) + w[i - 7] + SHA256_F3(w[i - 15]) + w[i - 16]; \
+    }
 
-#define SHA512_SCR(i) \
-    { w[i] = SHA512_F4(w[i - 2]) + w[i - 7] + SHA512_F3(w[i - 15]) + w[i - 16]; }
+#define SHA512_SCR(i)                                                             \
+    {                                                                             \
+        w[i] = SHA512_F4(w[i - 2]) + w[i - 7] + SHA512_F3(w[i - 15]) + w[i - 16]; \
+    }
 
 #define SHA256_EXP(a, b, c, d, e, f, g, h, j)                                         \
     {                                                                                 \

@@ -14,10 +14,10 @@
 #include "buffer.h"
 #include <stdio.h>
 
-static void hex_to_buffer(const char* hex, buffer_t* buffer) {
+static void hex_to_buffer(const char *hex, buffer_t *buffer) {
     // Transform hex string to uint8_t array
     size_t len = strlen(hex);
-    uint8_t* bytes = malloc(len / 2);
+    uint8_t *bytes = malloc(len / 2);
     for (size_t i = 0; i < len; i += 2) {
         sscanf(hex + i, "%2hhx", &bytes[i / 2]);
     }
@@ -26,7 +26,7 @@ static void hex_to_buffer(const char* hex, buffer_t* buffer) {
     buffer->size = len / 2;
 }
 
-static void atohex(const uint8_t* bytes, size_t len, char* hex) {
+static void atohex(const uint8_t *bytes, size_t len, char *hex) {
     for (size_t i = 0; i < len; i++) {
         sprintf(hex + i * 2, "%02x", bytes[i]);
     }
@@ -34,17 +34,17 @@ static void atohex(const uint8_t* bytes, size_t len, char* hex) {
 }
 
 typedef struct {
-    const char* topic;
+    const char *topic;
     const uint16_t version;
-    const char* group_key;
-    const char* iv;
-    const char* xpriv;
-    const char* ephemeral_public_key;
+    const char *group_key;
+    const char *iv;
+    const char *xpriv;
+    const char *ephemeral_public_key;
 } expected_seed_command_t;
 
-static int assert_seed_command(buffer_t* buffer,
-                               expected_seed_command_t* expectation,
-                               block_command_t* out) {
+static int assert_seed_command(buffer_t *buffer,
+                               expected_seed_command_t *expectation,
+                               block_command_t *out) {
     int offset;
     block_command_t command;
     offset = parse_block_command(buffer, &command);
@@ -75,14 +75,14 @@ static int assert_seed_command(buffer_t* buffer,
 }
 
 typedef struct {
-    const char* name;
-    const char* public_key;
+    const char *name;
+    const char *public_key;
     const int permissions;
 } expected_add_member_t;
 
-static int assert_add_member_command(buffer_t* buffer,
-                                     expected_add_member_t* expectation,
-                                     block_command_t* out) {
+static int assert_add_member_command(buffer_t *buffer,
+                                     expected_add_member_t *expectation,
+                                     block_command_t *out) {
     int offset;
     block_command_t command;
     offset = parse_block_command(buffer, &command);
@@ -98,15 +98,15 @@ static int assert_add_member_command(buffer_t* buffer,
 }
 
 typedef struct {
-    const char* initialization_vector;
-    const char* encrypted_key;
-    const char* recipient;
-    const char* ephemeral_public_key;
+    const char *initialization_vector;
+    const char *encrypted_key;
+    const char *recipient;
+    const char *ephemeral_public_key;
 } expected_publish_key_t;
 
-static int assert_publish_key_command(buffer_t* buffer,
-                                      expected_publish_key_t* expectation,
-                                      block_command_t* out) {
+static int assert_publish_key_command(buffer_t *buffer,
+                                      expected_publish_key_t *expectation,
+                                      block_command_t *out) {
     int offset;
     block_command_t command;
     offset = parse_block_command(buffer, &command);
@@ -135,10 +135,10 @@ static int assert_publish_key_command(buffer_t* buffer,
     return offset;
 }
 
-static void test_block_header_parse(void** state) {
+static void test_block_header_parse(void **state) {
     (void) state;
 
-    const char* stream =
+    const char *stream =
         "01010102207f1781aef1d65ae5f6f48c4fee048090e008e0c29ebd30d4bc324f53b1f1"
         "919c0621021026de3be0412de9746be1a65b9e742d70504e10fb696ec98c958d1aae92"
         "d89c01010110d30520c96d450545ff2836204c29af291428a5bf740304978f5dfb0b4a"
@@ -151,10 +151,10 @@ static void test_block_header_parse(void** state) {
         "35340ed6dc21a310edb45c02203ad3b54d750fa35073da52cf0f49512424a80dd676ee"
         "b19bc155e5b9623204b9";
 
-    const char* expected_parent_hash =
+    const char *expected_parent_hash =
         "7f1781aef1d65ae5f6f48c4fee048090e008e0c29ebd30d4bc324f53b1f1919c";
 
-    const char* expected_issuer =
+    const char *expected_issuer =
         "021026de3be0412de9746be1a65b9e742d70504e10fb696ec98c958d1aae92d89c";
 
     const int expect_length = 1;
@@ -177,13 +177,13 @@ static void test_block_header_parse(void** state) {
 
     assert_int_equal(header.length, expect_length);
 
-    free((void*) buffer.ptr);
+    free((void *) buffer.ptr);
 }
 
-static void test_block_commands_parse(void** state) {
+static void test_block_commands_parse(void **state) {
     (void) state;
 
-    const char* stream =
+    const char *stream =
         "0101010220271dfa2df29090187c03e15b566f2c3e563326ab506dea36424f8772f27b68ee06210329b172be36"
         "d4e784a770c27658a"
         "f4d46159de85ac07b1d34e6cf50755583ac7501010110d00520c96d450545ff2836204c29af291428a5bf74030"
@@ -197,25 +197,25 @@ static void test_block_commands_parse(void** state) {
         "c7c03473045022100d084f9c083dcbfdca37680fa679cbf7b8175e7e087146f1aa0f113272c485a50022068f08"
         "a702ccdbafa5e9a28"
         "7d8bab46d1925f10d11d68c86444f9c7fcbb4b43b0";
-    const char* expected_topic = "c96d450545ff2836204c29af291428a5bf740304978f5dfb0b4a261474192851";
+    const char *expected_topic = "c96d450545ff2836204c29af291428a5bf740304978f5dfb0b4a261474192851";
 
-    const char* expected_signature =
+    const char *expected_signature =
         "3045022100d084f9c083dcbfdca37680fa679cbf7b8175e7e087146f1aa0f113272c485a50022068f08a702ccd"
         "bafa5e9a287d8bab46d"
         "1925f10d11d68c86444f9c7fcbb4b43b0";
 
-    const char* expected_group_key =
+    const char *expected_group_key =
         "0378341775ca19ebaaa432da2c796910ae0fe40d22893c9b56456c6259b8299282";
 
-    const char* expected_ephemeral_public_key =
+    const char *expected_ephemeral_public_key =
         "026bd2da8a1e4fb3b1085ebf7d873b0b0b4d3cc9fe1ae1d235ee7a75510c0c0c7c";
 
-    const char* expected_encrypted_xpriv =
+    const char *expected_encrypted_xpriv =
         "f7364654d9b24b35c7152de05423ed3170e73782fb2ee029e75fdf02e03588fc7cf515b77d1a7f54327b950d4b"
         "c18a7e61a80df9125"
         "7e67d2574b1c0aa7e86ad00000000000000000000000000000000";
 
-    const char* expected_initialization_vector = "baddd1ccfaa164a338bb264d5a3c3b29";
+    const char *expected_initialization_vector = "baddd1ccfaa164a338bb264d5a3c3b29";
 
     buffer_t buffer;
     hex_to_buffer(stream, &buffer);
@@ -240,18 +240,18 @@ static void test_block_commands_parse(void** state) {
     // Parse signature
     uint8_t signature[71];
     char sig_hex[143];
-    memset((void*) signature, 0, sizeof(signature));
+    memset((void *) signature, 0, sizeof(signature));
 
     parse_block_signature(&buffer, signature, sizeof(signature));
     atohex(signature, sizeof(signature), sig_hex);
     assert_string_equal(sig_hex, expected_signature);
 
-    free((void*) buffer.ptr);
+    free((void *) buffer.ptr);
 }
 
-static void test_stream_parse(void** state) {
+static void test_stream_parse(void **state) {
     (void) state;
-    const char* stream =
+    const char *stream =
         "0101010220ab9565de221ab57423a4b395e0db36bfe451a11394a62b8c347bf89ac78cd967062102550febeeac"
         "572b026ff35005d7eac"
         "961d022d6da0b3dfc09b5dd9497069b6efb01010110d00520c96d450545ff2836204c29af291428a5bf7403049"
@@ -294,17 +294,17 @@ static void test_stream_parse(void** state) {
 
     const int expected_block_count = 3;
 
-    const char* expected_issuers[] = {
+    const char *expected_issuers[] = {
         "02550febeeac572b026ff35005d7eac961d022d6da0b3dfc09b5dd9497069b6efb",
         "02550febeeac572b026ff35005d7eac961d022d6da0b3dfc09b5dd9497069b6efb",
         "02550febeeac572b026ff35005d7eac961d022d6da0b3dfc09b5dd9497069b6efb"};
 
-    const char* expected_parents[] = {
+    const char *expected_parents[] = {
         "ab9565de221ab57423a4b395e0db36bfe451a11394a62b8c347bf89ac78cd967",
         "e0434c11beed87a586c57d5068bc59ec076b707a2ea280c9ea44cf1f618c7053",
         "8ebdf68f9b0039c3a16945c547926f52cc579fe083f04e1e8f47dfb4567408d5"};
 
-    const char* expected_signatures[] = {
+    const char *expected_signatures[] = {
         "3044022040a9f6b3ca8b7aab0260bc53bc5d544597cb92ab8d4736c17f5fc990137a6e0202205e4fa3f21cdce0"
         "16fdfbbc1ea3c6e78c"
         "136594e4e8068ac5b2cccb4e7d0ac8c6",
@@ -412,10 +412,10 @@ static void test_stream_parse(void** state) {
 
     assert_int_equal(block_index, expected_block_count);
 
-    free((void*) buffer.ptr);
+    free((void *) buffer.ptr);
 }
 
-static void test_parse_derive_command(void** state) {
+static void test_parse_derive_command(void **state) {
     (void) state;
     // TODO: implement
 }

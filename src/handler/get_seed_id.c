@@ -52,7 +52,7 @@ int seed_id_callback(bool approve) {
     return 0;
 }
 
-int handler_get_seed_id(buffer_t* buffer) {
+int handler_get_seed_id(buffer_t *buffer) {
     int error;
     challenge_ctx_t challenge_ctx;
     LEDGER_ASSERT(buffer != NULL, "Null pointer");

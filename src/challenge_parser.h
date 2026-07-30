@@ -89,6 +89,6 @@ typedef struct {
 /**
  * Parser for challenge data
  */
-int challenge_parse_buffer(buffer_t* buffer,
-                           challenge_ctx_t* challenge_ctx,
-                           uint8_t* challenge_hash);
+int challenge_parse_buffer(buffer_t *buffer,
+                           challenge_ctx_t *challenge_ctx,
+                           uint8_t *challenge_hash);

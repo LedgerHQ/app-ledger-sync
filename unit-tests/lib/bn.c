@@ -24,13 +24,13 @@ There may well be room for performance-optimizations and improvements.
 #include "bn.h"
 
 /* Functions for shifting number in-place. */
-static void _lshift_one_bit(struct bn* a);
-static void _rshift_one_bit(struct bn* a);
-static void _lshift_word(struct bn* a, int nwords);
-static void _rshift_word(struct bn* a, int nwords);
+static void _lshift_one_bit(struct bn *a);
+static void _rshift_one_bit(struct bn *a);
+static void _lshift_word(struct bn *a, int nwords);
+static void _rshift_word(struct bn *a, int nwords);
 
 /* Public / Exported functions. */
-void bignum_init(struct bn* n) {
+void bignum_init(struct bn *n) {
     require(n, "n is null");
 
     int i;
@@ -39,7 +39,7 @@ void bignum_init(struct bn* n) {
     }
 }
 
-void bignum_from_int(struct bn* n, DTYPE_TMP i) {
+void bignum_from_int(struct bn *n, DTYPE_TMP i) {
     require(n, "n is null");
 
     bignum_init(n);
@@ -63,7 +63,7 @@ void bignum_from_int(struct bn* n, DTYPE_TMP i) {
 #endif
 }
 
-int bignum_to_int(struct bn* n) {
+int bignum_to_int(struct bn *n) {
     require(n, "n is null");
 
     int ret = 0;
@@ -84,7 +84,7 @@ int bignum_to_int(struct bn* n) {
     return ret;
 }
 
-void bignum_from_string(struct bn* n, char* str, int nbytes) {
+void bignum_from_string(struct bn *n, char *str, int nbytes) {
     require(n, "n is null");
     require(str, "str is null");
     require(nbytes > 0, "nbytes must be positive");
@@ -109,7 +109,7 @@ void bignum_from_string(struct bn* n, char* str, int nbytes) {
     }
 }
 
-void bignum_to_string(struct bn* n, char* str, int nbytes) {
+void bignum_to_string(struct bn *n, char *str, int nbytes) {
     require(n, "n is null");
     require(str, "str is null");
     require(nbytes > 0, "nbytes must be positive");
@@ -140,7 +140,7 @@ void bignum_to_string(struct bn* n, char* str, int nbytes) {
     str[i] = 0;
 }
 
-void bignum_dec(struct bn* n) {
+void bignum_dec(struct bn *n) {
     require(n, "n is null");
 
     DTYPE tmp; /* copy of n */
@@ -158,7 +158,7 @@ void bignum_dec(struct bn* n) {
     }
 }
 
-void bignum_inc(struct bn* n) {
+void bignum_inc(struct bn *n) {
     require(n, "n is null");
 
     DTYPE res;
@@ -176,7 +176,7 @@ void bignum_inc(struct bn* n) {
     }
 }
 
-void bignum_add(struct bn* a, struct bn* b, struct bn* c) {
+void bignum_add(struct bn *a, struct bn *b, struct bn *c) {
     require(a, "a is null");
     require(b, "b is null");
     require(c, "c is null");
@@ -191,7 +191,7 @@ void bignum_add(struct bn* a, struct bn* b, struct bn* c) {
     }
 }
 
-void bignum_sub(struct bn* a, struct bn* b, struct bn* c) {
+void bignum_sub(struct bn *a, struct bn *b, struct bn *c) {
     require(a, "a is null");
     require(b, "b is null");
     require(c, "c is null");
@@ -212,7 +212,7 @@ void bignum_sub(struct bn* a, struct bn* b, struct bn* c) {
     }
 }
 
-void bignum_mul(struct bn* a, struct bn* b, struct bn* c) {
+void bignum_mul(struct bn *a, struct bn *b, struct bn *c) {
     require(a, "a is null");
     require(b, "b is null");
     require(c, "c is null");
@@ -239,7 +239,7 @@ void bignum_mul(struct bn* a, struct bn* b, struct bn* c) {
     }
 }
 
-void bignum_div(struct bn* a, struct bn* b, struct bn* c) {
+void bignum_div(struct bn *a, struct bn *b, struct bn *c) {
     require(a, "a is null");
     require(b, "b is null");
     require(c, "c is null");
@@ -278,10 +278,10 @@ void bignum_div(struct bn* a, struct bn* b, struct bn* c) {
         }
         _rshift_one_bit(&current);  //   current >>= 1;
         _rshift_one_bit(&denom);    //   denom >>= 1;
-    }                               // return answer;
+    }  // return answer;
 }
 
-void bignum_lshift(struct bn* a, struct bn* b, int nbits) {
+void bignum_lshift(struct bn *a, struct bn *b, int nbits) {
     require(a, "a is null");
     require(b, "b is null");
     require(nbits >= 0, "no negative shifts");
@@ -304,7 +304,7 @@ void bignum_lshift(struct bn* a, struct bn* b, int nbits) {
     }
 }
 
-void bignum_rshift(struct bn* a, struct bn* b, int nbits) {
+void bignum_rshift(struct bn *a, struct bn *b, int nbits) {
     require(a, "a is null");
     require(b, "b is null");
     require(nbits >= 0, "no negative shifts");
@@ -327,7 +327,7 @@ void bignum_rshift(struct bn* a, struct bn* b, int nbits) {
     }
 }
 
-void bignum_mod(struct bn* a, struct bn* b, struct bn* c) {
+void bignum_mod(struct bn *a, struct bn *b, struct bn *c) {
     /*
       Take divmod and throw away div part
     */
@@ -340,7 +340,7 @@ void bignum_mod(struct bn* a, struct bn* b, struct bn* c) {
     bignum_divmod(a, b, &tmp, c);
 }
 
-void bignum_divmod(struct bn* a, struct bn* b, struct bn* c, struct bn* d) {
+void bignum_divmod(struct bn *a, struct bn *b, struct bn *c, struct bn *d) {
     /*
       Puts a%b in d
       and a/b in c
@@ -366,7 +366,7 @@ void bignum_divmod(struct bn* a, struct bn* b, struct bn* c, struct bn* d) {
     bignum_sub(a, &tmp, d);
 }
 
-void bignum_and(struct bn* a, struct bn* b, struct bn* c) {
+void bignum_and(struct bn *a, struct bn *b, struct bn *c) {
     require(a, "a is null");
     require(b, "b is null");
     require(c, "c is null");
@@ -377,7 +377,7 @@ void bignum_and(struct bn* a, struct bn* b, struct bn* c) {
     }
 }
 
-void bignum_or(struct bn* a, struct bn* b, struct bn* c) {
+void bignum_or(struct bn *a, struct bn *b, struct bn *c) {
     require(a, "a is null");
     require(b, "b is null");
     require(c, "c is null");
@@ -388,7 +388,7 @@ void bignum_or(struct bn* a, struct bn* b, struct bn* c) {
     }
 }
 
-void bignum_xor(struct bn* a, struct bn* b, struct bn* c) {
+void bignum_xor(struct bn *a, struct bn *b, struct bn *c) {
     require(a, "a is null");
     require(b, "b is null");
     require(c, "c is null");
@@ -399,7 +399,7 @@ void bignum_xor(struct bn* a, struct bn* b, struct bn* c) {
     }
 }
 
-int bignum_cmp(struct bn* a, struct bn* b) {
+int bignum_cmp(struct bn *a, struct bn *b) {
     require(a, "a is null");
     require(b, "b is null");
 
@@ -416,7 +416,7 @@ int bignum_cmp(struct bn* a, struct bn* b) {
     return EQUAL;
 }
 
-int bignum_is_zero(struct bn* n) {
+int bignum_is_zero(struct bn *n) {
     require(n, "n is null");
 
     int i;
@@ -429,7 +429,7 @@ int bignum_is_zero(struct bn* n) {
     return 1;
 }
 
-void bignum_pow(struct bn* a, struct bn* b, struct bn* c) {
+void bignum_pow(struct bn *a, struct bn *b, struct bn *c) {
     require(a, "a is null");
     require(b, "b is null");
     require(c, "c is null");
@@ -465,7 +465,7 @@ void bignum_pow(struct bn* a, struct bn* b, struct bn* c) {
     }
 }
 
-void bignum_isqrt(struct bn* a, struct bn* b) {
+void bignum_isqrt(struct bn *a, struct bn *b) {
     require(a, "a is null");
     require(b, "b is null");
 
@@ -492,7 +492,7 @@ void bignum_isqrt(struct bn* a, struct bn* b) {
     bignum_assign(b, &low);
 }
 
-void bignum_assign(struct bn* dst, struct bn* src) {
+void bignum_assign(struct bn *dst, struct bn *src) {
     require(dst, "dst is null");
     require(src, "src is null");
 
@@ -503,7 +503,7 @@ void bignum_assign(struct bn* dst, struct bn* src) {
 }
 
 /* Private / Static functions. */
-static void _rshift_word(struct bn* a, int nwords) {
+static void _rshift_word(struct bn *a, int nwords) {
     /* Naive method: */
     require(a, "a is null");
     require(nwords >= 0, "no negative shifts");
@@ -524,7 +524,7 @@ static void _rshift_word(struct bn* a, int nwords) {
     }
 }
 
-static void _lshift_word(struct bn* a, int nwords) {
+static void _lshift_word(struct bn *a, int nwords) {
     require(a, "a is null");
     require(nwords >= 0, "no negative shifts");
 
@@ -539,7 +539,7 @@ static void _lshift_word(struct bn* a, int nwords) {
     }
 }
 
-static void _lshift_one_bit(struct bn* a) {
+static void _lshift_one_bit(struct bn *a) {
     require(a, "a is null");
 
     int i;
@@ -549,7 +549,7 @@ static void _lshift_one_bit(struct bn* a) {
     a->array[0] <<= 1;
 }
 
-static void _rshift_one_bit(struct bn* a) {
+static void _rshift_one_bit(struct bn *a) {
     require(a, "a is null");
 
     int i;

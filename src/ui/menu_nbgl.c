@@ -27,16 +27,16 @@ extern void app_exit(void);
 
 // 'About' menu
 #define NB_INFO_FIELDS 2
-static const char* const INFO_TYPES[] = {"Version", "Developer"};
-static const char* const INFO_CONTENTS[] = {APPVERSION, "Ledger"};
+static const char *const INFO_TYPES[] = {"Version", "Developer"};
+static const char *const INFO_CONTENTS[] = {APPVERSION, "Ledger"};
 
 void ui_menu_main(void) {
     static nbgl_contentInfoList_t infosList = {0};
     static nbgl_homeAction_t homeAction = {0};
 
     infosList.nbInfos = NB_INFO_FIELDS;
-    infosList.infoTypes = (const char**) INFO_TYPES;
-    infosList.infoContents = (const char**) INFO_CONTENTS;
+    infosList.infoTypes = (const char **) INFO_TYPES;
+    infosList.infoContents = (const char **) INFO_CONTENTS;
 
 #ifdef SCREEN_SIZE_NANO
     homeAction.text = "Sync your Ledger crypto accounts across different devices and dApps.";
