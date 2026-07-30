@@ -4,15 +4,16 @@ Quick verification script to test the refactored utility functions.
 This doesn't actually run the tests but verifies the function signatures and imports.
 """
 
-import sys
 import os
+import sys
 
 # Add the tests directory to Python path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 try:
     # Test imports
-    from utils.test_helpers import get_derivation_path, create_seed_and_derive_stream
+    from utils.test_helpers import create_seed_and_derive_stream, get_derivation_path
+
     print("✓ Successfully imported utility functions")
 
     # Test function signatures
@@ -28,6 +29,7 @@ try:
 
     # Test the constants
     from utils.test_helpers import ROOT_DERIVATION_PATH
+
     print(f"✓ ROOT_DERIVATION_PATH = {ROOT_DERIVATION_PATH}")
 
     print("\n✓ All basic checks passed - the refactoring appears to be correct")

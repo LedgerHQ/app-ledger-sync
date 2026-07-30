@@ -1,7 +1,7 @@
-from typing import List, cast
+from typing import cast
 
+from utils.CommandBlock import Command, CommandBlock, CommandType, Permissions, commands, hash_command_block, verify_command_block
 from utils.NobleCrypto import Crypto
-from utils.CommandBlock import Permissions, hash_command_block, CommandType, verify_command_block, CommandBlock, Command, commands
 
 
 class ResolvedCommandStreamInternals:
@@ -26,8 +26,7 @@ class CommandStreamResolver:
             raise ValueError(f"Issuer is not a member of the group at height {internals.height}")
         issuer_permissions = internals.permission[Crypto.to_hex(issuer)]
         if not issuer_permissions & Permissions.CAN_ENCRYPT:
-            raise ValueError(
-                f"Issuer does not have permission to publish keys at height {internals.height}")
+            raise ValueError(f"Issuer does not have permission to publish keys at height {internals.height}")
         if internals.keys.get(Crypto.to_hex(issuer)) is None:
             raise ValueError(f"Issuer does not have a key to publish at height {internals.height}")
 
@@ -37,8 +36,7 @@ class CommandStreamResolver:
             raise ValueError(f"Issuer is not a member of the group at height {internals.height}")
         issuer_permissions = internals.permission[Crypto.to_hex(issuer)]
         if not issuer_permissions & Permissions.CAN_ADD_BLOCK:
-            raise ValueError(
-                f"Issuer does not have permission to add members at height {internals.height}")
+            raise ValueError(f"Issuer does not have permission to add members at height {internals.height}")
 
     @staticmethod
     def assert_issuer_can_add_block(issuer, internals: ResolvedCommandStreamInternals):
@@ -46,8 +44,7 @@ class CommandStreamResolver:
             raise ValueError(f"Issuer is not a member of the group at height {internals.height}")
         issuer_permissions = internals.permission[Crypto.to_hex(issuer)]
         if not issuer_permissions & Permissions.CAN_ADD_BLOCK:
-            raise ValueError(
-                f"Issuer does not have permission to add blocks at height {internals.height}")
+            raise ValueError(f"Issuer does not have permission to add blocks at height {internals.height}")
 
     @staticmethod
     def assert_stream_is_created(internals: ResolvedCommandStreamInternals):
@@ -69,7 +66,7 @@ class CommandStreamResolver:
                 "encryptedXpriv": command.encrypted_xpriv,
                 "issuer": block.issuer,
                 "ephemeralPublicKey": command.ephemeral_public_key,
-                "initializationVector": command.initialization_vector
+                "initializationVector": command.initialization_vector,
             }
             internals.group_public_key = command.group_key
 
@@ -83,7 +80,7 @@ class CommandStreamResolver:
                 "encryptedXpriv": command.encrypted_xpriv,
                 "ephemeralPublicKey": command.ephemeral_public_key,
                 "initializationVector": command.initialization_vector,
-                "issuer": block.issuer
+                "issuer": block.issuer,
             }
             internals.group_public_key = command.group_key
             internals.derivation_path = command.path
@@ -104,7 +101,7 @@ class CommandStreamResolver:
                 "encryptedXpriv": command.encrypted_xpriv,
                 "ephemeralPublicKey": command.ephemeral_public_key,
                 "issuer": block.issuer,
-                "initializationVector": command.initialization_vector
+                "initializationVector": command.initialization_vector,
             }
         return internals
 
@@ -131,13 +128,12 @@ class CommandStreamResolver:
         return internals
 
     @staticmethod
-    def resolve(stream: List[CommandBlock]):
+    def resolve(stream: list[CommandBlock]):
         internals = ResolvedCommandStreamInternals()
         for height, block in enumerate(stream):
             internals.height = height
             if height > 0 and Crypto.to_hex(block.parent) != Crypto.to_hex(hash_command_block(stream[height - 1])):
-                raise ValueError(
-                    f"Command stream has been tampered with (invalid parent hash) at height {str(height)}")
+                raise ValueError(f"Command stream has been tampered with (invalid parent hash) at height {height!s}")
             if len(block.signature) == 0:
                 break
             internals = CommandStreamResolver.resolve_block(block, height, internals)
@@ -161,19 +157,22 @@ class ResolvedCommandStream:
         return self._internals.permission.get(Crypto.to_hex(public_key)) == Permissions.OWNER
 
     def is_key_creator(self, public_key):
-        return (self._internals.permission.get(Crypto.to_hex(public_key)) & \
-                Permissions.CAN_DERIVE | Permissions.CAN_ENCRYPT) == Permissions.CAN_DERIVE | Permissions.CAN_ENCRYPT
+        return (
+            self._internals.permission.get(Crypto.to_hex(public_key)) & Permissions.CAN_DERIVE | Permissions.CAN_ENCRYPT
+        ) == Permissions.CAN_DERIVE | Permissions.CAN_ENCRYPT
 
     def owns_key(self, public_key):
         return self._internals.keys.get(Crypto.to_hex(public_key)) is not None
 
     def is_member_adder(self, public_key):
-        return (self._internals.permission.get(Crypto.to_hex(public_key)) & \
-                Permissions.CAN_ADD_BLOCK) == Permissions.CAN_ADD_BLOCK
+        return (
+            self._internals.permission.get(Crypto.to_hex(public_key)) & Permissions.CAN_ADD_BLOCK
+        ) == Permissions.CAN_ADD_BLOCK
 
     def is_member_remover(self, public_key):
-        return (self._internals.permission.get(Crypto.to_hex(public_key)) & \
-                Permissions.CAN_ADD_BLOCK) == Permissions.CAN_ADD_BLOCK
+        return (
+            self._internals.permission.get(Crypto.to_hex(public_key)) & Permissions.CAN_ADD_BLOCK
+        ) == Permissions.CAN_ADD_BLOCK
 
     def key_count(self):
         return len(self._internals.keys)

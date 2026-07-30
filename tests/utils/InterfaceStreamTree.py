@@ -1,10 +1,11 @@
 from typing import TYPE_CHECKING
+
 if TYPE_CHECKING:
     from utils.CommandStream import CommandStream
 
 
 class PublishKeyEvent:
-    def __init__(self, stream: 'CommandStream', encryptedXpriv, groupPublicKey, ephemeralPublicKey, nonce):
+    def __init__(self, stream: "CommandStream", encryptedXpriv, groupPublicKey, ephemeralPublicKey, nonce):
         self.stream = stream
         self.encryptedXpriv = encryptedXpriv
         self.groupPublicKey = groupPublicKey

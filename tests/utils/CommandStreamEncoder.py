@@ -1,23 +1,25 @@
 from typing import cast
-from utils.CommandBlock import CommandBlock, Command, CommandType, commands
+
 from utils.BigEndian import BigEndian
+from utils.CommandBlock import Command, CommandBlock, CommandType, commands
 
 
 # Combines the two byte arrays a and b
 def push(a: bytearray, b: bytearray) -> bytearray:
     c = bytearray(len(a) + len(b))
-    c[:len(a)] = a
-    c[len(a):] = b
+    c[: len(a)] = a
+    c[len(a) :] = b
     return c
+
 
 # Creates a TLV representation in a byte array
 
 
-def pushTLV(a: bytearray, t: int, l: int, v: bytearray) -> bytearray:
-    c = bytearray(len(a) + 2 + l)
-    c[:len(a)] = a
-    c[len(a):len(a)+2] = bytearray([t, l])
-    c[len(a)+2:] = v
+def pushTLV(data: bytearray, tag: int, length: int, value: bytearray) -> bytearray:
+    c = bytearray(len(data) + 2 + length)
+    c[: len(data)] = data
+    c[len(data) : len(data) + 2] = bytearray([tag, length])
+    c[len(data) + 2 :] = value
     return c
 
 
@@ -30,6 +32,7 @@ class TLVTypes:
     String = 4
     Bytes = 5
     PublicKey = 6
+
 
 # Different methods to push a TLV Type to a string
 
@@ -79,7 +82,7 @@ class TLV:
         data = bytearray()
         for i in b:
             data = push(data, BigEndian.numberToArray(i))
-        return TLV.pushBytes(a, data)
+        return TLV.pushBytes(a, bytes(data))
 
     # Methods to pack different commands into TLV format
 
@@ -128,7 +131,6 @@ class TLV:
     def packCloseStream() -> bytearray:
         return bytearray()
 
-
     @staticmethod
     def packCommand(buffer: bytearray, command: Command) -> bytearray:
         object_bytes = bytearray()
@@ -153,6 +155,7 @@ class TLV:
 
         buffer = pushTLV(buffer, command.get_type(), len(object_bytes), object_bytes)
         return buffer
+
 
 # Different methods to encode a whole command stream into TLV format
 
@@ -194,5 +197,6 @@ def pack(stream: list[CommandBlock]) -> bytearray:
             buffer = push(buffer, CommandStreamEncoder.encodeCommand(block, index))
         buffer = push(buffer, CommandStreamEncoder.encodeSignature(block))
     return buffer
+
 
 # Done Reviewing, only derivation path missing
