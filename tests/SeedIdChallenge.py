@@ -1,3 +1,6 @@
+from typing import ClassVar
+
+
 class SeedIdChallenge:
     STRUCTURE_TYPE = 0x01
     VERSION = 0x02
@@ -10,22 +13,22 @@ class SeedIdChallenge:
     PUBLIC_KEY = 0x33
     PROTOCOL_VERSION = 0x60
 
-    # pylint: disable=line-too-long
-    DEFAULT_VALUES = {
+    DEFAULT_VALUES: ClassVar[dict] = {
         STRUCTURE_TYPE: 0x07,
         VERSION: 0,
         CHALLENGE: bytes.fromhex("53cafde60e5395b164eb867213bc05f6"),
         SIGNER_ALGO: 0x01,
-        DER_SIGNATURE: bytes.fromhex("3045022025d130d7ae5c48a6cf09781d04a08e9a2d07ce1bd17e84637f6ede4a043c5dcc022100a846ececf20eb53ffc2dc502ce8074ba40b241bfd13edaf1e8575559a9b2b4ea"),
+        DER_SIGNATURE: bytes.fromhex(
+            "3045022025d130d7ae5c48a6cf09781d04a08e9a2d07ce1bd17e84637f6ede4a043c5dcc022100a846ececf20eb53ffc2dc502ce8074ba40b241bfd13edaf1e8575559a9b2b4ea"
+        ),
         VALID_UNTIL: 1708678950,
-        TRUSTED_NAME: b'localhost',
+        TRUSTED_NAME: b"localhost",
         PUBLIC_KEY_CURVE: 0x21,
         PUBLIC_KEY: bytes.fromhex("02d89618096b7a88aafca0a2ee483a257cefe4dae1d6d7059e1549b110d3ff575c"),
         PROTOCOL_VERSION: 0x1000000,
     }
-    # pylint: enable=line-too-long
 
-    FIELD_LENGTHS = {
+    FIELD_LENGTHS: ClassVar[dict] = {
         STRUCTURE_TYPE: 1,
         VERSION: 1,
         CHALLENGE: 16,
@@ -38,17 +41,17 @@ class SeedIdChallenge:
         PROTOCOL_VERSION: 4,
     }
 
-    FIELD_NAMES = {
-        STRUCTURE_TYPE: 'payload_type',
-        VERSION: 'version',
-        CHALLENGE: 'challenge_data',
-        SIGNER_ALGO: 'rp_credential_sign_algorithm',
-        DER_SIGNATURE: 'rp_signature',
-        VALID_UNTIL: 'challenge_expiry',
-        TRUSTED_NAME: 'host',
-        PUBLIC_KEY_CURVE: 'rp_credential_curve_id',
-        PUBLIC_KEY: 'rp_credential_public_key',
-        PROTOCOL_VERSION: 'protocol_version',
+    FIELD_NAMES: ClassVar[dict] = {
+        STRUCTURE_TYPE: "payload_type",
+        VERSION: "version",
+        CHALLENGE: "challenge_data",
+        SIGNER_ALGO: "rp_credential_sign_algorithm",
+        DER_SIGNATURE: "rp_signature",
+        VALID_UNTIL: "challenge_expiry",
+        TRUSTED_NAME: "host",
+        PUBLIC_KEY_CURVE: "rp_credential_curve_id",
+        PUBLIC_KEY: "rp_credential_public_key",
+        PROTOCOL_VERSION: "protocol_version",
     }
 
     def __init__(self):
@@ -70,10 +73,10 @@ class SeedIdChallenge:
         if value is not None:
             if isinstance(value, int):
                 # Convert integer value to bytes
-                value = value.to_bytes(length, 'big')
+                value = value.to_bytes(length, "big")
             elif isinstance(value, str):
                 # Convert string value to bytes
-                value = value.encode('utf-8')[length:]
+                value = value.encode("utf-8")[length:]
 
             serialized_field.append(len(value))
 
@@ -153,7 +156,7 @@ class SeedIdChallenge:
             print(current_tag)
             tag_name = SeedIdChallenge.FIELD_NAMES[current_tag]
             current_length = serialized_data[index + 1]
-            value = serialized_data[index + 2:index + 2 + current_length]
+            value = serialized_data[index + 2 : index + 2 + current_length]
 
             print(hex(current_tag), "")
 
@@ -172,14 +175,13 @@ class SeedIdChallenge:
             updated_field.append(current_length if new_length is None else new_length)
             if isinstance(new_value, int):
                 # Convert integer value to bytes
-                new_value = new_value.to_bytes(SeedIdChallenge.FIELD_LENGTHS[tag_label], 'big')
+                new_value = new_value.to_bytes(SeedIdChallenge.FIELD_LENGTHS[tag_label], "big")
             elif isinstance(new_value, str):
                 # Convert string new_value to bytes
-                new_value = new_value.encode('utf-8')
+                new_value = new_value.encode("utf-8")
             updated_field.extend(new_value)
 
             # Replace the old TLV field with the updated one
-            serialized_data = serialized_data[:index] + updated_field + \
-                serialized_data[index + current_length + 2:]
+            serialized_data = serialized_data[:index] + updated_field + serialized_data[index + current_length + 2 :]
 
         return serialized_data

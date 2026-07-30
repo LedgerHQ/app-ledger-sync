@@ -1,12 +1,11 @@
-from enum import IntEnum
-from typing import Generator, Optional
+from collections.abc import Generator
 from contextlib import contextmanager
+from enum import IntEnum
 
+from ledgered.devices import DeviceType
 from ragger.backend import BackendInterface
 from ragger.backend.interface import RAPDU
 from ragger.error import ExceptionRAPDU
-from ledgered.devices import DeviceType
-
 
 CLA: int = 0xE0
 
@@ -39,7 +38,7 @@ class Errors(IntEnum):
     PARSER_INVALID_FORMAT = 0xB00D
     PARSER_INVALID_VALUE = 0xB00E
     CHALLENGE_NOT_VERIFIED = 0xB00F
-    NOT_IMPLEMENTED = 0x911c
+    NOT_IMPLEMENTED = 0x911C
 
 
 class PKIPubKeyUsage(IntEnum):
@@ -61,13 +60,15 @@ class PKIClient:
     def __init__(self, client: BackendInterface) -> None:
         self._client = client
 
-    def send_certificate(self, p1: PKIPubKeyUsage, payload: bytes) -> RAPDU:
+    def send_certificate(self, p1: PKIPubKeyUsage, payload: bytes) -> RAPDU | None:
         try:
             response = self.send_raw(p1, payload)
             assert response.status == Errors.SUCCESS
+            return response
         except ExceptionRAPDU as err:
             if err.status == Errors.NOT_IMPLEMENTED:
                 print("Ledger-PKI APDU not yet implemented. Legacy path will be used")
+            return None
 
     def send_raw(self, p1: PKIPubKeyUsage, payload: bytes) -> RAPDU:
         header = bytearray()
@@ -76,27 +77,21 @@ class PKIClient:
         header.append(p1)
         header.append(0x00)
         header.append(len(payload))
-        return self._client.exchange_raw(header + payload)
+        return self._client.exchange_raw(bytes(header) + payload)
 
 
 class SeedIdClient:
     def __init__(self, backend: BackendInterface) -> None:
         self.backend = backend
         self._device = backend.device
-        self._pki_client: Optional[PKIClient] = None
-        self._pki_client = PKIClient(self.backend)
+        self._pki_client: PKIClient = PKIClient(self.backend)
 
     def get_seed_id(self, challenge_data: bytes) -> RAPDU:
-        return self.backend.exchange(cla=CLA,
-                                     ins=InsType.GET_SEED_ID,
-                                     p1=P1.P1_START,
-                                     p2=P2.P2_LAST,
-                                     data=challenge_data)
+        return self.backend.exchange(cla=CLA, ins=InsType.GET_SEED_ID, p1=P1.P1_START, p2=P2.P2_LAST, data=challenge_data)
 
     @contextmanager
     def get_seed_id_async(self, challenge_data: bytes) -> Generator[None, None, None]:
         cert_apdu = ""
-        # pylint: disable=line-too-long
         # Device-specific certificate selection based on device type
         # Use LedgerHQ/firmware-application-tools to generate the certificate APDU
         if self._device.type == DeviceType.NANOSP:
@@ -109,17 +104,14 @@ class SeedIdClient:
             cert_apdu = "0101010201021104000000021201001302000214010116040000000020124154544553544154494F4E5F5055424B4559300200053101093201213321026AC6113CA9EBB823EB7FA40F3E2559A19ACDD7F44B8BF848444ED0CBD60C45A334010135010515463044022028A2DA588CAA9040A04E88CC2998268947BE727A6098AA81C283144B88235807022032B875BF38F006A5AB5C436110C3934502E1FFB2A6680546F4A95F0D72693A9B"  # noqa: E501
         elif self._device.type == DeviceType.APEX_P:
             cert_apdu = "0101010201021104000000021201001302000214010116040000000020124154544553544154494F4E5F5055424B4559300200053101093201213321026AC6113CA9EBB823EB7FA40F3E2559A19ACDD7F44B8BF848444ED0CBD60C45A33401013501061546304402200F4EE8FDA347B4881AA7A7D9DEF931C53F195E35F59DFAC0F21D8DE38945208502205E10384D4B449B625910623655A483E97B791C0C5B2B56CDFF7DE40EDCD9260B"  # noqa: E501
-        # pylint: enable=line-too-long
 
         if cert_apdu:
             self._pki_client.send_certificate(PKIPubKeyUsage.PUBKEY_USAGE_SEED_ID_AUTH, bytes.fromhex(cert_apdu))
 
-        with self.backend.exchange_async(cla=CLA,
-                                         ins=InsType.GET_SEED_ID,
-                                         p1=P1.P1_START,
-                                         p2=P2.P2_LAST,
-                                         data=challenge_data) as response:
+        with self.backend.exchange_async(
+            cla=CLA, ins=InsType.GET_SEED_ID, p1=P1.P1_START, p2=P2.P2_LAST, data=challenge_data
+        ) as response:
             yield response
 
-    def seed_id_response(self) -> Optional[RAPDU]:
+    def seed_id_response(self) -> RAPDU | None:
         return self.backend.last_async_response

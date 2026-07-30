@@ -19,11 +19,11 @@
 // - attestation_signature (max MAX_DER_SIG_LEN Bytes)
 #define MAX_CHALLENGE_RESP_SIZE ((2 * (sizeof(pubkey_credential_t) + MAX_DER_SIG_LEN)) + 3)
 
-static int send_challenge(uint8_t* compressed_seed_id_public_key,
-                          uint8_t* signature,
+static int send_challenge(uint8_t *compressed_seed_id_public_key,
+                          uint8_t *signature,
                           size_t signature_len,
-                          uint8_t* attestation_pubkey,
-                          uint8_t* attestation_signature,
+                          uint8_t *attestation_pubkey,
+                          uint8_t *attestation_signature,
                           size_t attestation_signature_len) {
     int status = 0;
     // Return SeedID public key + SeedID signature + Attestion PublicKey
@@ -78,9 +78,9 @@ static int send_challenge(uint8_t* compressed_seed_id_public_key,
     return status;
 }
 
-static int sign_attestion(uint8_t* attestation,
-                          uint8_t* attestation_signature,
-                          size_t* attestation_signature_len) {
+static int sign_attestion(uint8_t *attestation,
+                          uint8_t *attestation_signature,
+                          size_t *attestation_signature_len) {
     cx_ecfp_private_key_t attestation_private_key;
     int error = 0;
 
@@ -111,7 +111,7 @@ static int sign_attestion(uint8_t* attestation,
     return error;
 }
 
-static int get_public_key(uint8_t* compressed_public_key) {
+static int get_public_key(uint8_t *compressed_public_key) {
     uint8_t raw_pubkey[RAW_PUBLIC_KEY_LENGTH + 1];
 
     if (bip32_derive_get_pubkey_256(SEED_ID_CURVE_ID,
@@ -127,7 +127,7 @@ static int get_public_key(uint8_t* compressed_public_key) {
     return 0;
 }
 
-int verify_challenge_signature(challenge_ctx_t* challenge_ctx, uint8_t* challenge_hash) {
+int verify_challenge_signature(challenge_ctx_t *challenge_ctx, uint8_t *challenge_hash) {
 #ifdef HAVE_LEDGER_PKI
     cx_err_t error = CX_INTERNAL_ERROR;
     uint8_t key_usage = 0;
@@ -155,14 +155,14 @@ int verify_challenge_signature(challenge_ctx_t* challenge_ctx, uint8_t* challeng
         (public_key.curve == CX_CURVE_SECP256K1)) {
         PRINTF("Certificate '%s' loaded for usage 'SEED_ID'\n", trusted_name);
 
-        if (strncmp((const char*) challenge_ctx->host,
-                    (const char*) trusted_name,
+        if (strncmp((const char *) challenge_ctx->host,
+                    (const char *) trusted_name,
                     CERTIFICATE_TRUSTED_NAME_MAXLEN) != 0) {
             PRINTF("Trusted Name not verified!\n");
             return SW_CHALLENGE_NOT_VERIFIED;
         }
 
-        crypto_compress_public_key(public_key.W, (uint8_t*) &comp_key);
+        crypto_compress_public_key(public_key.W, (uint8_t *) &comp_key);
         // Check the key received is authenticated
         if (memcmp(challenge_ctx->rp_credential_public_key, comp_key, PUBLIC_KEY_LENGTH) != 0) {
             PRINTF("Public key not verified!\n");
@@ -189,7 +189,7 @@ int verify_challenge_signature(challenge_ctx_t* challenge_ctx, uint8_t* challeng
     return 0;
 }
 
-int sign_challenge(uint8_t* challenge_hash) {
+int sign_challenge(uint8_t *challenge_hash) {
     uint8_t signature[MAX_DER_SIG_LEN];
     size_t signature_len = MAX_DER_SIG_LEN;
     uint8_t attestation[CX_SHA256_SIZE + MAX_DER_SIG_LEN] = {0};
@@ -238,7 +238,7 @@ int sign_challenge(uint8_t* challenge_hash) {
         return SW_SIGNATURE_FAIL;
     }
 
-    crypto_compress_public_key(ATTESTATION_PUBKEY, (uint8_t*) &compressed_attestation_public_key);
+    crypto_compress_public_key(ATTESTATION_PUBKEY, (uint8_t *) &compressed_attestation_public_key);
 
     return send_challenge(compressed_public_key,
                           signature,

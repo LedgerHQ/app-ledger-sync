@@ -1,5 +1,3 @@
-from typing import List, Union
-
 from utils.NobleCrypto import Crypto, DerivationPath
 
 
@@ -26,21 +24,21 @@ class Permissions:
 
 class commands:
     class Seed(Command):
-        def __init__(self,
-                     topic: Union[bytes, None],
-                     protocol_version: int,
-                     group_key: bytes,
-                     initialization_vector: bytes,
-                     encrypted_xpriv: bytes,
-                     ephemeral_public_key: bytes):
+        def __init__(
+            self,
+            topic: bytes | None,
+            protocol_version: int,
+            group_key: bytes,
+            initialization_vector: bytes,
+            encrypted_xpriv: bytes,
+            ephemeral_public_key: bytes,
+        ):
             self.topic = topic
             self.protocol_version = protocol_version
             self.group_key = bytes([0] * 33) if len(group_key) == 0 else group_key
-            self.initialization_vector = bytes(
-                [0] * 16) if len(initialization_vector) == 0 else initialization_vector
+            self.initialization_vector = bytes([0] * 16) if len(initialization_vector) == 0 else initialization_vector
             self.encrypted_xpriv = bytes([0] * 64) if len(encrypted_xpriv) == 0 else encrypted_xpriv
-            self.ephemeral_public_key = bytes(
-                [0] * 33) if len(ephemeral_public_key) == 0 else ephemeral_public_key
+            self.ephemeral_public_key = bytes([0] * 33) if len(ephemeral_public_key) == 0 else ephemeral_public_key
 
         def get_type(self):
             return CommandType.Seed
@@ -53,7 +51,7 @@ class commands:
             e = self.encrypted_xpriv == other.encrypted_xpriv
             f = self.ephemeral_public_key == other.ephemeral_public_key
 
-            return (a and b and c and d and e and f)
+            return a and b and c and d and e and f
 
         def __repr__(self):
             string = f"<Seed topic: {Crypto.to_repr(self.topic)} "
@@ -65,20 +63,24 @@ class commands:
             return string
 
         def copy(self):
-            return commands.Seed(self.topic,
-                                 self.protocol_version,
-                                 self.group_key,
-                                 self.initialization_vector,
-                                 self.encrypted_xpriv,
-                                 self.ephemeral_public_key)
+            return commands.Seed(
+                self.topic,
+                self.protocol_version,
+                self.group_key,
+                self.initialization_vector,
+                self.encrypted_xpriv,
+                self.ephemeral_public_key,
+            )
 
     class Derive(Command):
-        def __init__(self,
-                     path: List[int],
-                     group_key: bytes,
-                     initialization_vector: bytes,
-                     encrypted_xpriv: bytes,
-                     ephemeral_public_key: bytes):
+        def __init__(
+            self,
+            path: list[int],
+            group_key: bytes,
+            initialization_vector: bytes,
+            encrypted_xpriv: bytes,
+            ephemeral_public_key: bytes,
+        ):
             self.path = path
             self.group_key = group_key
             self.initialization_vector = initialization_vector
@@ -95,7 +97,7 @@ class commands:
             d = self.encrypted_xpriv == other.encrypted_xpriv
             e = self.ephemeral_public_key == other.ephemeral_public_key
 
-            return (a and b and c and d and e)
+            return a and b and c and d and e
 
         def __repr__(self):
             string = f"<Derive path: {DerivationPath.to_string(self.path)} "
@@ -106,11 +108,9 @@ class commands:
             return string
 
         def copy(self):
-            return commands.Derive(self.path.copy(),
-                                   self.group_key,
-                                   self.initialization_vector,
-                                   self.encrypted_xpriv,
-                                   self.ephemeral_public_key)
+            return commands.Derive(
+                self.path.copy(), self.group_key, self.initialization_vector, self.encrypted_xpriv, self.ephemeral_public_key
+            )
 
     class AddMember(Command):
         def __init__(self, name: str, public_key: bytes, permissions: int):
@@ -126,7 +126,7 @@ class commands:
             b = self.public_key == other.public_key
             c = self.permissions == other.permissions
 
-            return (a and b and c)
+            return a and b and c
 
         def __repr__(self):
             return f"<AddMember name: {self.name} publicKey: {Crypto.to_repr(self.public_key)} permissions: {self.permissions}>"
@@ -150,13 +150,12 @@ class commands:
             c = self.recipient == other.recipient
             d = self.ephemeral_public_key == other.ephemeral_public_key
 
-            return (a and b and c and d)
+            return a and b and c and d
 
         def copy(self):
-            return commands.PublishKey(self.initialization_vector,
-                                       self.encrypted_xpriv,
-                                       self.recipient,
-                                       self.ephemeral_public_key)
+            return commands.PublishKey(
+                self.initialization_vector, self.encrypted_xpriv, self.recipient, self.ephemeral_public_key
+            )
 
         def __repr__(self):
             string = f"<PublishKey iv: {Crypto.to_repr(self.initialization_vector)} "
@@ -180,7 +179,7 @@ class commands:
 
 
 class CommandBlock:
-    def __init__(self, version: int, parent: bytes, issuer: bytes, cmds: List[Command], signature: bytes):
+    def __init__(self, version: int, parent: bytes, issuer: bytes, cmds: list[Command], signature: bytes):
         self.version = version
         self.parent = parent
         self.issuer = issuer
@@ -193,11 +192,10 @@ class CommandBlock:
         c = self.issuer == other.issuer
         d = self.signature == other.signature
 
-        return (a and b and c and d)
+        return a and b and c and d
 
     def copy(self):
-        block = CommandBlock(self.version, self.parent, self.issuer,
-                             self.commands.copy(), self.signature)
+        block = CommandBlock(self.version, self.parent, self.issuer, self.commands.copy(), self.signature)
         return block
 
     def __repr__(self):
@@ -212,7 +210,7 @@ class CommandBlock:
         return string
 
 
-def create_command_block(issuer: bytes, cmds: List[Command], signature: bytes = bytes(), parent: Union[bytes, None] = None):
+def create_command_block(issuer: bytes, cmds: list[Command], signature: bytes = b"", parent: bytes | None = None):
     if parent is None:
         parent = Crypto.random_bytes(32)
 
@@ -228,9 +226,7 @@ def sign_command_block(block: CommandBlock, secret_key: bytes):
 
 def hash_command_block(block: CommandBlock):
     # Import in function to avoid circular reference issue
-    # pylint: disable=import-outside-toplevel
     from utils.CommandStreamEncoder import CommandStreamEncoder
-    # pylint: enable=import-outside-toplevel
 
     return Crypto.hash(CommandStreamEncoder.encode([block]))
 

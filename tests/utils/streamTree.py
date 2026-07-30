@@ -1,9 +1,7 @@
-from typing import Optional
-from utils.indexedTree import IndexedTree
-from utils.NobleCrypto import DerivationPath
-from utils.InterfaceStreamTree import InterfaceStreamTree
-from utils.InterfaceStreamTree import PublishKeyEvent
 from utils.CommandStream import CommandStream
+from utils.indexedTree import IndexedTree
+from utils.InterfaceStreamTree import InterfaceStreamTree, PublishKeyEvent
+from utils.NobleCrypto import DerivationPath
 
 
 class StreamTree(InterfaceStreamTree):
@@ -18,7 +16,7 @@ class StreamTree(InterfaceStreamTree):
         application_root = "0h"  # TODO change this
         return f"{tree_root}/{application_id}h/{application_root}"
 
-    def get_publish_key_event(self, member: bytes, path: list) -> Optional[PublishKeyEvent]:
+    def get_publish_key_event(self, member: bytes, path: list) -> PublishKeyEvent | None:
         # Iterate over the tree from leaf to root
         leaf = self.tree.find_child(path)
         if not leaf or leaf.get_value() is None:
@@ -34,10 +32,10 @@ class StreamTree(InterfaceStreamTree):
             return self.get_publish_key_event(member, path[:-1])
         return PublishKeyEvent(
             stream=leaf.get_value(),
-            encryptedXpriv=key['encryptedXpriv'],
-            ephemeralPublicKey=key['ephemeralPublicKey'],
-            nonce=key['initializationVector'],
-            groupPublicKey=resolved.get_group_public_key()
+            encryptedXpriv=key["encryptedXpriv"],
+            ephemeralPublicKey=key["ephemeralPublicKey"],
+            nonce=key["initializationVector"],
+            groupPublicKey=resolved.get_group_public_key(),
         )
 
     def get_child(self, path):
@@ -59,12 +57,10 @@ class StreamTree(InterfaceStreamTree):
 
         if len(stream.blocks) == 0 and len(indexes) > 0:
             root = self.get_root().get_root_hash()
-            stream = stream.edit().derive(indexes).add_member(
-                name, member, permission, True).issue(owner, self, root)
+            stream = stream.edit().derive(indexes).add_member(name, member, permission, True).issue(owner, self, root)
             return self.update(stream)
         if len(stream.blocks) == 0:
-            raise ValueError(
-                "StreamTree.share cannot add a member if the root was not previously created")
+            raise ValueError("StreamTree.share cannot add a member if the root was not previously created")
 
         new_stream = stream.edit().add_member(name, member, permission).issue(owner, self)
         return self.update(new_stream)
@@ -78,11 +74,11 @@ class StreamTree(InterfaceStreamTree):
         return StreamTree(new_tree)
 
     @staticmethod
-    def create_new_tree(owner, opts: Optional[dict] = None):
+    def create_new_tree(owner, opts: dict | None = None):
         if opts is None:
             opts = {}
         stream = CommandStream()
-        stream = stream.edit().seed(opts.get('topic')).issue(owner)
+        stream = stream.edit().seed(opts.get("topic")).issue(owner)
         tree: IndexedTree = IndexedTree(stream)
         return StreamTree(tree)
 
@@ -95,11 +91,11 @@ class StreamTree(InterfaceStreamTree):
                 raise ValueError("Stream path cannot be None")
             stream_map[path] = stream
 
-        root = stream_map.get('')
+        root = stream_map.get("")
         if root is None:
             raise ValueError("StreamTree.from requires the root of the tree")
         tree = IndexedTree(root)
-        stream_map.pop('')
+        stream_map.pop("")
         for path, stream in stream_map.items():
             p = DerivationPath.to_index_array(path)
             tree = tree.add_child(p, IndexedTree(stream))

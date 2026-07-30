@@ -1,6 +1,7 @@
-import os
 import hashlib
+import os
 from enum import Enum, auto
+
 from ecdsa import SigningKey  # type: ignore
 from ecdsa.util import sigencode_der  # type: ignore
 
@@ -27,8 +28,9 @@ def sign_data(key: Key, data: bytes) -> bytes:
         _init_key(key)
     return _keys[key].sign_deterministic(data, sigencode=sigencode_der)
 
+
 # Generate a SECP256K1 signature of the given data with the given key
 def get_pub_key(key: Key) -> bytes:
     if key not in _keys:
         _init_key(key)
-    return _keys[key].get_verifying_key().to_string('compressed')
+    return _keys[key].get_verifying_key().to_string("compressed")

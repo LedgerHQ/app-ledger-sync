@@ -1,13 +1,12 @@
-
 from utils.NobleCrypto import Crypto
 
-class NoHash:
 
+class NoHash:
     def __init__(self, buffer: bytes) -> None:
         self.digest_size = 32
         self.block_size = 32
-        self.name = 'NoHash'
-        self.buffer = bytes() + buffer
+        self.name = "NoHash"
+        self.buffer = b"" + buffer
 
     def update(self, data) -> None:
         self.buffer += data

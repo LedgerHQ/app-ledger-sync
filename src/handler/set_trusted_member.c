@@ -10,7 +10,7 @@
 int handler_set_trusted_member(buffer_t *cdata) {
     // Data are serialized as TLV
     // We only need the IV and member
-    tlv_t tlv;
+    tlv_t tlv = {0};
 
     int member_len = 0;
     uint8_t *iv = NULL;
