@@ -1,16 +1,13 @@
 from pathlib import Path
+
 import pytest
-
-from ragger.error import ExceptionRAPDU
-from ragger.backend import BackendInterface
-from ragger.navigator import Navigator
-
-from SeedIdClient import SeedIdClient, Errors
-from SeedIdChallenge import SeedIdChallenge
-
 from constants import approve_instructions_nano, approve_instructions_stax
-
-from utils.keychain.keychain import Key, sign_data, get_pub_key
+from ragger.backend import BackendInterface
+from ragger.error import ExceptionRAPDU
+from ragger.navigator import Navigator
+from SeedIdChallenge import SeedIdChallenge
+from SeedIdClient import Errors, SeedIdClient
+from utils.keychain.keychain import Key, get_pub_key, sign_data
 
 
 def get_default_challenge_tlv() -> bytes:
@@ -23,11 +20,9 @@ def get_default_challenge_tlv() -> bytes:
     seed_id_challenge.challenge_data = SeedIdChallenge.DEFAULT_VALUES[SeedIdChallenge.CHALLENGE]
     seed_id_challenge.challenge_expiry = SeedIdChallenge.DEFAULT_VALUES[SeedIdChallenge.VALID_UNTIL]
     seed_id_challenge.host = SeedIdChallenge.DEFAULT_VALUES[SeedIdChallenge.TRUSTED_NAME]
-    seed_id_challenge.host = b'ATTESTATION_PUBKEY'
-    seed_id_challenge.rp_credential_sign_algorithm = SeedIdChallenge.DEFAULT_VALUES[
-        SeedIdChallenge.SIGNER_ALGO]
-    seed_id_challenge.rp_credential_curve_id = SeedIdChallenge.DEFAULT_VALUES[
-        SeedIdChallenge.PUBLIC_KEY_CURVE]
+    seed_id_challenge.host = b"ATTESTATION_PUBKEY"
+    seed_id_challenge.rp_credential_sign_algorithm = SeedIdChallenge.DEFAULT_VALUES[SeedIdChallenge.SIGNER_ALGO]
+    seed_id_challenge.rp_credential_curve_id = SeedIdChallenge.DEFAULT_VALUES[SeedIdChallenge.PUBLIC_KEY_CURVE]
     # Get pub key and sign
     challenge_hash = seed_id_challenge.get_challenge_hash()
     seed_id_challenge.rp_credential_public_key = get_pub_key(Key.CHALLENGE)
@@ -37,10 +32,7 @@ def get_default_challenge_tlv() -> bytes:
     return tlv_data
 
 
-def test_seed_id_parser(backend: BackendInterface,
-                        navigator: Navigator,
-                        default_screenshot_path: Path,
-                        test_name: str) -> None:
+def test_seed_id_parser(backend: BackendInterface, navigator: Navigator, default_screenshot_path: Path, test_name: str) -> None:
     if backend.device.is_nano:
         approve_seed_id_instructions = approve_instructions_nano
     else:
@@ -198,8 +190,7 @@ def test_seed_id_wrong_public_key_curve(backend: BackendInterface) -> None:
     tlv_data = get_default_challenge_tlv()
     data2 = SeedIdChallenge.DEFAULT_VALUES[SeedIdChallenge.PUBLIC_KEY_CURVE]
     length = 0x10
-    tlv_data = SeedIdChallenge.update_field(
-        tlv_data, SeedIdChallenge.PUBLIC_KEY_CURVE, data2, length)
+    tlv_data = SeedIdChallenge.update_field(tlv_data, SeedIdChallenge.PUBLIC_KEY_CURVE, data2, length)
 
     with pytest.raises(ExceptionRAPDU) as e:
         client.get_seed_id(challenge_data=tlv_data)
@@ -225,7 +216,7 @@ def test_seed_id_wrong_protocol_version(backend: BackendInterface) -> None:
 
     # Override PROTOCOL_VERSION with unsupported data
     tlv_data = get_default_challenge_tlv()
-    data1= 0x66
+    data1 = 0x66
     tlv_data = SeedIdChallenge.update_field(tlv_data, SeedIdChallenge.PROTOCOL_VERSION, data1)
 
     with pytest.raises(ExceptionRAPDU) as e:
@@ -236,8 +227,7 @@ def test_seed_id_wrong_protocol_version(backend: BackendInterface) -> None:
     tlv_data = get_default_challenge_tlv()
     data2 = SeedIdChallenge.DEFAULT_VALUES[SeedIdChallenge.PROTOCOL_VERSION]
     length = 0x10
-    tlv_data = SeedIdChallenge.update_field(
-        tlv_data, SeedIdChallenge.PROTOCOL_VERSION, data2, length)
+    tlv_data = SeedIdChallenge.update_field(tlv_data, SeedIdChallenge.PROTOCOL_VERSION, data2, length)
 
     with pytest.raises(ExceptionRAPDU) as e:
         client.get_seed_id(challenge_data=tlv_data)
@@ -248,7 +238,7 @@ def test_seed_id_extra_data(backend: BackendInterface) -> None:
     client = SeedIdClient(backend)
 
     tlv_data = get_default_challenge_tlv()
-    tlv_data += b'00000'
+    tlv_data += b"00000"
 
     with pytest.raises(ExceptionRAPDU) as e:
         client.get_seed_id(challenge_data=tlv_data)
@@ -266,10 +256,8 @@ def test_seed_id_missing_field(backend: BackendInterface) -> None:
     seed_id_challenge.challenge_data = SeedIdChallenge.DEFAULT_VALUES[SeedIdChallenge.CHALLENGE]
     seed_id_challenge.challenge_expiry = SeedIdChallenge.DEFAULT_VALUES[SeedIdChallenge.VALID_UNTIL]
     seed_id_challenge.host = SeedIdChallenge.DEFAULT_VALUES[SeedIdChallenge.TRUSTED_NAME]
-    seed_id_challenge.rp_credential_sign_algorithm = SeedIdChallenge.DEFAULT_VALUES[
-        SeedIdChallenge.SIGNER_ALGO]
-    seed_id_challenge.rp_credential_curve_id = SeedIdChallenge.DEFAULT_VALUES[
-        SeedIdChallenge.PUBLIC_KEY_CURVE]
+    seed_id_challenge.rp_credential_sign_algorithm = SeedIdChallenge.DEFAULT_VALUES[SeedIdChallenge.SIGNER_ALGO]
+    seed_id_challenge.rp_credential_curve_id = SeedIdChallenge.DEFAULT_VALUES[SeedIdChallenge.PUBLIC_KEY_CURVE]
     seed_id_challenge.rp_credential_public_key = SeedIdChallenge.DEFAULT_VALUES[SeedIdChallenge.PUBLIC_KEY]
     seed_id_challenge.rp_signature = SeedIdChallenge.DEFAULT_VALUES[SeedIdChallenge.DER_SIGNATURE]
     tlv_data = seed_id_challenge.to_tlv()
@@ -283,10 +271,8 @@ def test_seed_id_missing_field(backend: BackendInterface) -> None:
     seed_id_challenge.challenge_data = SeedIdChallenge.DEFAULT_VALUES[SeedIdChallenge.CHALLENGE]
     seed_id_challenge.challenge_expiry = SeedIdChallenge.DEFAULT_VALUES[SeedIdChallenge.VALID_UNTIL]
     seed_id_challenge.host = SeedIdChallenge.DEFAULT_VALUES[SeedIdChallenge.TRUSTED_NAME]
-    seed_id_challenge.rp_credential_sign_algorithm = SeedIdChallenge.DEFAULT_VALUES[
-        SeedIdChallenge.SIGNER_ALGO]
-    seed_id_challenge.rp_credential_curve_id = SeedIdChallenge.DEFAULT_VALUES[
-        SeedIdChallenge.PUBLIC_KEY_CURVE]
+    seed_id_challenge.rp_credential_sign_algorithm = SeedIdChallenge.DEFAULT_VALUES[SeedIdChallenge.SIGNER_ALGO]
+    seed_id_challenge.rp_credential_curve_id = SeedIdChallenge.DEFAULT_VALUES[SeedIdChallenge.PUBLIC_KEY_CURVE]
     seed_id_challenge.rp_credential_public_key = SeedIdChallenge.DEFAULT_VALUES[SeedIdChallenge.PUBLIC_KEY]
     seed_id_challenge.rp_signature = None
     tlv_data = seed_id_challenge.to_tlv()
@@ -301,10 +287,8 @@ def test_seed_id_missing_field(backend: BackendInterface) -> None:
     seed_id_challenge.challenge_data = SeedIdChallenge.DEFAULT_VALUES[SeedIdChallenge.CHALLENGE]
     seed_id_challenge.challenge_expiry = SeedIdChallenge.DEFAULT_VALUES[SeedIdChallenge.VALID_UNTIL]
     seed_id_challenge.host = None
-    seed_id_challenge.rp_credential_sign_algorithm = SeedIdChallenge.DEFAULT_VALUES[
-        SeedIdChallenge.SIGNER_ALGO]
-    seed_id_challenge.rp_credential_curve_id = SeedIdChallenge.DEFAULT_VALUES[
-        SeedIdChallenge.PUBLIC_KEY_CURVE]
+    seed_id_challenge.rp_credential_sign_algorithm = SeedIdChallenge.DEFAULT_VALUES[SeedIdChallenge.SIGNER_ALGO]
+    seed_id_challenge.rp_credential_curve_id = SeedIdChallenge.DEFAULT_VALUES[SeedIdChallenge.PUBLIC_KEY_CURVE]
     seed_id_challenge.rp_credential_public_key = SeedIdChallenge.DEFAULT_VALUES[SeedIdChallenge.PUBLIC_KEY]
     seed_id_challenge.rp_signature = SeedIdChallenge.DEFAULT_VALUES[SeedIdChallenge.DER_SIGNATURE]
     tlv_data = seed_id_challenge.to_tlv()

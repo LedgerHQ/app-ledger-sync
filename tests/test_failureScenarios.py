@@ -1,22 +1,19 @@
 import pytest
-
-from ragger.error import ExceptionRAPDU
-from ragger.backend import BackendInterface
-from ragger.navigator import Navigator, NavInsID
-
-from utils.CommandStream import CommandStream
-from utils.CommandBlock import Permissions
-from utils.NobleCrypto import Crypto
-from utils.CommandBlock import CommandBlock, commands
-from utils.index import device
-from utils.ApduDevice import Device, Automation
-from utils.CommandStreamEncoder import CommandStreamEncoder
-from utils.test_helpers import create_seed_and_derive_stream
-
 from constants import DEFAULT_TOPIC
+from ragger.backend import BackendInterface
+from ragger.error import ExceptionRAPDU
+from ragger.navigator import Navigator, NavInsID
+from utils.ApduDevice import Automation, Device
+from utils.CommandBlock import CommandBlock, Permissions, commands
+from utils.CommandStream import CommandStream
+from utils.CommandStreamEncoder import CommandStreamEncoder
+from utils.index import device
+from utils.NobleCrypto import Crypto
+from utils.test_helpers import create_seed_and_derive_stream
 
 valid_member_instructions_nano = [NavInsID.RIGHT_CLICK, NavInsID.RIGHT_CLICK, NavInsID.RIGHT_CLICK, NavInsID.BOTH_CLICK]
 valid_member_instructions_stax = [NavInsID.USE_CASE_CHOICE_CONFIRM, NavInsID.USE_CASE_STATUS_DISMISS]
+
 
 # Basic Signature Flow
 def test_basic_signature_flow(backend: BackendInterface) -> None:
@@ -27,19 +24,21 @@ def test_basic_signature_flow(backend: BackendInterface) -> None:
         0,  # Version
         Crypto.random_bytes(32),  # Parent
         bytes([0] * 33),
-        [commands.Seed(
-            Crypto.from_hex(DEFAULT_TOPIC),
-            0,
-            Crypto.random_bytes(32),
-            bytes([0] * 16),
-            bytes([0] * 64),
-            bytes([0] * 33),
-        )],
-        bytes([0] * 0)
+        [
+            commands.Seed(
+                Crypto.from_hex(DEFAULT_TOPIC),
+                0,
+                Crypto.random_bytes(32),
+                bytes([0] * 16),
+                bytes([0] * 64),
+                bytes([0] * 33),
+            )
+        ],
+        bytes([0] * 0),
     )
 
     # Initialize flow
-    Device.initFlow(backend, sessionKey['publicKey'])
+    Device.initFlow(backend, sessionKey["publicKey"])
 
     # ParseBlockHeader
     Device.signBlockHeader(backend, CommandStreamEncoder.encodeBlockHeader(block))
@@ -60,19 +59,21 @@ def test_finalize_twice(backend: BackendInterface) -> None:
         0,  # Version
         Crypto.random_bytes(32),  # Parent
         bytes([0] * 33),
-        [commands.Seed(
-            Crypto.from_hex(DEFAULT_TOPIC),
-            0,
-            Crypto.random_bytes(32),
-            bytes([0] * 16),
-            bytes([0] * 64),
-            bytes([0] * 33),
-        )],
-        bytes([0] * 0)
+        [
+            commands.Seed(
+                Crypto.from_hex(DEFAULT_TOPIC),
+                0,
+                Crypto.random_bytes(32),
+                bytes([0] * 16),
+                bytes([0] * 64),
+                bytes([0] * 33),
+            )
+        ],
+        bytes([0] * 0),
     )
 
     # Initialize flow
-    Device.initFlow(backend, sessionKey['publicKey'])
+    Device.initFlow(backend, sessionKey["publicKey"])
 
     # ParseBlockHeader
     Device.signBlockHeader(backend, CommandStreamEncoder.encodeBlockHeader(block))
@@ -95,19 +96,21 @@ def test_sign_header_after_finalize(backend: BackendInterface) -> None:
         0,  # Version
         Crypto.random_bytes(32),  # Parent
         bytes([0] * 33),
-        [commands.Seed(
-            Crypto.from_hex(DEFAULT_TOPIC),
-            0,
-            Crypto.random_bytes(32),
-            bytes([0] * 16),
-            bytes([0] * 64),
-            bytes([0] * 33),
-        )],
-        bytes([0] * 0)
+        [
+            commands.Seed(
+                Crypto.from_hex(DEFAULT_TOPIC),
+                0,
+                Crypto.random_bytes(32),
+                bytes([0] * 16),
+                bytes([0] * 64),
+                bytes([0] * 33),
+            )
+        ],
+        bytes([0] * 0),
     )
 
     # Initialize flow
-    Device.initFlow(backend, sessionKey['publicKey'])
+    Device.initFlow(backend, sessionKey["publicKey"])
 
     # ParseBlockHeader
     Device.signBlockHeader(backend, CommandStreamEncoder.encodeBlockHeader(block))
@@ -136,19 +139,21 @@ def test_bypass_command(backend: BackendInterface) -> None:
         0,  # Version
         Crypto.random_bytes(32),  # Parent
         bytes([0] * 33),
-        [commands.Seed(
-            Crypto.from_hex(DEFAULT_TOPIC),
-            0,
-            Crypto.random_bytes(32),
-            bytes([0] * 16),
-            bytes([0] * 64),
-            bytes([0] * 33),
-        )],
-        bytes([0] * 0)
+        [
+            commands.Seed(
+                Crypto.from_hex(DEFAULT_TOPIC),
+                0,
+                Crypto.random_bytes(32),
+                bytes([0] * 16),
+                bytes([0] * 64),
+                bytes([0] * 33),
+            )
+        ],
+        bytes([0] * 0),
     )
 
     # Initialize flow
-    Device.initFlow(backend, sessionKey['publicKey'])
+    Device.initFlow(backend, sessionKey["publicKey"])
 
     # ParseBlockHeader
     Device.signBlockHeader(backend, CommandStreamEncoder.encodeBlockHeader(block))
@@ -165,19 +170,21 @@ def test_bypass_header(backend: BackendInterface) -> None:
         0,  # Version
         Crypto.random_bytes(32),  # Parent
         bytes([0] * 33),
-        [commands.Seed(
-            Crypto.from_hex(DEFAULT_TOPIC),
-            0,
-            Crypto.random_bytes(32),
-            bytes([0] * 16),
-            bytes([0] * 64),
-            bytes([0] * 33),
-        )],
-        bytes([0] * 0)
+        [
+            commands.Seed(
+                Crypto.from_hex(DEFAULT_TOPIC),
+                0,
+                Crypto.random_bytes(32),
+                bytes([0] * 16),
+                bytes([0] * 64),
+                bytes([0] * 33),
+            )
+        ],
+        bytes([0] * 0),
     )
 
     # Initialize flow
-    Device.initFlow(backend, sessionKey['publicKey'])
+    Device.initFlow(backend, sessionKey["publicKey"])
 
     with pytest.raises(ExceptionRAPDU):
         Device.signCommand(backend, CommandStreamEncoder.encodeCommand(block, 0))
@@ -189,15 +196,17 @@ def test_bypass_init_header(backend: BackendInterface) -> None:
         0,  # Version
         Crypto.random_bytes(32),  # Parent
         bytes([0] * 33),
-        [commands.Seed(
-            Crypto.from_hex(DEFAULT_TOPIC),
-            0,
-            Crypto.random_bytes(32),
-            bytes([0] * 16),
-            bytes([0] * 64),
-            bytes([0] * 33),
-        )],
-        bytes([0] * 0)
+        [
+            commands.Seed(
+                Crypto.from_hex(DEFAULT_TOPIC),
+                0,
+                Crypto.random_bytes(32),
+                bytes([0] * 16),
+                bytes([0] * 64),
+                bytes([0] * 33),
+            )
+        ],
+        bytes([0] * 0),
     )
 
     with pytest.raises(ExceptionRAPDU):
@@ -211,7 +220,6 @@ def test_bypass_one_command(backend: BackendInterface) -> None:
         0,  # Version
         Crypto.random_bytes(32),  # Parent
         bytes([0] * 33),
-
         # Commands
         [
             commands.Seed(
@@ -222,17 +230,12 @@ def test_bypass_one_command(backend: BackendInterface) -> None:
                 bytes([0] * 64),
                 bytes([0] * 33),
             ),
-
-            commands.AddMember(
-                'Bob',
-                Crypto.randomKeyPair()['publicKey'],
-                0xFFFFFFFF
-            )
+            commands.AddMember("Bob", Crypto.randomKeyPair()["publicKey"], 0xFFFFFFFF),
         ],
-        bytes([0]*0)
+        bytes([0] * 0),
     )
 
-    Device.initFlow(backend, sessionKey['publicKey'])
+    Device.initFlow(backend, sessionKey["publicKey"])
 
     Device.signBlockHeader(backend, CommandStreamEncoder.encodeBlockHeader(block))
 
@@ -250,19 +253,21 @@ def test_false_signature_with_resolve(backend: BackendInterface) -> None:
         0,  # Version
         Crypto.random_bytes(32),  # Parent
         Crypto.randomKeyPair()["publicKey"],
-        [commands.Seed(
-            Crypto.from_hex(DEFAULT_TOPIC),
-            0,
-            Crypto.random_bytes(32),
-            bytes([0] * 16),
-            bytes([0] * 64),
-            bytes([0] * 33),
-        )],
-        bytes([1, 2, 3])
+        [
+            commands.Seed(
+                Crypto.from_hex(DEFAULT_TOPIC),
+                0,
+                Crypto.random_bytes(32),
+                bytes([0] * 16),
+                bytes([0] * 64),
+                bytes([0] * 33),
+            )
+        ],
+        bytes([1, 2, 3]),
     )
 
     stream = CommandStream([block])
-    Device.initFlow(backend, sessionKey['publicKey'])
+    Device.initFlow(backend, sessionKey["publicKey"])
     with pytest.raises(AssertionError):
         stream.resolve()
 
@@ -275,15 +280,13 @@ def test_add_member_with_zero_permissions(backend: BackendInterface) -> None:
     stream, tree = create_seed_and_derive_stream(alice, 0)
 
     # Alice adds Bob with zero permissions
-    with pytest.raises((ExceptionRAPDU)):
+    with pytest.raises(ExceptionRAPDU):
         stream = stream.edit().add_member("Bob", bob_public_key, 0, True).issue(alice, tree)
 
 
-def test_add_member_without_can_add_block_permission(backend: BackendInterface,
-                                                     navigator: Navigator,
-                                                     test_name: str) -> None:
+def test_add_member_without_can_add_block_permission(backend: BackendInterface, navigator: Navigator, test_name: str) -> None:
     """Test that a member without CAN_ADD_BLOCK permission should not be able to add blocks,
-        and APDU device should refuse to sign subsequent blocks."""
+    and APDU device should refuse to sign subsequent blocks."""
     if backend.device.is_nano:
         valid_member_instructions = valid_member_instructions_nano
     else:
@@ -299,8 +302,7 @@ def test_add_member_without_can_add_block_permission(backend: BackendInterface,
     # Alice adds Bob with permissions that don't include CAN_ADD_BLOCK
     permissions = Permissions.OWNER & ~(Permissions.CAN_ADD_BLOCK)
 
-    member_automation = Automation(
-        navigator, test_name=f"{test_name}", instructions=valid_member_instructions)
+    member_automation = Automation(navigator, test_name=f"{test_name}", instructions=valid_member_instructions)
     alice.update_automation(member_automation)
     stream = stream.edit().add_member("Bob", bob_public_key, permissions, True).issue(alice, tree)
     tree = tree.update(stream)

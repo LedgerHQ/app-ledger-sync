@@ -1,27 +1,18 @@
-from pathlib import Path
 import hashlib
-from typing import Tuple
-
-from ecdsa import VerifyingKey, curves, BadSignatureError  # type: ignore
-from ecdsa.util import sigdecode_der  # type: ignore
-
-from ragger.navigator import Navigator
-from ragger.backend import BackendInterface
-
-from SeedIdClient import SeedIdClient, Errors
-from SeedIdChallenge import SeedIdChallenge
-
-from PubKeyCredential import PubKeyCredential
+from pathlib import Path
 
 from constants import approve_instructions_nano, approve_instructions_stax
+from ecdsa import BadSignatureError, VerifyingKey, curves  # type: ignore
+from ecdsa.util import sigdecode_der  # type: ignore
+from PubKeyCredential import PubKeyCredential
+from ragger.backend import BackendInterface
+from ragger.navigator import Navigator
+from SeedIdChallenge import SeedIdChallenge
+from SeedIdClient import Errors, SeedIdClient
+from utils.keychain.keychain import Key, get_pub_key, sign_data
 
-from utils.keychain.keychain import Key, sign_data, get_pub_key
 
-
-def check_signature(public_key: str,
-                    message,
-                    signature,
-                    curve: curves.Curve = curves.SECP256k1) -> bool:
+def check_signature(public_key: str, message, signature, curve: curves.Curve = curves.SECP256k1) -> bool:
 
     vk = VerifyingKey.from_string(public_key, curve=curve, hashfunc=hashlib.sha256)
     try:
@@ -40,16 +31,14 @@ def get_challenge_tlv() -> SeedIdChallenge:
     seed_id_challenge.protocol_version = 0x1000000
     seed_id_challenge.challenge_data = bytes.fromhex("53cafde60e5395b164eb867213bc05f6")
     seed_id_challenge.challenge_expiry = 1708678950
-    seed_id_challenge.host = b'ATTESTATION_PUBKEY'  # Must be the key trusted name in the Ledger-PKI certificate
-    seed_id_challenge.rp_credential_sign_algorithm = SeedIdChallenge.DEFAULT_VALUES[
-        SeedIdChallenge.SIGNER_ALGO]
-    seed_id_challenge.rp_credential_curve_id = SeedIdChallenge.DEFAULT_VALUES[
-        SeedIdChallenge.PUBLIC_KEY_CURVE]
+    seed_id_challenge.host = b"ATTESTATION_PUBKEY"  # Must be the key trusted name in the Ledger-PKI certificate
+    seed_id_challenge.rp_credential_sign_algorithm = SeedIdChallenge.DEFAULT_VALUES[SeedIdChallenge.SIGNER_ALGO]
+    seed_id_challenge.rp_credential_curve_id = SeedIdChallenge.DEFAULT_VALUES[SeedIdChallenge.PUBLIC_KEY_CURVE]
 
     return seed_id_challenge
 
 
-def parse_result(result: bytes) -> Tuple[PubKeyCredential, bytes, int, PubKeyCredential, bytes]:
+def parse_result(result: bytes) -> tuple[PubKeyCredential, bytes, int, PubKeyCredential, bytes]:
     offset = 0
     pubkey_credential, pubkey_credential_length = PubKeyCredential.from_bytes(result)
 
@@ -60,14 +49,14 @@ def parse_result(result: bytes) -> Tuple[PubKeyCredential, bytes, int, PubKeyCre
     signature_len = result[offset]
     offset += 1
 
-    signature = result[offset:offset + signature_len]
+    signature = result[offset : offset + signature_len]
     print("Signature:", signature.hex())
     offset += signature_len
 
     attestation_type = result[offset]
     offset += 1
 
-    attestation_pubkey_credential, attestation_pubkey_credential_length = PubKeyCredential.from_bytes(result,offset=offset)
+    attestation_pubkey_credential, attestation_pubkey_credential_length = PubKeyCredential.from_bytes(result, offset=offset)
 
     print(attestation_pubkey_credential)
     assert attestation_pubkey_credential.assert_validity()
@@ -75,16 +64,15 @@ def parse_result(result: bytes) -> Tuple[PubKeyCredential, bytes, int, PubKeyCre
 
     attestation_len = result[offset]
     offset += 1
-    attestation = result[offset:offset + attestation_len]
+    attestation = result[offset : offset + attestation_len]
     print("Attestation:", attestation.hex())
 
     return pubkey_credential, signature, attestation_type, attestation_pubkey_credential, attestation
 
 
-def test_seed_id_challenge(backend: BackendInterface,
-                           navigator: Navigator,
-                           default_screenshot_path: Path,
-                           test_name: str) -> None:
+def test_seed_id_challenge(
+    backend: BackendInterface, navigator: Navigator, default_screenshot_path: Path, test_name: str
+) -> None:
     if backend.device.is_nano:
         approve_seed_id_instructions = approve_instructions_nano
     else:
@@ -101,8 +89,7 @@ def test_seed_id_challenge(backend: BackendInterface,
     tlv_data = seed_id_challenge.to_tlv()
 
     with client.get_seed_id_async(challenge_data=tlv_data):
-        navigator.navigate_and_compare(default_screenshot_path,
-                                       test_name, approve_seed_id_instructions)
+        navigator.navigate_and_compare(default_screenshot_path, test_name, approve_seed_id_instructions)
 
     response = client.seed_id_response()
     assert response and response.status == Errors.SUCCESS
@@ -111,10 +98,11 @@ def test_seed_id_challenge(backend: BackendInterface,
 
     assert attestation_type == 0x00
     assert check_signature(pubkey.public_key, challenge_hash, signature)
-    assert check_signature(attestation_pubkey.public_key, hashlib.sha256(
-        challenge_hash).digest() + signature, attestation_signature)
+    assert check_signature(
+        attestation_pubkey.public_key, hashlib.sha256(challenge_hash).digest() + signature, attestation_signature
+    )
 
 
 # def test_seed_id_invalid_challenge(backend, navigator, test_name):
-    # Should be rejected if challenge is different from what is signed in payload
-    # TODO
+# Should be rejected if challenge is different from what is signed in payload
+# TODO

@@ -7,7 +7,7 @@ class PubKeyCredential:
 
     def to_bytes(self) -> bytes:
         # Convert the fields to bytes and concatenate them
-        output = bytes()
+        output = b""
         output += bytes([self.version])
         output += bytes([self.curve_id])
         output += bytes([self.sign_algorithm])
@@ -17,13 +17,13 @@ class PubKeyCredential:
         return output
 
     @classmethod
-    def from_bytes(cls, data: bytes, offset: int=0):
+    def from_bytes(cls, data: bytes, offset: int = 0):
         # Parse the bytes to create an instance of PubKeyCredential
         version = data[0 + offset]
         curve_id = data[1 + offset]
         sign_algorithm = data[2 + offset]
         public_key_length = data[3 + offset]
-        public_key = data[4 + offset:4 + offset + public_key_length]
+        public_key = data[4 + offset : 4 + offset + public_key_length]
 
         return cls(version, curve_id, sign_algorithm, public_key), 4 + public_key_length
 

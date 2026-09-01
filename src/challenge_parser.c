@@ -32,11 +32,11 @@
 #include "../constants.h"
 #include "challenge_parser.h"
 
-static int buffer_get_next_item(uint8_t* buffer,
-                                uint8_t* buffer_remaining_len,
-                                uint8_t* tag_label,
-                                uint8_t* length,
-                                uint8_t** value) {
+static int buffer_get_next_item(uint8_t *buffer,
+                                uint8_t *buffer_remaining_len,
+                                uint8_t *tag_label,
+                                uint8_t *length,
+                                uint8_t **value) {
     if (*buffer_remaining_len < VALUE_OFFSET) {
         return SW_PARSER_INVALID_FORMAT;
     }
@@ -52,14 +52,14 @@ static int buffer_get_next_item(uint8_t* buffer,
     return 0;
 }
 
-int challenge_parse_buffer(buffer_t* buffer,
-                           challenge_ctx_t* challenge_ctx,
-                           uint8_t* challenge_hash) {
+int challenge_parse_buffer(buffer_t *buffer,
+                           challenge_ctx_t *challenge_ctx,
+                           uint8_t *challenge_hash) {
     uint8_t tag_label;
     uint8_t length = 0;
-    uint8_t* value = NULL;
+    uint8_t *value = NULL;
 
-    uint8_t* buffer_pointer = (uint8_t*) buffer->ptr;
+    uint8_t *buffer_pointer = (uint8_t *) buffer->ptr;
     uint8_t remaining_len = buffer->size;
 
     int error = 0;

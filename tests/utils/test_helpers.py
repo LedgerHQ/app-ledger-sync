@@ -1,17 +1,17 @@
 """
 Shared utility functions for test files to avoid code duplication.
 """
-from typing import List, Optional
+
+from constants import DEFAULT_TOPIC
 
 from utils.CommandStream import CommandStream
 from utils.NobleCrypto import Crypto, DerivationPath
 from utils.streamTree import StreamTree
-from constants import DEFAULT_TOPIC
 
 ROOT_DERIVATION_PATH = "16'/0'"
 
 
-def get_derivation_path(index: int) -> List[int]:
+def get_derivation_path(index: int) -> list[int]:
     """
     Generate derivation path for given index.
 
@@ -24,7 +24,7 @@ def get_derivation_path(index: int) -> List[int]:
     return DerivationPath.to_index_array(f"{ROOT_DERIVATION_PATH}/{index}'")
 
 
-def create_seed_and_derive_stream(device_instance, derivation_index: int = 0, topic: Optional[bytes] = None):
+def create_seed_and_derive_stream(device_instance, derivation_index: int = 0, topic: bytes | None = None):
     """
     Utility function to create a root seed stream and derive a new stream from it.
     This prevents adding blocks directly to the root stream and follows the proper flow.

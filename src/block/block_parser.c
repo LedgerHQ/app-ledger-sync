@@ -3,7 +3,7 @@
 #include "bip32.h"
 
 int parse_block_header(buffer_t *data, block_header_t *out) {
-    tlv_t tlv;
+    tlv_t tlv = {0};
 
     LEDGER_ASSERT(data != NULL, "Null data\n");
 
@@ -33,7 +33,7 @@ int parse_block_header(buffer_t *data, block_header_t *out) {
 }
 
 static int parse_seed_command(buffer_t *data, block_command_t *out) {
-    tlv_t tlv;
+    tlv_t tlv = {0};
 
     LEDGER_ASSERT(out != NULL, "Null out\n");
 
@@ -80,7 +80,7 @@ static int parse_seed_command(buffer_t *data, block_command_t *out) {
 }
 
 static int parse_add_member_command(buffer_t *data, block_command_t *out) {
-    tlv_t tlv;
+    tlv_t tlv = {0};
 
     LEDGER_ASSERT(out != NULL, "Null out\n");
 
@@ -113,7 +113,7 @@ static int parse_add_member_command(buffer_t *data, block_command_t *out) {
 }
 
 static int parse_publish_key_command(buffer_t *data, block_command_t *out) {
-    tlv_t tlv;
+    tlv_t tlv = {0};
 
     LEDGER_ASSERT(out != NULL, "Null out\n");
 
@@ -170,7 +170,7 @@ static int tlv_read_derivation_path(tlv_t *tlv, uint32_t *out, int out_len) {
 }
 
 static int parse_derive_command(buffer_t *data, block_command_t *out) {
-    tlv_t tlv;
+    tlv_t tlv = {0};
 
     LEDGER_ASSERT(out != NULL, "Null out\n");
 
@@ -214,7 +214,7 @@ static int parse_derive_command(buffer_t *data, block_command_t *out) {
 }
 
 int parse_block_command(buffer_t *data, block_command_t *out) {
-    tlv_t tlv;
+    tlv_t tlv = {0};
 
     LEDGER_ASSERT(data != NULL, "Null data\n");
     LEDGER_ASSERT(out != NULL, "Null out\n");
@@ -227,7 +227,7 @@ int parse_block_command(buffer_t *data, block_command_t *out) {
         return -1;
     }
 
-    buffer_t commandBuffer = {.ptr = tlv.value, .offset = 0, .size = tlv.length};
+    buffer_t commandBuffer = {.ptr = (uint8_t *) tlv.value, .offset = 0, .size = tlv.length};
 
     out->type = (block_command_type_e) tlv.type;
     switch (tlv.type) {
@@ -255,7 +255,7 @@ int parse_block_command(buffer_t *data, block_command_t *out) {
 }
 
 int parse_block_signature(buffer_t *data, uint8_t *out, size_t out_len) {
-    tlv_t tlv;
+    tlv_t tlv = {0};
     int status;
 
     if (!tlv_read_next(data, &tlv)) {

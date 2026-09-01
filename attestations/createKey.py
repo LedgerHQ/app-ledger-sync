@@ -1,22 +1,22 @@
 #!/bin/python3
 import argparse
-import os
-import sys
-import subprocess
 import logging
-import coloredlogs
+import os
+import subprocess
+import sys
 
+import coloredlogs
 
 logger = logging.getLogger(__name__)
 
 
 def setLogger(log: logging.Logger, verbose: bool) -> None:
     level = logging.DEBUG if verbose else logging.INFO
-    coloredlogs.install(level=level, fmt='%(message)s', logger=log)
+    coloredlogs.install(level=level, fmt="%(message)s", logger=log)
 
 
 def check_exec(cmdline: str) -> str:
-    result = subprocess.run(cmdline, shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    result = subprocess.run(cmdline, shell=True, check=True, capture_output=True)
     if result.returncode != 0:
         logger.error(f"[ERROR] Failed to execute {cmdline}")
         logger.error(f"[ERROR] stderr: {result.stderr.decode()}")
@@ -37,7 +37,7 @@ def check_file(filename: str, exist: bool = True) -> str:
 # ===============================================================================
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--verbose", "-v", action='store_true', help="Verbose mode")
+    parser.add_argument("--verbose", "-v", action="store_true", help="Verbose mode")
 
     # Check parameters
     args = parser.parse_args()

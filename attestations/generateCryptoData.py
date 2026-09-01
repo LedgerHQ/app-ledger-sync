@@ -1,14 +1,13 @@
 #!/bin/python3
 import argparse
 import logging
-from typing import List
-from createKey import check_file, check_exec, setLogger
 
+from createKey import check_exec, check_file, setLogger
 
 logger = logging.getLogger(__name__)
 
 
-def format_data(prefix: str, data: List[str], step: int = 16) -> None:
+def format_data(prefix: str, data: list[str], step: int = 16) -> None:
     """Format key material and print to stdout
 
     Args:
@@ -20,7 +19,7 @@ def format_data(prefix: str, data: List[str], step: int = 16) -> None:
     key_data = ""
     offset = 0
     while offset < len(data):
-        key_data += "    " + ", ".join([f"0x{int(x, base=16):02x}" for x in data[offset:offset + step]])
+        key_data += "    " + ", ".join([f"0x{int(x, base=16):02x}" for x in data[offset : offset + step]])
         offset += step
         if offset < len(data):
             key_data += ",\n"
@@ -34,8 +33,8 @@ def format_data(prefix: str, data: List[str], step: int = 16) -> None:
 # ===============================================================================
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--verbose", "-v", action='store_true', help="Verbose mode")
-    parser.add_argument('env', type=str, help='CA, key and cert env', choices=["prod", "test"])
+    parser.add_argument("--verbose", "-v", action="store_true", help="Verbose mode")
+    parser.add_argument("env", type=str, help="CA, key and cert env", choices=["prod", "test"])
 
     # Check parameters
     args = parser.parse_args()
@@ -44,8 +43,8 @@ def main() -> None:
 
     setLogger(logger, args.verbose)
 
-    dir_path  = f"data/{args.env}"
-    key_file  = f"{dir_path}/priv-key.pem"
+    dir_path = f"data/{args.env}"
+    key_file = f"{dir_path}/priv-key.pem"
 
     check_file(key_file)
 
@@ -56,7 +55,7 @@ def main() -> None:
 
     # Generate ATTESTATION_KEY
     prefix = f"static const uint8_t {env}_ATTESTATION_KEY[] ="
-    key_bytes = "".join(stdout.split("\n")[2:5]).replace(" ", "").split(':')
+    key_bytes = "".join(stdout.split("\n")[2:5]).replace(" ", "").split(":")
     if args.env == "prod":
         print(f"PROD_ATTESTATION_KEY='0x{',0x'.join(key_bytes)}'")
     else:
@@ -64,7 +63,7 @@ def main() -> None:
 
     # Generate ATTESTATION_PUBKEY
     prefix = f"static const uint8_t {env}_ATTESTATION_PUBKEY[] ="
-    key_bytes = "".join(stdout.split("\n")[6:11]).replace(" ", "").split(':')
+    key_bytes = "".join(stdout.split("\n")[6:11]).replace(" ", "").split(":")
     format_data(prefix, key_bytes, 13)
 
 

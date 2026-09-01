@@ -1,10 +1,10 @@
-from typing import Dict, TypeVar, Generic, Optional
+from typing import Generic, TypeVar
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 class IndexedTree(Generic[T]):
-    def __init__(self, node=None, children: Optional[Dict[int, 'IndexedTree']] = None):
+    def __init__(self, node=None, children: dict[int, "IndexedTree"] | None = None):
         self.node = node
         self.children = children if children is not None else {}
 

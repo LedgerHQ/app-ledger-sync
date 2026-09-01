@@ -2,10 +2,12 @@
 
 import hashlib
 import os
-from Crypto.Cipher import AES
-from bip32 import BIP32  # type: ignore
+
 import secp256k1  # type: ignore
+from bip32 import BIP32  # type: ignore
 from cffi import FFI  # type: ignore
+from Crypto.Cipher import AES
+
 ffi = FFI()
 
 # BIP32
@@ -28,16 +30,13 @@ class Crypto:
         privateKey = privateKeyObj.private_key
         publicKey = privateKeyObj.pubkey.serialize()
 
-        return {
-            'publicKey': publicKey,
-            'privateKey': privateKey
-        }
+        return {"publicKey": publicKey, "privateKey": privateKey}
 
     @staticmethod
     def keyPair_from_secret_key(secret):
         private = secp256k1.PrivateKey(secret)
         public = private.pubkey.serialize()
-        return {'publicKey': public, 'privateKey': secret}
+        return {"publicKey": public, "privateKey": secret}
 
     @staticmethod
     def derive_private(xpriv: bytes, path: list) -> dict:
@@ -46,14 +45,14 @@ class Crypto:
 
         obj = BIP32(chain_code, pk)
         return {
-            'publicKey': obj.get_pubkey_from_path(path),
-            'privateKey': obj.get_extended_privkey_from_path(path)[1],
-            'chainCode': obj.get_extended_privkey_from_path(path)[0]
+            "publicKey": obj.get_pubkey_from_path(path),
+            "privateKey": obj.get_extended_privkey_from_path(path)[1],
+            "chainCode": obj.get_extended_privkey_from_path(path)[0],
         }
 
     @staticmethod
     def sign(message, keyPair):
-        privateKey = secp256k1.PrivateKey(keyPair['privateKey'])
+        privateKey = secp256k1.PrivateKey(keyPair["privateKey"])
         obj = privateKey.ecdsa_sign(message, raw=True)
         return privateKey.ecdsa_serialize(obj)
 
@@ -66,8 +65,8 @@ class Crypto:
     @staticmethod
     def concat(a: bytearray, b: bytearray) -> bytes:
         c = bytearray(len(a) + len(b))
-        c[:len(a)] = a
-        c[len(a):] = b
+        c[: len(a)] = a
+        c[len(a) :] = b
         return bytes(c)
 
     # Verifies the validity of a signature, message and public key
@@ -99,7 +98,7 @@ class Crypto:
     def to_hex(byte_array):
         if not isinstance(byte_array, bytearray) and not isinstance(byte_array, bytes):
             return ""
-        return "".join(format(byte, '02x') for byte in byte_array)
+        return "".join(format(byte, "02x") for byte in byte_array)
 
     @staticmethod
     def to_repr(byte_array: bytearray):
@@ -124,8 +123,7 @@ class Crypto:
     @staticmethod
     def normalize_nonce(nonce):
         if len(nonce) < 16:
-            raise ValueError(
-                f"Invalid nonce length (must be 128 bits) (invalid length is {len(nonce)})")
+            raise ValueError(f"Invalid nonce length (must be 128 bits) (invalid length is {len(nonce)})")
         return nonce[:16]
 
     # Encrypts a piece of data/message using AES CBC 256
@@ -148,7 +146,7 @@ class Crypto:
     @staticmethod
     def ecdh(keyPair: dict, publicKey: bytes) -> bytes:
         public = secp256k1.PublicKey(publicKey, raw=True)
-        point = public.tweak_mul(keyPair['privateKey'])
+        point = public.tweak_mul(keyPair["privateKey"])
         secret = point.serialize(compressed=True)
         return secret[1:]
 
