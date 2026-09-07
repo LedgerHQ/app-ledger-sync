@@ -288,8 +288,7 @@ static int signer_inject_add_member(block_command_t *command) {
                 ui_display_enable_agent_access();
                 return SWO_NO_RESPONSE;
             } else if (permissions == CAN_ENCRYPT) {
-                ui_display_register_agent_command(command->command.add_member.public_key);
-                return SWO_NO_RESPONSE;
+                return ui_display_register_agent_command(command->command.add_member.public_key);
             }
             break;
         default:

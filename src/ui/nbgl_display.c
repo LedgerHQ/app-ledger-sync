@@ -22,12 +22,12 @@
  * immediately (NBGL is async); the APDU response is sent later from a callback.
  *
  * Flows in this file:
- *   1. ADD_MEMBER   — AppID 16 OWNER:                "Turn on sync for Ledger Wallet?"  (1 screen)
- *      ADD_MEMBER   — AppID 16 OWNER&~CAN_ADD_BLOCK: "Turn on sync for {name}?"         (1 screen)
- *   2. GET_SEED_ID  — "Connect to Ledger Sync?"                                         (1 screen)
+ *   1. ADD_MEMBER   — AppID 16 OWNER:                "Turn on sync for Ledger Wallet?" (1 screen)
+ *      ADD_MEMBER   — AppID 16 OWNER&~CAN_ADD_BLOCK: "Turn on sync for {name}?"        (1 screen)
+ *   2. GET_SEED_ID  — "Connect to Ledger Sync?"                                        (1 screen)
  *   3. CLOSE_STREAM — "Remove from Ledger Sync?"                                       (1 screen)
- *   4. ADD_MEMBER   — AppID 18 CAN_ENCRYPT|CAN_DERIVE: "Enable website access"          (2 screens)
- *   5. ADD_MEMBER   — AppID 18 CAN_ENCRYPT:            "Register agent"                 (1 screen)
+ *   4. ADD_MEMBER   — AppID 18 CAN_ENCRYPT|CAN_DERIVE: "Enable website access"         (2 screens)
+ *   5. ADD_MEMBER   — AppID 18 CAN_ENCRYPT:            "Add agent"                     (1 screen)
  */
 
 #ifdef HAVE_NBGL
@@ -37,11 +37,13 @@
 #include <string.h>   // memset
 
 #include "os.h"
+#include "cx.h"
 #include "glyphs.h"
 #include "nbgl_use_case.h"
 #include "io.h"
 #include "bip32.h"
 #include "format.h"
+#include "base58.h"
 
 #include "display.h"
 #include "constants.h"
@@ -71,16 +73,33 @@ nbgl_layout_t layoutCtx;
  * UI_BODY_LEN: WALLET body or subtext with name once:
  *   "{name} will be able to sync your accounts with Ledger Intent." = MAX_NAME_LEN + 56
  *   → rounded to MAX_NAME_LEN + 64.
- * UNIQUE_ID_STR_LEN: UNIQUE_ID_BYTES hex-encoded = UNIQUE_ID_BYTES*2 chars + null.
  */
-#define UI_TEXT_LEN       (2 * MAX_NAME_LEN + 80)
-#define UI_BODY_LEN       (MAX_NAME_LEN + 64)
-#define UNIQUE_ID_BYTES   MEMBER_KEY_LEN            /* full compressed public key: 33 bytes */
-#define UNIQUE_ID_STR_LEN (UNIQUE_ID_BYTES * 2 + 1) /* 66 hex chars + null */
+#define UI_TEXT_LEN (2 * MAX_NAME_LEN + 80)
+#define UI_BODY_LEN (MAX_NAME_LEN + 64)
+
+/* Agent fingerprint: base58 of the first FINGERPRINT_BYTES bytes of sha256(compressed pubkey),
+ * displayed in groups of FINGERPRINT_GROUP_LEN characters and followed by the hint asking the
+ * user to compare it with the one shown by the agent.
+ * FINGERPRINT_CHARS_MAX: base58 expands by at most 138/100. */
+#define FINGERPRINT_BYTES      10
+#define FINGERPRINT_CHARS_MAX  (FINGERPRINT_BYTES * 138 / 100 + 1)
+#define FINGERPRINT_GROUP_LEN  4
+#define FINGERPRINT_GROUP_SEPS ((FINGERPRINT_CHARS_MAX - 1) / FINGERPRINT_GROUP_LEN)
+#define FINGERPRINT_STR_LEN    (FINGERPRINT_CHARS_MAX + FINGERPRINT_GROUP_SEPS + 1)
+#define FINGERPRINT_HINT       "Confirm this matches the ID appearing in your agent chat."
+#ifdef SCREEN_SIZE_WALLET
+/* WALLET holds the fingerprint and the hint in the single sub-message of the screen
+  in order to keep the gray font. */
+#define FINGERPRINT_HINT_SUFFIX "\n\n" FINGERPRINT_HINT
+#define FINGERPRINT_TEXT_LEN    (FINGERPRINT_STR_LEN + sizeof(FINGERPRINT_HINT_SUFFIX) - 1)
+#else
+/* Nano gives the hint its own page, as the sub-message of the choice flow. */
+#define FINGERPRINT_TEXT_LEN FINGERPRINT_STR_LEN
+#endif
 
 /* Dynamic string buffers — NBGL holds raw pointers to these across async callbacks,
  * so they must be static (stack frames are gone by the time callbacks fire). */
-static char s_agent_unique_id[UNIQUE_ID_STR_LEN];
+static char s_agent_fingerprint[FINGERPRINT_TEXT_LEN];
 static char s_agent_sync_text[UI_TEXT_LEN];
 static char s_agent_sync_subtext[UI_BODY_LEN];
 
@@ -349,19 +368,15 @@ void ui_display_enable_agent_access(void) {
     io_seproxyhal_play_tune(TUNE_LOOK_AT_ME);
 #endif
     nbgl_useCaseChoice(NULL,
-                       "Enable website access for your agent?",
-#ifdef SCREEN_SIZE_WALLET
-                       "Your agent will be able to send you transaction intents",
-#else
+                       "Allow agent to send proposals?",
                        NULL,
-#endif
-                       "Enable",
+                       "Allow",
                        "Reject",
                        frontend_cb);
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
- * FLOW ADD_MEMBER AppID 18 + CAN_ENCRYPT: "Register agent" (1 screen)
+ * FLOW ADD_MEMBER AppID 18 + CAN_ENCRYPT: "Add agent" (1 screen)
  *
  * add_member_confirm() is called on approval of the final screen in each flow.
  * Rejecting any screen shows a cancel notification; SW_DENY is deferred to ui_deny_cb.
@@ -376,32 +391,73 @@ static void register_cb(bool approve) {
     }
 }
 
+/* Fill s_agent_fingerprint with the human-comparable identifier of the agent key, followed
+ * by the comparison hint. Returns false if the fingerprint cannot be computed, so that no
+ * screen is shown. */
+static bool format_agent_fingerprint(const uint8_t *pubkey) {
+    uint8_t hash[CX_SHA256_SIZE];
+    char fingerprint[FINGERPRINT_CHARS_MAX];
+
+    if (cx_hash_sha256(pubkey, MEMBER_KEY_LEN, hash, sizeof(hash)) != sizeof(hash)) {
+        return false;
+    }
+
+    int len = base58_encode(hash, FINGERPRINT_BYTES, fingerprint, sizeof(fingerprint));
+    if (len < 0) {
+        return false;
+    }
+
+    // Space out the fingerprint in groups to ease the character by character comparison.
+    size_t offset = 0;
+    for (int i = 0; i < len; i++) {
+        if ((i != 0) && ((i % FINGERPRINT_GROUP_LEN) == 0)) {
+            s_agent_fingerprint[offset++] = ' ';
+        }
+        s_agent_fingerprint[offset++] = fingerprint[i];
+    }
+
+#ifdef SCREEN_SIZE_WALLET
+    strlcpy(s_agent_fingerprint + offset,
+            FINGERPRINT_HINT_SUFFIX,
+            sizeof(s_agent_fingerprint) - offset);
+#else
+    s_agent_fingerprint[offset] = '\0';
+#endif
+    return true;
+}
+
 /**
- * @brief Show "Register agent" screen only (AppID 18, CAN_ENCRYPT).
+ * @brief Show "Add agent" screen only (AppID 18, CAN_ENCRYPT).
  *
- * @param pubkey Agent compressed public key (MEMBER_KEY_LEN bytes); shown as hex unique ID.
- * @return 0; APDU response sent asynchronously after the screen is confirmed.
+ * @param pubkey Agent compressed public key (MEMBER_KEY_LEN bytes); shown as base58 fingerprint.
+ * @return SWO_NO_RESPONSE, the APDU response being sent asynchronously after the screen is
+ *         confirmed, or an error status word if the fingerprint cannot be computed.
  */
-void ui_display_register_agent_command(const uint8_t *pubkey) {
+int ui_display_register_agent_command(const uint8_t *pubkey) {
+    if (!format_agent_fingerprint(pubkey)) {
+        return SW_BAD_STATE;
+    }
+
 #ifdef HAVE_PIEZO_SOUND
     io_seproxyhal_play_tune(TUNE_LOOK_AT_ME);
 #endif
-    format_hex(pubkey, UNIQUE_ID_BYTES, s_agent_unique_id, sizeof(s_agent_unique_id));
 
     nbgl_useCaseAdvancedChoiceWithDetails(&ICON_ROBOT,
                                           NULL,
-                                          "Register agent",
 #ifdef SCREEN_SIZE_WALLET
+                                          "Add agent?",
                                           NULL,
-                                          s_agent_unique_id,
+                                          s_agent_fingerprint,
 #else
-                                          s_agent_unique_id,
-                                          NULL,
+                                          "Add agent",
+                                          s_agent_fingerprint,
+                                          FINGERPRINT_HINT,
 #endif
-                                          "Register",
-                                          "Don't register",
+                                          "Confirm and add",
+                                          "Reject",
                                           NULL,
                                           register_cb);
+    return SWO_NO_RESPONSE;
 }
 
 #endif

@@ -9,6 +9,6 @@ void ui_display_seed_id_command(void);
 
 void ui_display_update_instances(void);
 
-void ui_display_register_agent_command(const uint8_t *pubkey);
+int ui_display_register_agent_command(const uint8_t *pubkey);
 
 void ui_display_enable_agent_access(void);
