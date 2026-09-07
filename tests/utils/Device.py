@@ -166,3 +166,8 @@ class SodiumDevice(device):
 def createDevice():
     keyPair = Crypto.randomKeyPair()
     return SodiumDevice(keyPair)
+
+
+def createDeviceFromKey(private_key: bytes):
+    """Create a SodiumDevice with a fixed private key for deterministic snapshot tests."""
+    return SodiumDevice(Crypto.keyPair_from_secret_key(private_key))
