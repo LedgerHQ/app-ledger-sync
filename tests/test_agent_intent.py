@@ -11,8 +11,8 @@ from utils.NobleCrypto import Crypto
 from utils.streamTree import StreamTree
 from utils.test_helpers import get_agent_intent_path
 
-# Fixed private key for snapshot-stable tests: the agent's public key is shown as hex
-# on the Register Agent screen, so it must be deterministic across test runs.
+# Fixed private key for snapshot-stable tests: the fingerprint of the agent's public key is
+# shown on the Add Agent screen, so it must be deterministic across test runs.
 AGENT_FIXED_PRIVATE_KEY = bytes([0x01] * 32)
 
 
@@ -51,7 +51,7 @@ enable_agent_access_reject_nano = [
     R, R, B, # reject
 ]
 
-# --- AGENT_REGISTER (CAN_ENCRYPT): "Register agent" (1 screen, pubkey shown) ---
+# --- AGENT_REGISTER (CAN_ENCRYPT): "Add agent" (1 screen, fingerprint + hint shown) ---
 register_agent_happy_stax = [
     NavInsID.USE_CASE_CHOICE_CONFIRM,
     NavInsID.USE_CASE_STATUS_DISMISS,
@@ -61,7 +61,7 @@ register_agent_reject_stax = [
     NavInsID.USE_CASE_STATUS_DISMISS,
 ]
 
-# Nano: pubkey spread over 2 pages → RIGHT x3 to confirm, RIGHT x4 to reject
+# Nano: fingerprint + hint spread over 2 pages → RIGHT x3 to confirm, RIGHT x4 to reject
 register_agent_happy_nano = [
     R, R, R, B,    # confirm
     B,             # status dismiss
