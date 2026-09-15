@@ -16,13 +16,14 @@ class CommandType:
 
 
 class Permissions:
+    NO_PERMISSION = 0x00
     CAN_ENCRYPT = 0x01
     CAN_DERIVE = 0x01 << 1
     CAN_ADD_BLOCK = 0x01 << 2
     OWNER = 0xFFFFFFFF
     AGENT = 0xFFFFFFFF & ~(0x01 << 2)  # OWNER without CAN_ADD_BLOCK = 0xFFFFFFFB (AppID 16 only)
     AGENT_FULL = CAN_ENCRYPT | CAN_DERIVE  # AppID 18: enable website access + sync
-    AGENT_REGISTER = CAN_ENCRYPT  # AppID 18: register agent only
+    AGENT_REGISTER = NO_PERMISSION  # AppID 18: identify-only agent registration
 
 
 class commands:

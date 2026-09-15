@@ -51,7 +51,7 @@ enable_agent_access_reject_nano = [
     R, R, B, # reject
 ]
 
-# --- AGENT_REGISTER (CAN_ENCRYPT): "Add agent" (1 screen, fingerprint + hint shown) ---
+# --- AGENT_REGISTER (NO_PERMISSION): "Add agent" (1 screen, fingerprint + hint shown) ---
 register_agent_happy_stax = [
     NavInsID.USE_CASE_CHOICE_CONFIRM,
     NavInsID.USE_CASE_STATUS_DISMISS,
@@ -153,13 +153,23 @@ def test_register_agent_decline(backend: BackendInterface, navigator: Navigator,
 
 
 def test_add_member_invalid_permissions(backend: BackendInterface) -> None:
-    """AppID 18 with permissions not in {CAN_ENCRYPT|CAN_DERIVE, CAN_ENCRYPT} → immediate SW_WRONG_DATA."""
+    """AppID 18 with permissions not in {CAN_ENCRYPT|CAN_DERIVE, NO_PERMISSION} → immediate SW_WRONG_DATA."""
     alice = device.apdu(backend)
     agent = device.software_from_key(AGENT_FIXED_PRIVATE_KEY)
     agent_pubkey = agent.get_public_key()
 
     stream, tree = create_agent_intent_stream(alice)
 
-    # 0x07 = CAN_ENCRYPT|CAN_DERIVE|CAN_ADD_BLOCK — not a valid AppID 18 case → SW_WRONG_DATA, no UI shown
+    # CAN_ENCRYPT alone is no longer a valid AppID 18 case (only NO_PERMISSION registers an
+    # identify-only agent) → SW_WRONG_DATA, no UI shown
     with pytest.raises(ExceptionRAPDU):
-        stream.edit().add_member("bad", agent_pubkey, 0x07, publish_key=False).issue(alice, tree)
+        stream.edit().add_member("bad", agent_pubkey, Permissions.CAN_ENCRYPT, publish_key=False).issue(alice, tree)
+
+    # CAN_ENCRYPT|CAN_DERIVE|CAN_ADD_BLOCK — not a valid AppID 18 case → SW_WRONG_DATA, no UI shown
+    with pytest.raises(ExceptionRAPDU):
+        stream.edit().add_member(
+            "bad",
+            agent_pubkey,
+            Permissions.CAN_ENCRYPT | Permissions.CAN_DERIVE | Permissions.CAN_ADD_BLOCK,
+            publish_key=False,
+        ).issue(alice, tree)
