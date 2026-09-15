@@ -287,7 +287,7 @@ static int signer_inject_add_member(block_command_t *command) {
             if (permissions == (CAN_ENCRYPT | CAN_DERIVE)) {
                 ui_display_enable_agent_access();
                 return SWO_NO_RESPONSE;
-            } else if (permissions == CAN_ENCRYPT) {
+            } else if (permissions == NO_PERMISSION) {
                 return ui_display_register_agent_command(command->command.add_member.public_key);
             }
             break;

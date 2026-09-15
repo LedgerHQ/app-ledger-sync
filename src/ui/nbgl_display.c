@@ -27,7 +27,7 @@
  *   2. GET_SEED_ID  — "Connect to Ledger Sync?"                                        (1 screen)
  *   3. CLOSE_STREAM — "Remove from Ledger Sync?"                                       (1 screen)
  *   4. ADD_MEMBER   — AppID 18 CAN_ENCRYPT|CAN_DERIVE: "Enable website access"         (2 screens)
- *   5. ADD_MEMBER   — AppID 18 CAN_ENCRYPT:            "Add agent"                     (1 screen)
+ *   5. ADD_MEMBER   — AppID 18 NO_PERMISSION:          "Add agent"                     (1 screen)
  */
 
 #ifdef HAVE_NBGL
@@ -376,7 +376,7 @@ void ui_display_enable_agent_access(void) {
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
- * FLOW ADD_MEMBER AppID 18 + CAN_ENCRYPT: "Add agent" (1 screen)
+ * FLOW ADD_MEMBER AppID 18 + NO_PERMISSION: "Add agent" (1 screen)
  *
  * add_member_confirm() is called on approval of the final screen in each flow.
  * Rejecting any screen shows a cancel notification; SW_DENY is deferred to ui_deny_cb.
@@ -427,7 +427,7 @@ static bool format_agent_fingerprint(const uint8_t *pubkey) {
 }
 
 /**
- * @brief Show "Add agent" screen only (AppID 18, CAN_ENCRYPT).
+ * @brief Show "Add agent" screen only (AppID 18, NO_PERMISSION).
  *
  * @param pubkey Agent compressed public key (MEMBER_KEY_LEN bytes); shown as base58 fingerprint.
  * @return SWO_NO_RESPONSE, the APDU response being sent asynchronously after the screen is

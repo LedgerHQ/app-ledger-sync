@@ -26,6 +26,7 @@ typedef enum {
 } block_command_type_e;
 
 enum member_permission_e {
+    NO_PERMISSION = 0x00,
     CAN_ENCRYPT = 0x01,
     CAN_DERIVE = 0x01 << 1,
     CAN_ADD_BLOCK = 0x01 << 2,
