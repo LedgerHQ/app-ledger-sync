@@ -351,9 +351,9 @@ void ui_display_update_instances(void) {
 static void frontend_cb(bool approve) {
     if (approve) {
         add_member_confirm();
-        nbgl_useCaseStatus("Access requested", true, ui_menu_main);
+        nbgl_useCaseStatus("Connection requested", true, ui_menu_main);
     } else {
-        nbgl_useCaseStatus("Access cancelled", false, ui_deny_cb);
+        nbgl_useCaseStatus("Connection cancelled", false, ui_deny_cb);
     }
 }
 
@@ -368,10 +368,14 @@ void ui_display_enable_agent_access(void) {
     io_seproxyhal_play_tune(TUNE_LOOK_AT_ME);
 #endif
     nbgl_useCaseChoice(NULL,
-                       "Allow agent to send proposals?",
+                       "Connect to Ledger Agent Intent?",
+#ifdef SCREEN_SIZE_WALLET
+                       "You'll be able to review proposals from your agents and authorize actions.",
+#else
                        NULL,
-                       "Allow",
-                       "Reject",
+#endif
+                       "Connect",
+                       "Don't connect",
                        frontend_cb);
 }
 
