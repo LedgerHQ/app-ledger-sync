@@ -41,14 +41,16 @@ static bool signer_verify_parent_hash(stream_ctx_t *stream, uint8_t *parent_hash
 
 int signer_parse_block_header(signer_ctx_t *signer, stream_ctx_t *stream, buffer_t *data) {
     // Parse the block header
-    block_header_t block_header;
+    block_header_t block_header = {0};
     LEDGER_ASSERT(signer != NULL, "Null signer");
     LEDGER_ASSERT(stream != NULL, "Null stream");
 
+    // parse_block_header() returns the number of bytes read, or a negative error code
     int err = parse_block_header(data, &block_header);
 
-    if (!err) {
-        return err;
+    if (err <= 0) {
+        signer_reset();
+        return err < 0 ? err : BP_UNEXPECTED_TLV;
     }
     if (block_header.length == 0) {
         signer_reset();
