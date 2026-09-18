@@ -75,5 +75,5 @@
             "test_run_as_owner.py::test_seed_twice_by_bob_stream"
         ]
     },
-    "makefile.configureOnOpen": true,
+    "cmake.sourceDirectory": "${workspaceFolder}/unit-tests"
 }
