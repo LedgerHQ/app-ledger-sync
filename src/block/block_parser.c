@@ -44,8 +44,15 @@ static int parse_seed_command(buffer_t *data, block_command_t *out) {
     if (tlv.length > MAX_TOPIC_LEN) {
         return BP_OVERSIZED_FIELD;
     }
+    // An absent topic is encoded as a zero-length NULL TLV
+    if (tlv.type == TLV_TYPE_NULL) {
+        if (tlv.length != 0) {
+            return BP_UNEXPECTED_TLV;
+        }
+    } else if (!tlv_read_bytes(&tlv, out->command.seed.topic, MAX_TOPIC_LEN)) {
+        return BP_UNEXPECTED_TLV;
+    }
     out->command.seed.topic_len = tlv.length;
-    tlv_read_bytes(&tlv, out->command.seed.topic, MAX_TOPIC_LEN);
 
     // Read protocol version
 
@@ -93,7 +100,11 @@ static int parse_add_member_command(buffer_t *data, block_command_t *out) {
         return BP_OVERSIZED_FIELD;
     }
 
-    tlv_read_string(&tlv, out->command.add_member.name, sizeof(out->command.add_member.name));
+    if (!tlv_read_string(&tlv,
+                         out->command.add_member.name,
+                         sizeof(out->command.add_member.name))) {
+        return BP_UNEXPECTED_TLV;
+    }
 
     // Read member public key
     if (!tlv_read_next(data, &tlv)) {
@@ -102,7 +113,9 @@ static int parse_add_member_command(buffer_t *data, block_command_t *out) {
     if (tlv.length > MEMBER_KEY_LEN) {
         return BP_OVERSIZED_FIELD;
     }
-    tlv_read_pubkey(&tlv, out->command.add_member.public_key);
+    if (!tlv_read_pubkey(&tlv, out->command.add_member.public_key)) {
+        return BP_UNEXPECTED_TLV;
+    }
 
     // Read member permissions
     if (!tlv_read_next(data, &tlv) ||

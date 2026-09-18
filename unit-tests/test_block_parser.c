@@ -506,6 +506,47 @@ static void test_parse_block_header_fixed_size_fields(void **state) {
     }
 }
 
+/* Serialized ADD_MEMBER command, built with an arbitrary TLV type for the member
+ * public key so that type validation can be exercised. */
+static size_t build_add_member_command(uint8_t *buffer, uint8_t public_key_type) {
+    const char *name = "Bob";
+    uint8_t public_key[MEMBER_KEY_LEN] = {0};
+    uint8_t permissions[sizeof(uint32_t)] = {0xFF, 0xFF, 0xFF, 0xFF};
+    uint8_t payload[TEST_BUFFER_MAX_LEN];
+    size_t offset = 0;
+
+    offset = append_tlv(payload, offset, TLV_TYPE_STRING, (const uint8_t *) name, strlen(name));
+    offset = append_tlv(payload, offset, public_key_type, public_key, sizeof(public_key));
+    offset = append_tlv(payload, offset, TLV_TYPE_VARINT, permissions, sizeof(permissions));
+
+    return append_tlv(buffer, 0, COMMAND_ADD_MEMBER, payload, offset);
+}
+
+static int parse_add_member_command_with_key_type(uint8_t *raw,
+                                                  uint8_t public_key_type,
+                                                  block_command_t *command) {
+    buffer_t buffer = {.ptr = raw,
+                       .offset = 0,
+                       .size = build_add_member_command(raw, public_key_type)};
+
+    return parse_block_command(&buffer, command);
+}
+
+static void test_parse_add_member_command(void **state) {
+    (void) state;
+
+    uint8_t raw[TEST_BUFFER_MAX_LEN];
+    block_command_t command;
+
+    // A well-formed public key TLV is accepted
+    assert_true(parse_add_member_command_with_key_type(raw, TLV_TYPE_PUBKEY, &command) >= 0);
+    assert_int_equal(command.type, COMMAND_ADD_MEMBER);
+
+    // A public key of the right size but of the wrong type is rejected
+    assert_true(parse_add_member_command_with_key_type(raw, TLV_TYPE_BYTES, &command) < 0);
+    assert_true(parse_add_member_command_with_key_type(raw, TLV_TYPE_HASH, &command) < 0);
+}
+
 static void test_parse_derive_command(void **state) {
     (void) state;
 
@@ -537,7 +578,8 @@ int main() {
                                        cmocka_unit_test(test_block_commands_parse),
                                        cmocka_unit_test(test_stream_parse),
                                        cmocka_unit_test(test_parse_derive_command),
-                                       cmocka_unit_test(test_parse_block_header_fixed_size_fields)};
+                                       cmocka_unit_test(test_parse_block_header_fixed_size_fields),
+                                       cmocka_unit_test(test_parse_add_member_command)};
 
     return cmocka_run_group_tests(tests, NULL, NULL);
 }
