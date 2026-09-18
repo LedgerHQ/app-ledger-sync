@@ -77,3 +77,18 @@ def test_set_trusted_member_short_iv(backend: BackendInterface) -> None:
             with pytest.raises(ExceptionRAPDU) as error:
                 _set_trusted_member(backend, payload)
             assert error.value.status == SW_WRONG_DATA
+
+
+def test_set_trusted_member_invalid_ciphertext_length(backend: BackendInterface) -> None:
+    """Only the exact encrypted trusted member length may reach the AES-GCM decryption."""
+    Device.initFlow(backend, Crypto.randomKeyPair()["publicKey"])
+    iv = _trusted_property(Device.TrustedPropertiesTLV.IV, bytes(IV_LEN))
+
+    shorter_than_tag = list(range(GCM_TAG_LEN))
+    other_lengths = [GCM_TAG_LEN, TRUSTED_MEMBER_ENCRYPTED_LEN - 1, TRUSTED_MEMBER_ENCRYPTED_LEN + 1, 200]
+
+    for member_len in shorter_than_tag + other_lengths:
+        member = _trusted_property(Device.TrustedPropertiesTLV.TrustedMember, bytes(member_len))
+        with pytest.raises(ExceptionRAPDU) as error:
+            _set_trusted_member(backend, iv + member)
+        assert error.value.status == SW_WRONG_DATA

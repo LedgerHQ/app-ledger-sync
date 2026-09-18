@@ -13,9 +13,10 @@ int handler_set_trusted_member(buffer_t *cdata) {
     tlv_t tlv = {0};
 
     int member_len = 0;
+    int decrypted_len = 0;
     uint8_t *iv = NULL;
     uint8_t *member = NULL;
-    uint8_t rawTrustedMember[TP_BUFFER_SIZE_NEW_MEMBER + 32];
+    uint8_t rawTrustedMember[TP_BUFFER_SIZE_NEW_MEMBER];
 
     if (!IS_SESSION_INITIALIAZED()) {
         return io_send_sw(SW_BAD_STATE);
@@ -38,22 +39,25 @@ int handler_set_trusted_member(buffer_t *cdata) {
                 break;
         }
     }
-    if (iv == NULL || member == NULL) {
+    // The member property is a serialized trusted member encrypted with the session key
+    if (iv == NULL || member == NULL ||
+        member_len != (int) (TP_BUFFER_SIZE_NEW_MEMBER + CX_AES_BLOCK_SIZE)) {
         return io_send_sw(SW_WRONG_DATA);
     }
 
-    if (crypto_decrypt(G_context.signer_info.session_encryption_key,
-                       sizeof(G_context.signer_info.session_encryption_key),
-                       member,
-                       member_len,
-                       iv,
-                       rawTrustedMember,
-                       sizeof(rawTrustedMember)) < 0) {
+    decrypted_len = crypto_decrypt(G_context.signer_info.session_encryption_key,
+                                   sizeof(G_context.signer_info.session_encryption_key),
+                                   member,
+                                   member_len,
+                                   iv,
+                                   rawTrustedMember,
+                                   sizeof(rawTrustedMember));
+    if (decrypted_len < 0) {
         return io_send_sw(SW_WRONG_DATA);
     }
 
     if (deserialize_trusted_member(rawTrustedMember,
-                                   sizeof(rawTrustedMember),
+                                   decrypted_len,
                                    &G_context.stream.trusted_member) < 0) {
         return io_send_sw(SW_WRONG_DATA);
     }
