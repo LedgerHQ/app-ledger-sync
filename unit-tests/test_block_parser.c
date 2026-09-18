@@ -415,11 +415,11 @@ static void test_stream_parse(void **state) {
     free((void *) buffer.ptr);
 }
 
-/* Serialized DERIVE command, built for an arbitrary path TLV length so that the
- * path bounds can be exercised. Worst case is the longest accepted path plus one
- * element, which still fits in a single-byte TLV length. */
-#define DERIVE_COMMAND_MAX_LEN 256
-#define DERIVE_PATH_MAX_LEN    ((MAX_BIP32_PATH + 1) * sizeof(uint32_t))
+/* Scratch buffer for the serialized structures the tests build. The largest one is a
+ * DERIVE command holding the longest accepted path plus one element, which still fits
+ * in a single-byte TLV length. */
+#define TEST_BUFFER_MAX_LEN 256
+#define DERIVE_PATH_MAX_LEN ((MAX_BIP32_PATH + 1) * sizeof(uint32_t))
 
 static size_t append_tlv(uint8_t *buffer,
                          size_t offset,
@@ -437,7 +437,7 @@ static size_t build_derive_command(uint8_t *buffer, size_t path_byte_len) {
     uint8_t public_key[MEMBER_KEY_LEN] = {0};
     uint8_t initialization_vector[IV_LEN] = {0};
     uint8_t encrypted_xpriv[MAX_ENCRYPTED_KEY_LEN] = {0};
-    uint8_t payload[DERIVE_COMMAND_MAX_LEN];
+    uint8_t payload[TEST_BUFFER_MAX_LEN];
     size_t offset = 0;
 
     assert_true(path_byte_len <= sizeof(path));
@@ -465,10 +465,51 @@ static int parse_derive_command_with_path_len(uint8_t *raw,
     return parse_block_command(&buffer, command);
 }
 
+/* Serialized block header, built with arbitrary field lengths so that the fixed-size
+ * TLV readers can be exercised. */
+static size_t build_block_header(uint8_t *buffer, uint8_t parent_len, uint8_t issuer_len) {
+    uint8_t version = 1;
+    uint8_t command_count = 1;
+    uint8_t parent[HASH_LEN] = {0};
+    uint8_t issuer[MEMBER_KEY_LEN] = {0};
+    size_t offset = 0;
+
+    offset = append_tlv(buffer, offset, TLV_TYPE_VARINT, &version, sizeof(version));
+    offset = append_tlv(buffer, offset, TLV_TYPE_HASH, parent, parent_len);
+    offset = append_tlv(buffer, offset, TLV_TYPE_PUBKEY, issuer, issuer_len);
+    return append_tlv(buffer, offset, TLV_TYPE_VARINT, &command_count, sizeof(command_count));
+}
+
+static int parse_block_header_with_lengths(uint8_t *raw, uint8_t parent_len, uint8_t issuer_len) {
+    block_header_t header;
+    buffer_t buffer = {.ptr = raw,
+                       .offset = 0,
+                       .size = build_block_header(raw, parent_len, issuer_len)};
+
+    return parse_block_header(&buffer, &header);
+}
+
+static void test_parse_block_header_fixed_size_fields(void **state) {
+    (void) state;
+
+    uint8_t raw[TEST_BUFFER_MAX_LEN];
+
+    // Full-size fields are accepted
+    assert_true(parse_block_header_with_lengths(raw, HASH_LEN, MEMBER_KEY_LEN) > 0);
+
+    // Short fixed-size fields are rejected: they would leave trailing bytes unset
+    for (uint8_t parent_len = 0; parent_len < HASH_LEN; parent_len++) {
+        assert_true(parse_block_header_with_lengths(raw, parent_len, MEMBER_KEY_LEN) < 0);
+    }
+    for (uint8_t issuer_len = 0; issuer_len < MEMBER_KEY_LEN; issuer_len++) {
+        assert_true(parse_block_header_with_lengths(raw, HASH_LEN, issuer_len) < 0);
+    }
+}
+
 static void test_parse_derive_command(void **state) {
     (void) state;
 
-    uint8_t raw[DERIVE_COMMAND_MAX_LEN];
+    uint8_t raw[TEST_BUFFER_MAX_LEN];
     block_command_t command;
 
     // A path filling the destination array exactly is accepted
@@ -495,7 +536,8 @@ int main() {
     const struct CMUnitTest tests[] = {cmocka_unit_test(test_block_header_parse),
                                        cmocka_unit_test(test_block_commands_parse),
                                        cmocka_unit_test(test_stream_parse),
-                                       cmocka_unit_test(test_parse_derive_command)};
+                                       cmocka_unit_test(test_parse_derive_command),
+                                       cmocka_unit_test(test_parse_block_header_fixed_size_fields)};
 
     return cmocka_run_group_tests(tests, NULL, NULL);
 }

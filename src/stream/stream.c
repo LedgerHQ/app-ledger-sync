@@ -47,7 +47,7 @@ static int verify_block_parent_hash(stream_ctx_t *ctx, uint8_t *parent_hash) {
 }
 
 int stream_parse_block_header(stream_ctx_t *ctx, buffer_t *data) {
-    block_header_t header;
+    block_header_t header = {0};
     member_type_t member_type;
     int err = 0;
 
@@ -236,7 +236,7 @@ int stream_parse_command(stream_ctx_t *ctx,
                          size_t trusted_data_len) {
     int err = SP_OK;
     int length = 0;
-    block_command_t command;
+    block_command_t command = {0};
 
     if (ctx->parsing_state != STREAM_PARSING_STATE_COMMAND) {
         return SP_ERR_INVALID_STATE;

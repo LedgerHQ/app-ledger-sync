@@ -65,10 +65,10 @@ bool tlv_read_hash(tlv_t *tlv, uint8_t *out) {
     LEDGER_ASSERT(tlv != NULL, "Null tlv\n");
     LEDGER_ASSERT(out != NULL, "Null out\n");
 
-    if (tlv->type != TLV_TYPE_HASH || tlv->length > HASH_LEN) {
+    if (tlv->type != TLV_TYPE_HASH || tlv->length != HASH_LEN) {
         return false;
     }
-    memcpy(out, tlv->value, tlv->length);
+    memcpy(out, tlv->value, HASH_LEN);
     return true;
 }
 
@@ -76,9 +76,21 @@ bool tlv_read_pubkey(tlv_t *tlv, uint8_t *out) {
     LEDGER_ASSERT(tlv != NULL, "Null tlv\n");
     LEDGER_ASSERT(out != NULL, "Null out\n");
 
+    if (tlv->type != TLV_TYPE_PUBKEY || tlv->length != MEMBER_KEY_LEN) {
+        return false;
+    }
+    memcpy(out, tlv->value, MEMBER_KEY_LEN);
+    return true;
+}
+
+bool tlv_read_generated_pubkey(tlv_t *tlv, uint8_t *out) {
+    LEDGER_ASSERT(tlv != NULL, "Null tlv\n");
+    LEDGER_ASSERT(out != NULL, "Null out\n");
+
     if (tlv->type != TLV_TYPE_PUBKEY || tlv->length > MEMBER_KEY_LEN) {
         return false;
     }
+    memset(out, 0, MEMBER_KEY_LEN);
     memcpy(out, tlv->value, tlv->length);
     return true;
 }

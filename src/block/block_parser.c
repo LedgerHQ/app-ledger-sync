@@ -55,7 +55,8 @@ static int parse_seed_command(buffer_t *data, block_command_t *out) {
     }
 
     // Read group public key
-    if (!tlv_read_next(data, &tlv) || !tlv_read_pubkey(&tlv, out->command.seed.group_public_key)) {
+    if (!tlv_read_next(data, &tlv) ||
+        !tlv_read_generated_pubkey(&tlv, out->command.seed.group_public_key)) {
         return BP_UNEXPECTED_TLV;
     }
 
@@ -73,7 +74,7 @@ static int parse_seed_command(buffer_t *data, block_command_t *out) {
 
     // Read ephemeral public key
     if (!tlv_read_next(data, &tlv) ||
-        !tlv_read_pubkey(&tlv, out->command.seed.ephemeral_public_key))
+        !tlv_read_generated_pubkey(&tlv, out->command.seed.ephemeral_public_key))
         return BP_UNEXPECTED_TLV;
 
     return 0;
@@ -137,7 +138,7 @@ static int parse_publish_key_command(buffer_t *data, block_command_t *out) {
 
     // Read ephemeral public key
     if (!tlv_read_next(data, &tlv) ||
-        !tlv_read_pubkey(&tlv, out->command.publish_key.ephemeral_public_key)) {
+        !tlv_read_generated_pubkey(&tlv, out->command.publish_key.ephemeral_public_key)) {
         return BP_UNEXPECTED_TLV;
     }
 
@@ -194,7 +195,7 @@ static int parse_derive_command(buffer_t *data, block_command_t *out) {
 
     // Read group key
     if (!tlv_read_next(data, &tlv) ||
-        !tlv_read_pubkey(&tlv, out->command.derive.group_public_key)) {
+        !tlv_read_generated_pubkey(&tlv, out->command.derive.group_public_key)) {
         return BP_UNEXPECTED_TLV;
     }
 
@@ -212,7 +213,7 @@ static int parse_derive_command(buffer_t *data, block_command_t *out) {
 
     // Read ephemeral public key
     if (!tlv_read_next(data, &tlv) ||
-        !tlv_read_pubkey(&tlv, out->command.derive.ephemeral_public_key)) {
+        !tlv_read_generated_pubkey(&tlv, out->command.derive.ephemeral_public_key)) {
         return BP_UNEXPECTED_TLV;
     }
 

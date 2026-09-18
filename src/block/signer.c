@@ -406,7 +406,7 @@ void update_confirm(bool confirm) {
 }
 
 int signer_parse_command(signer_ctx_t *signer, stream_ctx_t *stream, buffer_t *data) {
-    block_command_t command;
+    block_command_t command = {0};
     bool ret_sw = true;
     PRINTF("SIGNER PARSE COMMAND\n");
     if (signer->command_count <= SIGNER_EMPTY_BLOCK) {
