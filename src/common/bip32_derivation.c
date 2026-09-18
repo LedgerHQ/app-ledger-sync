@@ -72,7 +72,7 @@ static int bip32_derive_xpriv(uint8_t *parent_private_key,
     // - In case parse256(IL) ≥ n or ki = 0, the resulting key is invalid, and one should proceed
     // with the next value for i. (Note: this has probability lower than 1 in 2^127)
     int ret = 0;
-    uint8_t I[RAW_PUBLIC_KEY_LENGTH];
+    uint8_t I[RAW_PUBLIC_KEY_LENGTH] = {0};
     union {
         uint8_t hard[MEMBER_KEY_LEN + 4];  // 0x00 || ser256(kpar) || ser32(i)
         struct {
@@ -112,12 +112,16 @@ static int bip32_derive_xpriv(uint8_t *parent_private_key,
         explicit_bzero(&data, sizeof(data));
         ret = crypto_ec_add_mod_n(parent_private_key, I, child_private_key);
         if (ret != 0) {
-            return ret;
+            goto end;
         }
         index++;
     } while (!crypto_ec_is_point_on_curve(child_private_key));
 
     memcpy(child_chain_code, I + 32, 32);
+
+end:
+    // I holds IL || IR, both child key derivation material
+    explicit_bzero(I, sizeof(I));
     return ret;
 }
 
@@ -128,8 +132,8 @@ int bip32_derive_xpriv_to_path(uint8_t *parent_private_key,
                                uint8_t *child_private_key,
                                uint8_t *child_chain_code) {
     int ret = 0;
-    uint8_t kpar[32];
-    uint8_t cpar[32];
+    uint8_t kpar[32] = {0};
+    uint8_t cpar[32] = {0};
 
     LEDGER_ASSERT(parent_private_key != NULL, "Null parent_private_key\n");
     LEDGER_ASSERT(parent_chain_code != NULL, "Null parent_chain_code\n");
@@ -138,7 +142,8 @@ int bip32_derive_xpriv_to_path(uint8_t *parent_private_key,
 
     // An empty path would leave the child key and chain code untouched
     if (path_len == 0) {
-        return -1;
+        ret = -1;
+        goto end;
     }
 
     // Copy parent private key and chain code to temporary buffer
@@ -153,8 +158,12 @@ int bip32_derive_xpriv_to_path(uint8_t *parent_private_key,
         }
         ret = bip32_derive_xpriv(kpar, cpar, path[i], child_private_key, child_chain_code);
         if (ret != 0) {
-            return ret;
+            goto end;
         }
     }
-    return 0;
+
+end:
+    explicit_bzero(kpar, sizeof(kpar));
+    explicit_bzero(cpar, sizeof(cpar));
+    return ret;
 }
