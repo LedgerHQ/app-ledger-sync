@@ -144,7 +144,15 @@ static int parse_publish_key_command(buffer_t *data, block_command_t *out) {
     return 0;
 }
 
-static int tlv_read_derivation_path(tlv_t *tlv, uint32_t *out, int out_len) {
+/**
+ * Read a derivation path from a TLV.
+ *
+ * @param[in]  tlv     TLV holding the big-endian serialized path.
+ * @param[out] out     Destination array.
+ * @param[in]  out_len Capacity of @p out, counted in path elements, not in bytes.
+ * @return 0 on success, a negative block_parser_error_t otherwise.
+ */
+static int tlv_read_derivation_path(tlv_t *tlv, uint32_t *out, size_t out_len) {
     LEDGER_ASSERT(tlv != NULL, "Null tlv\n");
     LEDGER_ASSERT(out != NULL, "Null out\n");
 
@@ -152,11 +160,11 @@ static int tlv_read_derivation_path(tlv_t *tlv, uint32_t *out, int out_len) {
         return BP_UNEXPECTED_TLV;
     }
 
-    int offset = 0;
-    int index = 0;
+    size_t offset = 0;
+    size_t index = 0;
 
     while (offset < tlv->length) {
-        if (tlv->length - offset < (int) sizeof(uint32_t)) {
+        if (tlv->length - offset < sizeof(uint32_t)) {
             return BP_UNEXPECTED_TLV;
         }
         if (index >= out_len) {
@@ -175,16 +183,14 @@ static int parse_derive_command(buffer_t *data, block_command_t *out) {
     LEDGER_ASSERT(out != NULL, "Null out\n");
 
     // Read path
-    if (!tlv_read_next(data, &tlv) ||
-        tlv_read_derivation_path(&tlv,
-                                 out->command.derive.path,
-                                 sizeof(out->command.derive.path)) != 0) {
+    if (!tlv_read_next(data, &tlv) || tlv.type != TLV_TYPE_BYTES ||
+        tlv.length % sizeof(uint32_t) != 0 || tlv.length / sizeof(uint32_t) > MAX_BIP32_PATH) {
+        return BP_UNEXPECTED_TLV;
+    }
+    if (tlv_read_derivation_path(&tlv, out->command.derive.path, MAX_BIP32_PATH) != 0) {
         return BP_UNEXPECTED_TLV;
     }
     out->command.derive.path_len = tlv.length / sizeof(uint32_t);
-    if (tlv.length % sizeof(uint32_t) != 0) {
-        return BP_UNEXPECTED_TLV;
-    }
 
     // Read group key
     if (!tlv_read_next(data, &tlv) ||

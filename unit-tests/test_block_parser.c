@@ -415,9 +415,77 @@ static void test_stream_parse(void **state) {
     free((void *) buffer.ptr);
 }
 
+/* Serialized DERIVE command, built for an arbitrary path TLV length so that the
+ * path bounds can be exercised. Worst case is the longest accepted path plus one
+ * element, which still fits in a single-byte TLV length. */
+#define DERIVE_COMMAND_MAX_LEN 256
+#define DERIVE_PATH_MAX_LEN    ((MAX_BIP32_PATH + 1) * sizeof(uint32_t))
+
+static size_t append_tlv(uint8_t *buffer,
+                         size_t offset,
+                         uint8_t type,
+                         const uint8_t *value,
+                         uint8_t length) {
+    buffer[offset++] = type;
+    buffer[offset++] = length;
+    memcpy(buffer + offset, value, length);
+    return offset + length;
+}
+
+static size_t build_derive_command(uint8_t *buffer, size_t path_byte_len) {
+    uint8_t path[DERIVE_PATH_MAX_LEN];
+    uint8_t public_key[MEMBER_KEY_LEN] = {0};
+    uint8_t initialization_vector[IV_LEN] = {0};
+    uint8_t encrypted_xpriv[MAX_ENCRYPTED_KEY_LEN] = {0};
+    uint8_t payload[DERIVE_COMMAND_MAX_LEN];
+    size_t offset = 0;
+
+    assert_true(path_byte_len <= sizeof(path));
+    // Hardened elements, the only ones the signer accepts
+    memset(path, 0x80, path_byte_len);
+
+    offset = append_tlv(payload, offset, TLV_TYPE_BYTES, path, path_byte_len);
+    offset = append_tlv(payload, offset, TLV_TYPE_PUBKEY, public_key, sizeof(public_key));
+    offset = append_tlv(payload,
+                        offset,
+                        TLV_TYPE_BYTES,
+                        initialization_vector,
+                        sizeof(initialization_vector));
+    offset = append_tlv(payload, offset, TLV_TYPE_BYTES, encrypted_xpriv, sizeof(encrypted_xpriv));
+    offset = append_tlv(payload, offset, TLV_TYPE_PUBKEY, public_key, sizeof(public_key));
+
+    return append_tlv(buffer, 0, COMMAND_DERIVE, payload, offset);
+}
+
+static int parse_derive_command_with_path_len(uint8_t *raw,
+                                              size_t path_byte_len,
+                                              block_command_t *command) {
+    buffer_t buffer = {.ptr = raw, .offset = 0, .size = build_derive_command(raw, path_byte_len)};
+
+    return parse_block_command(&buffer, command);
+}
+
 static void test_parse_derive_command(void **state) {
     (void) state;
-    // TODO: implement
+
+    uint8_t raw[DERIVE_COMMAND_MAX_LEN];
+    block_command_t command;
+
+    // A path filling the destination array exactly is accepted
+    assert_true(
+        parse_derive_command_with_path_len(raw, MAX_BIP32_PATH * sizeof(uint32_t), &command) >= 0);
+    assert_int_equal(command.type, COMMAND_DERIVE);
+    assert_int_equal(command.command.derive.path_len, MAX_BIP32_PATH);
+
+    // One element more than the destination array holds is rejected
+    assert_true(parse_derive_command_with_path_len(raw,
+                                                   (MAX_BIP32_PATH + 1) * sizeof(uint32_t),
+                                                   &command) < 0);
+
+    // A path that is not a whole number of elements is rejected
+    assert_true(parse_derive_command_with_path_len(raw,
+                                                   MAX_BIP32_PATH * sizeof(uint32_t) - 1,
+                                                   &command) < 0);
 }
 
 int main() {
