@@ -71,5 +71,6 @@ int handler_get_seed_id(buffer_t *buffer) {
         return io_send_sw(error);
     }
 
-    return ui_display_seed_id_command();
+    ui_display_seed_id_command();
+    return SWO_NO_RESPONSE;
 }

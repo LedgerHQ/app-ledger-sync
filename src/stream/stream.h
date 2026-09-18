@@ -49,6 +49,9 @@ typedef struct {
         shared_secret_len;  // Length of the shared secret (0 means we don't have a shared secret)
     uint8_t device_public_key[MEMBER_KEY_LEN];  // Issuer public key
 
+    // AppID extracted from the Derive block path (path[1] & 0x7FFFFFFF)
+    uint32_t app_id;
+
     // Last recorded trusted member
     stream_trusted_member_t trusted_member;
 
