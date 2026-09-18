@@ -24,6 +24,10 @@ int handler_set_trusted_member(buffer_t *cdata) {
     while (tlv_read_next(cdata, &tlv)) {
         switch (tlv.type) {
             case TP_IV:
+                // AES-GCM always reads IV_LEN bytes from this pointer
+                if (tlv.length != IV_LEN) {
+                    return io_send_sw(SW_WRONG_DATA);
+                }
                 iv = (uint8_t *) tlv.value;
                 break;
             case TP_NEW_MEMBER:

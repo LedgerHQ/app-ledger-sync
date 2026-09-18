@@ -15,6 +15,15 @@ BLOCK_VERSION = 0
 COMMAND_COUNT = 1
 HASH_LEN = 32
 MEMBER_KEY_LEN = 33
+IV_LEN = 16
+GCM_TAG_LEN = 16
+SW_WRONG_DATA = 0x6A80
+
+# Encrypted trusted member, as the device emits it in a TP_NEW_MEMBER trusted property:
+# TP_NONCE_SIZE, stream_trusted_member_t (33-byte key + 4-byte permissions + 1 flag,
+# padded to 44), TP_CHECKSUM_LEN, then the GCM tag appended by the encryption.
+TRUSTED_MEMBER_PLAIN_LEN = 4 + 44 + 4
+TRUSTED_MEMBER_ENCRYPTED_LEN = TRUSTED_MEMBER_PLAIN_LEN + GCM_TAG_LEN
 
 # Sizes of the header TLVs, in the order the parser expects them.
 HEADER_TLV_SIZES = [
@@ -46,3 +55,25 @@ def test_sign_block_header_truncated(backend: BackendInterface) -> None:
     # The untruncated header is the control case: it must still be accepted.
     Device.initFlow(backend, Crypto.randomKeyPair()["publicKey"])
     Device.signBlockHeader(backend, header)
+
+
+def _trusted_property(property_type: int, value: bytes) -> bytes:
+    return bytes([property_type, len(value)]) + value
+
+
+def _set_trusted_member(backend: BackendInterface, payload: bytes) -> None:
+    backend.exchange(Device.CLA, Device.INS_SET_TRUSTED_MEMBER, 0, 0, payload)
+
+
+def test_set_trusted_member_short_iv(backend: BackendInterface) -> None:
+    """An IV shorter than the AES-GCM block must be refused before it reaches the crypto layer."""
+    Device.initFlow(backend, Crypto.randomKeyPair()["publicKey"])
+    member = _trusted_property(Device.TrustedPropertiesTLV.TrustedMember, bytes(TRUSTED_MEMBER_ENCRYPTED_LEN))
+
+    for iv_len in range(IV_LEN):
+        iv = _trusted_property(Device.TrustedPropertiesTLV.IV, bytes(iv_len))
+        # Both orders matter: a trailing short IV is the case that reads past the APDU.
+        for payload in (iv + member, member + iv):
+            with pytest.raises(ExceptionRAPDU) as error:
+                _set_trusted_member(backend, payload)
+            assert error.value.status == SW_WRONG_DATA
