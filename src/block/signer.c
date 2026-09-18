@@ -41,14 +41,16 @@ static bool signer_verify_parent_hash(stream_ctx_t *stream, uint8_t *parent_hash
 
 int signer_parse_block_header(signer_ctx_t *signer, stream_ctx_t *stream, buffer_t *data) {
     // Parse the block header
-    block_header_t block_header;
+    block_header_t block_header = {0};
     LEDGER_ASSERT(signer != NULL, "Null signer");
     LEDGER_ASSERT(stream != NULL, "Null stream");
 
+    // parse_block_header() returns the number of bytes read, or a negative error code
     int err = parse_block_header(data, &block_header);
 
-    if (!err) {
-        return err;
+    if (err <= 0) {
+        signer_reset();
+        return err < 0 ? err : BP_UNEXPECTED_TLV;
     }
     if (block_header.length == 0) {
         signer_reset();
@@ -164,7 +166,7 @@ end:
 
 static int signer_inject_derive(block_command_t *command) {
     cx_err_t error = CX_INTERNAL_ERROR;
-    uint8_t xpriv[XPRIV_LEN];
+    uint8_t xpriv[XPRIV_LEN] = {0};
     uint8_t secret[32];
     cx_ecfp_private_key_t private_key;
     cx_ecfp_public_key_t public_key;
@@ -231,7 +233,6 @@ static int signer_inject_derive(block_command_t *command) {
     memcpy(G_context.stream.shared_secret, xpriv, sizeof(xpriv));
     G_context.stream.shared_secret_len = sizeof(xpriv);
 
-    explicit_bzero(xpriv, sizeof(xpriv));
     explicit_bzero(&private_key, sizeof(private_key));
     PRINTF("INJECT DERIVE 6\n");
     // Push trusted properties
@@ -259,6 +260,7 @@ static int signer_inject_derive(block_command_t *command) {
     error = io_push_trusted_property(TP_GROUPKEY, &buffer);
 
 end:
+    explicit_bzero(xpriv, sizeof(xpriv));
     explicit_bzero(secret, sizeof(secret));
     return error;
 }
@@ -399,12 +401,13 @@ void update_confirm(bool confirm) {
     if (confirm) {
         G_context.stream.is_closed = true;
     } else {
+        signer_reset();
         io_send_sw(SW_DENY);
     }
 }
 
 int signer_parse_command(signer_ctx_t *signer, stream_ctx_t *stream, buffer_t *data) {
-    block_command_t command;
+    block_command_t command = {0};
     bool ret_sw = true;
     PRINTF("SIGNER PARSE COMMAND\n");
     if (signer->command_count <= SIGNER_EMPTY_BLOCK) {

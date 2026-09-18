@@ -54,7 +54,19 @@ bool tlv_read_varint_u32(tlv_t *tlv, uint32_t *out);
 
 bool tlv_read_hash(tlv_t *tlv, uint8_t *out);
 
+/**
+ * Read a compressed public key that the sender is expected to provide in full.
+ */
 bool tlv_read_pubkey(tlv_t *tlv, uint8_t *out);
+
+/**
+ * Read a compressed public key that the device generates when signing a block.
+ *
+ * The host sends a placeholder of any length there, so a short value is accepted and
+ * the destination is zero-padded. Stream parsing, which is the only path consuming
+ * such a field as received, then fails on a key that is not a valid curve point.
+ */
+bool tlv_read_generated_pubkey(tlv_t *tlv, uint8_t *out);
 
 bool tlv_read_bytes(tlv_t *tlv, uint8_t *out, size_t out_size);
 

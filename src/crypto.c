@@ -306,19 +306,30 @@ int crypto_decrypt(const uint8_t *secret,
                    uint32_t decrypted_data_len) {
     cx_err_t error = CX_INTERNAL_ERROR;
     cx_aes_gcm_context_t ctx;
-    size_t out_len = decrypted_data_len;
+    size_t out_len;
+
+    // The ciphertext is followed by the GCM tag
+    if (data_len < CX_AES_BLOCK_SIZE) {
+        PRINTF("Ciphertext shorter than the tag\n");
+        return CX_INVALID_PARAMETER;
+    }
+    out_len = data_len - CX_AES_BLOCK_SIZE;
+    if (out_len > decrypted_data_len) {
+        PRINTF("Buffer too small\n");
+        return CX_INVALID_PARAMETER;
+    }
 
     cx_aes_gcm_init(&ctx);
     CX_CHECK(cx_aes_gcm_set_key(&ctx, secret, secret_len));
     error = cx_aes_gcm_decrypt_and_auth(&ctx,
                                         (uint8_t *) data,
-                                        data_len - CX_AES_BLOCK_SIZE,
+                                        out_len,
                                         initialization_vector,
                                         CX_AES_BLOCK_SIZE,
                                         NULL,
                                         0,
                                         decrypted_data,
-                                        data + (data_len - CX_AES_BLOCK_SIZE),
+                                        data + out_len,
                                         CX_AES_BLOCK_SIZE);
     if (error == CX_OK) {
         PRINTF("Successful Decrypted data: %.*H\n", out_len, decrypted_data);

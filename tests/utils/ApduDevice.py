@@ -440,6 +440,10 @@ class ApduDevice(device):
         self.transport = transport
         self.session_key_pair = Crypto.randomKeyPair()
         self.automation: Automation | None = None
+        # Trusted properties and session secret of the last signed block, for tests
+        # inspecting the trusted-property channel itself
+        self.last_trusted_properties: list = []
+        self.last_session_secret: bytes = b""
         if navigator:
             self.automation = Automation(navigator)
 
@@ -625,6 +629,9 @@ class ApduDevice(device):
 
         block_to_sign.issuer = issuer
         block_to_sign.signature = signature[0]
+
+        self.last_trusted_properties = trusted_properties
+        self.last_session_secret = secret
 
         return block_to_sign
 

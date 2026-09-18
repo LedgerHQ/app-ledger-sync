@@ -31,6 +31,13 @@ def test_basic(backend: BackendInterface) -> None:
     stream = stream.edit().seed(topic).issue(alice)
 
 
+def test_basic_without_topic(backend: BackendInterface) -> None:
+    # An absent topic is a valid encoding: the encoder emits a zero-length NULL TLV
+    alice = device.apdu(backend)
+    stream = CommandStream()
+    stream = stream.edit().seed().issue(alice)
+
+
 def test_tree_flow(backend: BackendInterface, navigator: Navigator, test_name: str) -> None:
     if backend.device.is_nano:
         valid_member_instructions = valid_member_instructions_nano

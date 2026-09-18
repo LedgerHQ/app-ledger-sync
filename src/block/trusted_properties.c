@@ -5,6 +5,20 @@
 
 // Format is [NONCE][DATA][CHECKSUM]
 
+/* A PUBLISH_KEY response carries both TP_XPRIV and TP_NEW_MEMBER, and AES-GCM forbids reusing
+ * an IV under a given key. TP_NEW_MEMBER is opaque to the host, which only echoes it back to
+ * SET_TRUSTED_MEMBER, so deriving its IV keeps the response layout unchanged. */
+#define TRUSTED_MEMBER_IV_MASK 0x5A
+
+void derive_trusted_member_iv(const uint8_t *response_iv, uint8_t *member_iv) {
+    LEDGER_ASSERT(response_iv != NULL, "Null response_iv");
+    LEDGER_ASSERT(member_iv != NULL, "Null member_iv");
+
+    for (size_t i = 0; i < IV_LEN; i++) {
+        member_iv[i] = response_iv[i] ^ TRUSTED_MEMBER_IV_MASK;
+    }
+}
+
 int serialize_trusted_member(stream_trusted_member_t *member, uint8_t *buffer, size_t buffer_size) {
     uint8_t hash[32];
 

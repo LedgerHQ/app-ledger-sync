@@ -174,11 +174,10 @@ int verify_challenge_signature(challenge_ctx_t *challenge_ctx, uint8_t *challeng
         PRINTF("********** No certificate loaded. Using legacy path **********\n");
     }
 
-    uint8_t sig_len = challenge_ctx->rp_signature[1] + 2;
     int verified = crypto_verify_signature(challenge_ctx->rp_credential_public_key,
                                            challenge_hash,
                                            challenge_ctx->rp_signature,
-                                           sig_len);
+                                           challenge_ctx->rp_signature_len);
 
     if (verified != CX_OK) {
         PRINTF("Signature not verified %d \n", verified);

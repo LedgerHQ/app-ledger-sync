@@ -151,13 +151,17 @@ int challenge_parse_buffer(buffer_t *buffer,
         return error;
     }
 
-    if (tag_label != DER_SIGNATURE || length > sizeof(challenge_ctx->rp_signature)) {
+    // The DER header must describe exactly the bytes carried by the TLV
+    if (tag_label != DER_SIGNATURE || length < DER_HEADER_LENGTH ||
+        length > sizeof(challenge_ctx->rp_signature) || value[0] != DER_SEQUENCE_TAG ||
+        value[1] + DER_HEADER_LENGTH != length) {
         return SW_PARSER_INVALID_VALUE;
     }
 
     PRINTF("\tValue: %.*H\n", length, value);
     PRINTF("\tLength: %d\n", length);
     memcpy(challenge_ctx->rp_signature, value, length);
+    challenge_ctx->rp_signature_len = length;
 
     buffer_pointer += length + VALUE_OFFSET;
 
