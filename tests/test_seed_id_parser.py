@@ -135,7 +135,8 @@ def test_seed_id_wrong_signer_algo(backend: BackendInterface) -> None:
 def test_seed_id_wrong_signature(backend: BackendInterface) -> None:
     client = SeedIdClient(backend)
 
-    # Override DER_SIGNATURE with unsupported length
+    # Override DER_SIGNATURE with unsupported length: the announced length no longer
+    # matches the DER header, so the signature field itself is rejected
     tlv_data = get_default_challenge_tlv()
     data = SeedIdChallenge.DEFAULT_VALUES[SeedIdChallenge.DER_SIGNATURE]
     length = 0x10
@@ -143,7 +144,45 @@ def test_seed_id_wrong_signature(backend: BackendInterface) -> None:
 
     with pytest.raises(ExceptionRAPDU) as e:
         client.get_seed_id(challenge_data=tlv_data)
-    assert e.value.status == Errors.PARSER_INVALID_FORMAT
+    assert e.value.status == Errors.PARSER_INVALID_VALUE
+
+
+def test_seed_id_der_signature_length_mismatch(backend: BackendInterface) -> None:
+    """The DER header must describe exactly the bytes carried by the signature TLV."""
+    client = SeedIdClient(backend)
+
+    der_sequence_tag = 0x30
+    der_header_length = 2
+
+    # A DER header claiming more bytes than the TLV carries
+    tlv_data = get_default_challenge_tlv()
+    truncated = bytes([der_sequence_tag, 0x48])
+    tlv_data = SeedIdChallenge.update_field(tlv_data, SeedIdChallenge.DER_SIGNATURE, truncated, len(truncated))
+
+    with pytest.raises(ExceptionRAPDU) as e:
+        client.get_seed_id(challenge_data=tlv_data)
+    assert e.value.status == Errors.PARSER_INVALID_VALUE
+
+    # A full-length signature whose inner DER length byte no longer matches
+    tlv_data = get_default_challenge_tlv()
+    index, length = SeedIdChallenge.find_field(tlv_data, SeedIdChallenge.DER_SIGNATURE)
+    signature = bytearray(tlv_data[index + der_header_length : index + der_header_length + length])
+    signature[1] = length  # the DER length byte excludes the header, so this is one past the end
+    tlv_data = SeedIdChallenge.update_field(tlv_data, SeedIdChallenge.DER_SIGNATURE, bytes(signature))
+
+    with pytest.raises(ExceptionRAPDU) as e:
+        client.get_seed_id(challenge_data=tlv_data)
+    assert e.value.status == Errors.PARSER_INVALID_VALUE
+
+    # A signature whose sequence tag is not a DER SEQUENCE
+    tlv_data = get_default_challenge_tlv()
+    signature = bytearray(tlv_data[index + der_header_length : index + der_header_length + length])
+    signature[0] = der_sequence_tag + 1
+    tlv_data = SeedIdChallenge.update_field(tlv_data, SeedIdChallenge.DER_SIGNATURE, bytes(signature))
+
+    with pytest.raises(ExceptionRAPDU) as e:
+        client.get_seed_id(challenge_data=tlv_data)
+    assert e.value.status == Errors.PARSER_INVALID_VALUE
 
 
 def test_seed_id_wrong_valid_until(backend: BackendInterface) -> None:
