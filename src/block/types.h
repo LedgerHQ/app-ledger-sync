@@ -26,12 +26,17 @@ typedef enum {
 } block_command_type_e;
 
 enum member_permission_e {
+    NO_PERMISSION = 0x00,
     CAN_ENCRYPT = 0x01,
     CAN_DERIVE = 0x01 << 1,
     CAN_ADD_BLOCK = 0x01 << 2,
 };
 typedef uint32_t member_permission_t;
 #define OWNER (member_permission_t) 0xFFFFFFFF
+
+#define APP_ID_LEDGER_SYNC     16u
+#define APP_ID_WALLET_CLI_RING 17u
+#define APP_ID_AGENT_INTENT    18u
 
 typedef struct {
     uint8_t topic[MAX_TOPIC_LEN];

@@ -8,10 +8,11 @@ from utils.CommandBlock import CommandBlock, Permissions, commands
 from utils.CommandStream import CommandStream
 from utils.CommandStreamEncoder import CommandStreamEncoder
 from utils.index import device
-from utils.NobleCrypto import Crypto
+from utils.NobleCrypto import Crypto, DerivationPath
+from utils.streamTree import StreamTree
 from utils.test_helpers import create_seed_and_derive_stream
 
-valid_member_instructions_nano = [NavInsID.RIGHT_CLICK, NavInsID.RIGHT_CLICK, NavInsID.RIGHT_CLICK, NavInsID.BOTH_CLICK]
+valid_member_instructions_nano = [NavInsID.RIGHT_CLICK, NavInsID.RIGHT_CLICK, NavInsID.BOTH_CLICK, NavInsID.BOTH_CLICK]
 valid_member_instructions_stax = [NavInsID.USE_CASE_CHOICE_CONFIRM, NavInsID.USE_CASE_STATUS_DISMISS]
 
 
@@ -319,3 +320,23 @@ def test_add_member_without_can_add_block_permission(backend: BackendInterface, 
     dany_public_key = dany.get_public_key()
     with pytest.raises(ExceptionRAPDU):
         tampered_stream.edit().add_member("Dany", dany_public_key, Permissions.OWNER, True).issue(alice, tampered_tree)
+
+
+def test_add_member_unknown_app_id(backend: BackendInterface) -> None:
+    """Test that add_member on a stream derived with an unknown APP_ID is rejected without showing any UI."""
+    alice = device.apdu(backend)
+    bob = device.software()
+
+    topic = Crypto.from_hex(DEFAULT_TOPIC)
+    root_stream = CommandStream()
+    root_stream = root_stream.edit().seed(topic).issue(alice)
+    tree = StreamTree.from_streams(root_stream)
+
+    # APP_ID 99 is not registered (only 16=LEDGER_SYNC and 18=AGENT_INTENT are valid)
+    unknown_path = DerivationPath.to_index_array("0'/99'/0'")
+    derived = CommandStream()
+    derived = derived.edit().derive(unknown_path).issue(alice, tree)
+    tree = tree.update(derived)
+
+    with pytest.raises(ExceptionRAPDU):
+        derived.edit().add_member("Bob", bob.get_public_key(), Permissions.OWNER, True).issue(alice, tree)

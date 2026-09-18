@@ -136,6 +136,11 @@ end:
 inline static int stream_parse_derive_command(stream_ctx_t *ctx, block_command_t *command) {
     cx_err_t error = CX_INTERNAL_ERROR;
 
+    // Extract AppID from path[1] (format: {treeIndex}h/{appId}h/...)
+    if (command->command.derive.path_len > 1) {
+        ctx->app_id = command->command.derive.path[1] & 0x7FFFFFFF;
+    }
+
     // If the command was issued by the device, save the seed in the stream context
     if (memcmp(ctx->current_block_issuer, ctx->device_public_key, MEMBER_KEY_LEN) == 0) {
         // Decrypt the xpriv
