@@ -17,6 +17,7 @@ int handler_set_trusted_member(buffer_t *cdata) {
     uint8_t *iv = NULL;
     uint8_t *member = NULL;
     uint8_t rawTrustedMember[TP_BUFFER_SIZE_NEW_MEMBER];
+    uint8_t member_iv[IV_LEN];
 
     if (!IS_SESSION_INITIALIAZED()) {
         return io_send_sw(SW_BAD_STATE);
@@ -45,11 +46,12 @@ int handler_set_trusted_member(buffer_t *cdata) {
         return io_send_sw(SW_WRONG_DATA);
     }
 
+    derive_trusted_member_iv(iv, member_iv);
     decrypted_len = crypto_decrypt(G_context.signer_info.session_encryption_key,
                                    sizeof(G_context.signer_info.session_encryption_key),
                                    member,
                                    member_len,
-                                   iv,
+                                   member_iv,
                                    rawTrustedMember,
                                    sizeof(rawTrustedMember));
     if (decrypted_len < 0) {

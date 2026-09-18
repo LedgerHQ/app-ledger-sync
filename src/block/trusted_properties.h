@@ -36,3 +36,11 @@ typedef enum {
 
 int serialize_trusted_member(stream_trusted_member_t *member, uint8_t *buffer, size_t buffer_size);
 int deserialize_trusted_member(uint8_t *buffer, size_t buffer_size, stream_trusted_member_t *out);
+
+/**
+ * Derive the AES-GCM IV protecting a TP_NEW_MEMBER property from the response IV.
+ *
+ * @param[in]  response_iv The IV_LEN bytes serialized at the head of the response.
+ * @param[out] member_iv   The derived IV, IV_LEN bytes.
+ */
+void derive_trusted_member_iv(const uint8_t *response_iv, uint8_t *member_iv);

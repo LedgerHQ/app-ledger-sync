@@ -42,6 +42,7 @@ static inline int io_push_cleartext_trusted_property(uint8_t property_type, buff
 static inline int io_push_encrypted_trusted_property(uint8_t property_type, buffer_t *rdata) {
     int length = 0;
     uint8_t *io_apdu_buffer = G_trusted_io_buffer + G_trusted_output_len;
+    uint8_t iv[IV_LEN];
 
     PRINTF("Push %d bytes\n", CRYPTO_BUFFER_SIZE(rdata->size - rdata->offset) + 2);
     PRINTF("Remaining space: %d\n", sizeof(G_trusted_io_buffer) - G_trusted_output_len);
@@ -55,12 +56,19 @@ static inline int io_push_encrypted_trusted_property(uint8_t property_type, buff
     io_apdu_buffer[0] = property_type;
     G_trusted_output_len += 1;
 
+    // Only TP_NEW_MEMBER can share a response with another encrypted property
+    if (property_type == TP_NEW_MEMBER) {
+        derive_trusted_member_iv(G_trusted_io_buffer + TP_IV_OFFSET, iv);
+    } else {
+        memcpy(iv, G_trusted_io_buffer + TP_IV_OFFSET, sizeof(iv));
+    }
+
     // Encrypt the data using the session encryption key
     length = crypto_encrypt(G_context.signer_info.session_encryption_key,
                             sizeof(G_context.signer_info.session_encryption_key),
                             rdata->ptr + rdata->offset,
                             rdata->size - rdata->offset,
-                            G_trusted_io_buffer + TP_IV_OFFSET,
+                            iv,
                             io_apdu_buffer + 2,
                             CRYPTO_BUFFER_SIZE(rdata->size - rdata->offset));
 
