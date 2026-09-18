@@ -112,6 +112,9 @@ static char s_agent_sync_subtext[UI_BODY_LEN];
  * ragger's _check_async_error does not interrupt the screen-change wait
  * and fail to capture the cancel notification in snapshots. */
 static void ui_deny_cb(void) {
+    // The refused command was already hashed and counted, so the whole signing
+    // session must be torn down or the host could still finalize the block
+    signer_reset();
     io_send_sw(SW_DENY);
     ui_menu_main();
 }

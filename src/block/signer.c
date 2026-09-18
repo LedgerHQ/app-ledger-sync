@@ -401,6 +401,7 @@ void update_confirm(bool confirm) {
     if (confirm) {
         G_context.stream.is_closed = true;
     } else {
+        signer_reset();
         io_send_sw(SW_DENY);
     }
 }
