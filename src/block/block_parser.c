@@ -183,7 +183,7 @@ static int parse_derive_command(buffer_t *data, block_command_t *out) {
     LEDGER_ASSERT(out != NULL, "Null out\n");
 
     // Read path
-    if (!tlv_read_next(data, &tlv) || tlv.type != TLV_TYPE_BYTES ||
+    if (!tlv_read_next(data, &tlv) || tlv.type != TLV_TYPE_BYTES || tlv.length == 0 ||
         tlv.length % sizeof(uint32_t) != 0 || tlv.length / sizeof(uint32_t) > MAX_BIP32_PATH) {
         return BP_UNEXPECTED_TLV;
     }

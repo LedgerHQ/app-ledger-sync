@@ -166,7 +166,7 @@ end:
 
 static int signer_inject_derive(block_command_t *command) {
     cx_err_t error = CX_INTERNAL_ERROR;
-    uint8_t xpriv[XPRIV_LEN];
+    uint8_t xpriv[XPRIV_LEN] = {0};
     uint8_t secret[32];
     cx_ecfp_private_key_t private_key;
     cx_ecfp_public_key_t public_key;
@@ -233,7 +233,6 @@ static int signer_inject_derive(block_command_t *command) {
     memcpy(G_context.stream.shared_secret, xpriv, sizeof(xpriv));
     G_context.stream.shared_secret_len = sizeof(xpriv);
 
-    explicit_bzero(xpriv, sizeof(xpriv));
     explicit_bzero(&private_key, sizeof(private_key));
     PRINTF("INJECT DERIVE 6\n");
     // Push trusted properties
@@ -261,6 +260,7 @@ static int signer_inject_derive(block_command_t *command) {
     error = io_push_trusted_property(TP_GROUPKEY, &buffer);
 
 end:
+    explicit_bzero(xpriv, sizeof(xpriv));
     explicit_bzero(secret, sizeof(secret));
     return error;
 }

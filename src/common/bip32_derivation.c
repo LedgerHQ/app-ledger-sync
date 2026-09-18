@@ -136,6 +136,11 @@ int bip32_derive_xpriv_to_path(uint8_t *parent_private_key,
     LEDGER_ASSERT(child_private_key != NULL, "Null child_private_key\n");
     LEDGER_ASSERT(child_chain_code != NULL, "Null child_chain_code\n");
 
+    // An empty path would leave the child key and chain code untouched
+    if (path_len == 0) {
+        return -1;
+    }
+
     // Copy parent private key and chain code to temporary buffer
     memcpy(kpar, parent_private_key, PRIVATE_KEY_LEN);
     memcpy(cpar, parent_chain_code, 32);

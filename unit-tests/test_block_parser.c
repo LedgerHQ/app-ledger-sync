@@ -486,6 +486,9 @@ static void test_parse_derive_command(void **state) {
     assert_true(parse_derive_command_with_path_len(raw,
                                                    MAX_BIP32_PATH * sizeof(uint32_t) - 1,
                                                    &command) < 0);
+
+    // An empty path is rejected: it would leave the derived key uninitialized
+    assert_true(parse_derive_command_with_path_len(raw, 0, &command) < 0);
 }
 
 int main() {
