@@ -87,6 +87,15 @@ void crypto_init_public_key(crypto_private_key_t *private_key,
 void crypto_init_private_key(uint8_t raw_private_key[static 32], crypto_private_key_t *private_key);
 
 /**
+ * Compute the compressed public key matching a raw private key.
+ * @param[in]  raw_private_key The raw private key. MUST BE 32 BYTES LONG.
+ * @param[out] compressed_public_key The compressed public key. Must be 33 bytes long.
+ */
+void crypto_compressed_public_key_from_private(
+    uint8_t raw_private_key[static PRIVATE_KEY_LEN],
+    uint8_t compressed_public_key[static MEMBER_KEY_LEN]);
+
+/**
  * Compress public key.
  * @param[in]  public_key The public key to compress. Must be 65 bytes long (with 0x04 prefix).
  * @param[out] compressed_public_key The compressed public key. Must be 33 bytes long.

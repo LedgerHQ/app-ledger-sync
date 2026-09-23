@@ -58,6 +58,21 @@ void crypto_init_private_key(uint8_t raw_private_key[static 32],
         "Private key init failed");
 }
 
+void crypto_compressed_public_key_from_private(
+    uint8_t raw_private_key[static PRIVATE_KEY_LEN],
+    uint8_t compressed_public_key[static MEMBER_KEY_LEN]) {
+    crypto_private_key_t private_key = {0};
+    crypto_public_key_t public_key;
+    uint8_t raw_public_key[1 + RAW_PUBLIC_KEY_LENGTH];
+
+    crypto_init_private_key(raw_private_key, &private_key);
+    crypto_init_public_key(&private_key, &public_key, raw_public_key + 1);
+    raw_public_key[0] = 0x04;
+    crypto_compress_public_key(raw_public_key, compressed_public_key);
+
+    explicit_bzero(&private_key, sizeof(private_key));
+}
+
 void crypto_compress_public_key(const uint8_t *public_key,
                                 uint8_t compressed_public_key[static MEMBER_KEY_LEN]) {
     for (int i = 0; i < 32; i++) {

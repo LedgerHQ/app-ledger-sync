@@ -52,6 +52,11 @@ typedef struct {
     // AppID extracted from the Derive block path (path[1] & 0x7FFFFFFF)
     uint32_t app_id;
 
+    // Group key of a stream created by another member: the device holds no secret for it
+    // until a publication addressed to the device delivers one matching this key
+    uint8_t expected_group_key[MEMBER_KEY_LEN];
+    bool awaiting_group_key;
+
     // Last recorded trusted member
     stream_trusted_member_t trusted_member;
 

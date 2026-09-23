@@ -94,6 +94,21 @@ int stream_parse_block_header(stream_ctx_t *ctx, buffer_t *data) {
     return SP_OK;
 }
 
+// A stream created by another member does not hand its secret over in the creating command.
+// The parent secret loaded while walking down to it belongs to another subtree, so it must not
+// stay usable here: it would be published as if it were this stream's key.
+static void stream_await_group_key(stream_ctx_t *ctx, const uint8_t *group_public_key) {
+    explicit_bzero(ctx->shared_secret, sizeof(ctx->shared_secret));
+    ctx->shared_secret_len = 0;
+    memcpy(ctx->expected_group_key, group_public_key, MEMBER_KEY_LEN);
+    ctx->awaiting_group_key = true;
+}
+
+static void stream_hold_group_key(stream_ctx_t *ctx) {
+    explicit_bzero(ctx->expected_group_key, sizeof(ctx->expected_group_key));
+    ctx->awaiting_group_key = false;
+}
+
 inline static int stream_parse_seed_command(stream_ctx_t *ctx,
                                             block_command_t *command,
                                             uint8_t *trusted_data,
@@ -121,8 +136,10 @@ inline static int stream_parse_seed_command(stream_ctx_t *ctx,
             goto end;
         }
         error = SP_OK;
+        stream_hold_group_key(ctx);
         PRINTF("STREAM SHARED SECRET: %.*H\n", ctx->shared_secret_len, ctx->shared_secret);
     } else {
+        stream_await_group_key(ctx, command->command.seed.group_public_key);
         // Issue a trusted member for the issuer
         memcpy(ctx->trusted_member.member_key, ctx->current_block_issuer, MEMBER_KEY_LEN);
         ctx->trusted_member.owns_key = true;
@@ -160,9 +177,12 @@ inline static int stream_parse_derive_command(stream_ctx_t *ctx, block_command_t
             error = SP_ERR_INVALID_STREAM;
             goto end;
         }
+        stream_hold_group_key(ctx);
         PRINTF("STREAM SHARED SECRET (from derivation): %.*H",
                ctx->shared_secret_len,
                ctx->shared_secret);
+    } else {
+        stream_await_group_key(ctx, command->command.derive.group_public_key);
     }
 
     // Nothing to update in the stream context
@@ -189,14 +209,49 @@ inline static int stream_parse_add_member_command(stream_ctx_t *ctx,
     return serialize_trusted_member(&ctx->trusted_member, trusted_data, trusted_data_len);
 }
 
+// Install the xpriv a member published to this device. The command is not authenticated at this
+// point, so the decrypted key is only accepted when it reproduces the group key of the command
+// that created the stream; anything else would let a host choose the stream secret.
+static int stream_install_published_key(stream_ctx_t *ctx, block_command_t *command) {
+    uint8_t xpriv[XPRIV_LEN] = {0};
+    uint8_t group_public_key[MEMBER_KEY_LEN] = {0};
+    int error = SP_ERR_INVALID_STREAM;
+
+    if (crypto_ecdh_decrypt(command->command.publish_key.ephemeral_public_key,
+                            command->command.publish_key.encrypted_xpriv,
+                            command->command.publish_key.encrypted_xpriv_size,
+                            command->command.publish_key.initialization_vector,
+                            xpriv,
+                            sizeof(xpriv)) != XPRIV_LEN) {
+        goto end;
+    }
+    crypto_compressed_public_key_from_private(xpriv, group_public_key);
+    if (memcmp(group_public_key, ctx->expected_group_key, MEMBER_KEY_LEN) != 0) {
+        PRINTF("Published key does not match the stream group key\n");
+        goto end;
+    }
+
+    memcpy(ctx->shared_secret, xpriv, sizeof(xpriv));
+    ctx->shared_secret_len = sizeof(xpriv);
+    stream_hold_group_key(ctx);
+    error = SP_OK;
+end:
+    explicit_bzero(xpriv, sizeof(xpriv));
+    return error;
+}
+
 inline static int stream_parse_publish_key_command(stream_ctx_t *ctx,
                                                    block_command_t *command,
                                                    uint8_t *trusted_data,
                                                    size_t trusted_data_len) {
-    // Nothing to be done if the recipient is the device
     if (memcmp(command->command.publish_key.recipient, ctx->device_public_key, MEMBER_KEY_LEN) ==
         0) {
-        return SP_OK;
+        // A publication addressed to the device is how it receives the secret of a stream it
+        // did not create; when it already holds one there is nothing to take from the command
+        if (!ctx->awaiting_group_key) {
+            return SP_OK;
+        }
+        return stream_install_published_key(ctx, command);
     }
 
     // Update the trusted member if the member was set

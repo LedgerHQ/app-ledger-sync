@@ -164,9 +164,6 @@ static int signer_inject_derive(block_command_t *command) {
     cx_err_t error = CX_INTERNAL_ERROR;
     uint8_t xpriv[XPRIV_LEN] = {0};
     uint8_t secret[32] = {0};
-    cx_ecfp_private_key_t private_key = {0};
-    cx_ecfp_public_key_t public_key;
-    uint8_t raw_public_key[1 + RAW_PUBLIC_KEY_LENGTH];
     buffer_t buffer;
 
     PRINTF("INJECT DERIVE\n");
@@ -219,10 +216,7 @@ static int signer_inject_derive(block_command_t *command) {
     command->command.derive.encrypted_xpriv_size = sizeof(command->command.derive.encrypted_xpriv);
     PRINTF("INJECT DERIVE 5\n");
     // Compute public key from xpriv
-    crypto_init_private_key(xpriv, &private_key);
-    crypto_init_public_key(&private_key, &public_key, raw_public_key + 1);
-    raw_public_key[0] = 0x04;
-    crypto_compress_public_key(raw_public_key, command->command.derive.group_public_key);
+    crypto_compressed_public_key_from_private(xpriv, command->command.derive.group_public_key);
 
     // User approval
     // TODO implement user approval
@@ -259,7 +253,6 @@ static int signer_inject_derive(block_command_t *command) {
 end:
     explicit_bzero(xpriv, sizeof(xpriv));
     explicit_bzero(secret, sizeof(secret));
-    explicit_bzero(&private_key, sizeof(private_key));
     return error;
 }
 
