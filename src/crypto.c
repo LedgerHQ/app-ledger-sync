@@ -249,6 +249,7 @@ int crypto_ecdh_decrypt(const uint8_t *sender_public_key,
                            decrypted_data_len);
 end:
     explicit_bzero(&secret, sizeof(secret));
+    explicit_bzero(&chain_code, sizeof(chain_code));
     explicit_bzero(&private_key, sizeof(private_key));
     return error;
 }
