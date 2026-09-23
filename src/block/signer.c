@@ -23,13 +23,9 @@ void signer_init(signer_ctx_t *signer) {
 
 void signer_reset(void) {
     PRINTF("RESET SIGNER\n");
-    // app_id comes from the Derive block path and is set during PARSE_STREAM.
-    // It must survive SIGN_BLOCK resets so that signer_inject_add_member can
-    // route correctly when ADD_MEMBER is signed in a later SIGN_BLOCK session.
-    uint32_t app_id = G_context.stream.app_id;
     explicit_bzero(&G_context.signer_info, sizeof(G_context.signer_info));
     explicit_bzero(&G_context.stream, sizeof(G_context.stream));
-    G_context.stream.app_id = app_id;
+    G_context.stream.app_id = APP_ID_NONE;
 }
 
 static bool signer_verify_parent_hash(stream_ctx_t *stream, uint8_t *parent_hash) {
@@ -189,6 +185,8 @@ static int signer_inject_derive(block_command_t *command) {
     // the same SIGN_BLOCK session.
     if (command->command.derive.path_len > 1) {
         G_context.stream.app_id = command->command.derive.path[1] & 0x7FFFFFFF;
+    } else {
+        G_context.stream.app_id = APP_ID_NONE;
     }
     PRINTF("INJECT DERIVE 2\n");
     // Derive the xpriv with the derivation path

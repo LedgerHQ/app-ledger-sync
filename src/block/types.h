@@ -34,6 +34,8 @@ enum member_permission_e {
 typedef uint32_t member_permission_t;
 #define OWNER (member_permission_t) 0xFFFFFFFF
 
+// Not an application: ADD_MEMBER and PUBLISH_KEY have no policy to apply and refuse the stream
+#define APP_ID_NONE            0u
 #define APP_ID_LEDGER_SYNC     16u
 #define APP_ID_WALLET_CLI_RING 17u
 #define APP_ID_AGENT_INTENT    18u

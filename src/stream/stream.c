@@ -100,6 +100,9 @@ inline static int stream_parse_seed_command(stream_ctx_t *ctx,
                                             size_t trusted_data_len) {
     cx_err_t error = CX_INTERNAL_ERROR;
 
+    // Root material is shared by every application subtree, so it carries no policy of its own
+    ctx->app_id = APP_ID_NONE;
+
     PRINTF("BLOCK ISSUER: %.*H", MEMBER_KEY_LEN, ctx->current_block_issuer);
     PRINTF(" DEVICE KEY: %.*H\n", MEMBER_KEY_LEN, ctx->device_public_key);
 
@@ -139,6 +142,8 @@ inline static int stream_parse_derive_command(stream_ctx_t *ctx, block_command_t
     // Extract AppID from path[1] (format: {treeIndex}h/{appId}h/...)
     if (command->command.derive.path_len > 1) {
         ctx->app_id = command->command.derive.path[1] & 0x7FFFFFFF;
+    } else {
+        ctx->app_id = APP_ID_NONE;
     }
 
     // If the command was issued by the device, save the seed in the stream context
