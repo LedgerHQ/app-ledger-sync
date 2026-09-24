@@ -113,6 +113,11 @@ bool tlv_read_string(tlv_t *tlv, char *out, size_t out_size) {
     if (tlv->type != TLV_TYPE_STRING || tlv->length >= out_size) {
         return false;
     }
+    // An embedded NUL would make the C string shorter than the accepted TLV, and the block
+    // hasher would then cover less than what was parsed
+    if (memchr(tlv->value, '\0', tlv->length) != NULL) {
+        return false;
+    }
     memcpy(out, tlv->value, tlv->length);
     out[tlv->length] = '\0';
     return true;
