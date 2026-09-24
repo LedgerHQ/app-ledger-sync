@@ -409,6 +409,9 @@ static int signer_inject_publish_key(block_command_t *command) {
                              G_context.stream.trusted_member_generation,
                              buffer,
                              sizeof(buffer));
+    trusted_property.ptr = buffer;
+    trusted_property.size = sizeof(buffer);
+    trusted_property.offset = 0;
     error = io_push_trusted_property(TP_NEW_MEMBER, &trusted_property);
 end:
     explicit_bzero(&secret, sizeof(secret));
