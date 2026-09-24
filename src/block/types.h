@@ -93,6 +93,7 @@ typedef struct {
 
     uint8_t command_count;   // Number of commands in the block to sign
     uint8_t parsed_command;  // Number of commands parsed
+    uint8_t close_pending;   // The block being signed carries a CLOSE_STREAM the user approved
 
     uint8_t session_key[MEMBER_KEY_LEN];  // Session key (ephemeral public key)
     uint8_t session_encryption_key[SESSION_ENCRYPTION_KEY_LEN];

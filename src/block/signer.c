@@ -417,7 +417,9 @@ end:
 
 void update_confirm(bool confirm) {
     if (confirm) {
-        G_context.stream.is_closed = true;
+        // Closure is only terminal once this block is signed: marking the stream closed here
+        // would make the device refuse to finalize the very block carrying the CLOSE_STREAM
+        G_context.signer_info.close_pending = 1;
     } else {
         signer_reset();
         io_send_sw(SW_DENY);
@@ -511,5 +513,9 @@ int signer_sign_block(signer_ctx_t *signer, stream_ctx_t *stream) {
                            stream->last_block_hash,
                            sizeof(stream->last_block_hash));
     // Sign the block
-    return crypto_sign_block();
+    int error = crypto_sign_block();
+    if (error == 0 && signer->close_pending) {
+        stream->is_closed = true;
+    }
+    return error;
 }
