@@ -46,7 +46,9 @@ static inline int io_push_encrypted_trusted_property(uint8_t property_type, buff
 
     PRINTF("Push %d bytes\n", CRYPTO_BUFFER_SIZE(rdata->size - rdata->offset) + 2);
     PRINTF("Remaining space: %d\n", sizeof(G_trusted_io_buffer) - G_trusted_output_len);
-    if (G_trusted_output_len + (rdata->size + 16 - (rdata->size % 16) + 2) >
+    // AES-GCM does not pad: it writes the plaintext plus a tag, so reserve what the encryption
+    // below actually produces rather than the plaintext rounded up to a block
+    if (G_trusted_output_len + CRYPTO_BUFFER_SIZE(rdata->size - rdata->offset) + 2 >
         sizeof(G_trusted_io_buffer)) {
         PRINTF("[ERROR] Trusted property buffer overflow\n");
         io_send_sw(SW_TP_BUFFER_OVERFLOW);
