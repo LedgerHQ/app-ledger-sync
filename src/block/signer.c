@@ -434,6 +434,12 @@ int signer_parse_command(signer_ctx_t *signer, stream_ctx_t *stream, buffer_t *d
         signer_reset();
         return BS_EMPTY_BLOCK;
     }
+    // Commands beyond the count the header declared belong to no transcript
+    if (signer->parsed_command >= signer->command_count) {
+        PRINTF("More commands than the block declares\n");
+        signer_reset();
+        return BS_COMMAND_COUNT_MISMATCH;
+    }
 
     int err = parse_block_command(data, &command);
 

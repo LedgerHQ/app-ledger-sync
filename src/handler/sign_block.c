@@ -45,6 +45,13 @@ int handler_sign_block(buffer_t *cdata, uint8_t mode) {
             signer_reset();
             return io_send_sw(SW_BAD_STATE);
         }
+        // A block is already in progress. Starting another one reinitializes the digest only,
+        // so the previous transcript's command count would let a header-only block finalize.
+        if (G_context.signer_info.command_count != 0) {
+            PRINTF("A block is already in progress\n");
+            signer_reset();
+            return io_send_sw(SW_BAD_STATE);
+        }
         PRINTF("Initialize signer\n");
         // Initialize the signer
         signer_init(&G_context.signer_info);
