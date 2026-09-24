@@ -61,13 +61,20 @@ class PKIClient:
         self._client = client
 
     def send_certificate(self, p1: PKIPubKeyUsage, payload: bytes) -> RAPDU | None:
+        """Load a Ledger-PKI certificate, tolerating only the one supported legacy status.
+
+        Any other rejection has to surface: silently continuing would run the positive Seed-ID
+        test through the no-certificate path and hide the loss of PKI enforcement.
+        """
         try:
             response = self.send_raw(p1, payload)
-            assert response.status == Errors.SUCCESS
+            if response.status != Errors.SUCCESS:
+                raise AssertionError(f"Certificate load failed with 0x{response.status:04X}")
             return response
         except ExceptionRAPDU as err:
-            if err.status == Errors.NOT_IMPLEMENTED:
-                print("Ledger-PKI APDU not yet implemented. Legacy path will be used")
+            if err.status != Errors.NOT_IMPLEMENTED:
+                raise
+            print("Ledger-PKI APDU not implemented, taking the supported legacy path")
             return None
 
     def send_raw(self, p1: PKIPubKeyUsage, payload: bytes) -> RAPDU:
