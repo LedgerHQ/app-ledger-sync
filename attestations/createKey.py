@@ -45,17 +45,35 @@ def main() -> None:
     setLogger(logger, args.verbose)
 
     dir_path = "data/test"
-    key_file = f"{dir_path}/priv-key.pem"
-
-    check_file(key_file, False)
+    key_name = "priv-key.pem"
+    key_file = f"{dir_path}/{key_name}"
 
     # Create dir if not present
-    os.makedirs(dir_path, exist_ok=True)
+    os.makedirs(dir_path, mode=0o700, exist_ok=True)
 
-    # Generate private key if necessary
-    cmd = f"openssl ecparam -out {key_file} -name secp256k1 -genkey"
+    # Generated to stdout: giving openssl -out would have it open, and follow, a path that
+    # another process can replace with a symlink after any existence check
     logger.debug(f"Creating {key_file}...")
-    check_exec(cmd)
+    result = subprocess.run(
+        ["openssl", "ecparam", "-name", "secp256k1", "-genkey"],
+        check=True,
+        capture_output=True,
+    )
+
+    # O_EXCL is the no-overwrite rule itself rather than a check preceding it, and O_NOFOLLOW
+    # refuses a symlinked destination, as does opening the parent directory first
+    dir_fd = os.open(dir_path, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    try:
+        flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW
+        key_fd = os.open(key_name, flags, 0o600, dir_fd=dir_fd)
+    except FileExistsError:
+        logger.error(f"[ERROR] {key_file} already exist")
+        sys.exit(1)
+    finally:
+        os.close(dir_fd)
+
+    with os.fdopen(key_fd, "wb") as key:
+        key.write(result.stdout)
     logger.info(f"Created {key_file}")
 
 
