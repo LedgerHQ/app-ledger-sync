@@ -134,8 +134,12 @@ class SodiumDevice(device):
 
             elif command_type == CommandType.PublishKey:
                 command = cast(commands.PublishKey, command)
-                is_added_in_current_block = Crypto.to_hex(command.recipient) in added_members
-                if Crypto.to_hex(command.recipient) not in resolved.get_members() and not is_added_in_current_block:
+                # The resolver stores members as raw bytes, so both sides must be hex here or
+                # the comparison never matches and every recipient looks absent
+                recipient_hex = Crypto.to_hex(command.recipient)
+                resolved_members = {Crypto.to_hex(member) for member in resolved.get_members()}
+                is_added_in_current_block = recipient_hex in added_members
+                if recipient_hex not in resolved_members and not is_added_in_current_block:
                     raise ValueError("Recipient is not part of the trustchain")
                 if not shared_key:
                     encrypted_key = resolved.get_encrypted_key(self.key_pair["publicKey"])
