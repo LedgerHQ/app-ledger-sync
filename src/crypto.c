@@ -425,35 +425,38 @@ int crypto_ec_add_mod_n(const uint8_t *a, const uint8_t *b, uint8_t *out) {
     CX_CHECK(cx_bn_mod_add(out_bn, a_bn, b_bn, n));
     CX_CHECK(cx_bn_export(out_bn, out, 32));
 end:
-    LEDGER_ASSERT(error == CX_OK, "Crypto Error");
-    error |= cx_bn_destroy(&a_bn);
-    error |= cx_bn_destroy(&b_bn);
-    error |= cx_bn_destroy(&out_bn);
     if (cx_bn_is_locked()) {
         cx_bn_unlock();
     }
     return error;
 }
 
-bool crypto_ec_is_point_on_curve(const uint8_t *private_key) {
+bool crypto_ec_is_scalar_below_order(const uint8_t *scalar) {
     cx_bn_t n;
-    cx_bn_t private_key_bn;
-    int diff = 1;
+    cx_bn_t scalar_bn;
+    int diff = 0;
     cx_err_t error = CX_INTERNAL_ERROR;
 
     CX_CHECK(cx_bn_lock(32, 0));
     CX_CHECK(cx_bn_alloc(&n, 32));
     CX_CHECK(cx_ecdomain_parameter_bn(CX_CURVE_256K1, CX_CURVE_PARAM_Order, n));
-    CX_CHECK(cx_bn_alloc_init(&private_key_bn, 32, private_key, 32));
-    CX_CHECK(cx_bn_cmp(private_key_bn, n, &diff));
+    CX_CHECK(cx_bn_alloc_init(&scalar_bn, 32, scalar, 32));
+    CX_CHECK(cx_bn_cmp(scalar_bn, n, &diff));
 end:
-    if (error == CX_OK) {
-        error |= cx_bn_destroy(&private_key_bn);
-        error |= cx_bn_destroy(&n);
-    }
-    LEDGER_ASSERT(error == CX_OK, "Crypto Error");
     if (cx_bn_is_locked()) {
         cx_bn_unlock();
     }
-    return diff;
+    // A comparison that could not be carried out answers no, so the caller retries
+    return error == CX_OK && diff < 0;
+}
+
+bool crypto_ec_is_scalar_zero(const uint8_t *scalar) {
+    uint8_t accumulator = 0;
+
+    // Accumulated rather than compared so the answer does not depend on where the first
+    // non-zero byte of a private key sits
+    for (size_t i = 0; i < PRIVATE_KEY_LEN; i++) {
+        accumulator |= scalar[i];
+    }
+    return accumulator == 0;
 }

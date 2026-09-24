@@ -107,11 +107,20 @@ int crypto_ec_add_mod_n(const uint8_t *a, const uint8_t *b, uint8_t *out) {
     return 0;
 }
 
-bool crypto_ec_is_point_on_curve(const uint8_t *private_key) {
+bool crypto_ec_is_scalar_below_order(const uint8_t *scalar) {
     bn_t bn_n;
-    bn_t bn_p;
+    bn_t bn_scalar;
 
     bn_init((uint8_t *) SECP256K1_N, &bn_n);
-    bn_init((uint8_t *) private_key, &bn_p);
-    return bignum_cmp(&bn_p, &bn_n) == SMALLER;
+    bn_init((uint8_t *) scalar, &bn_scalar);
+    return bignum_cmp(&bn_scalar, &bn_n) == SMALLER;
+}
+
+bool crypto_ec_is_scalar_zero(const uint8_t *scalar) {
+    uint8_t accumulator = 0;
+
+    for (size_t i = 0; i < 32; i++) {
+        accumulator |= scalar[i];
+    }
+    return accumulator == 0;
 }
