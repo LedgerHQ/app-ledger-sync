@@ -9,10 +9,10 @@
 #define LEDGER_ASSERT(x, y) assert(x)
 #endif
 
-#define TP_CHECKSUM_LEN 4
-#define TP_NONCE_SIZE   4
+#define TP_CHECKSUM_LEN    4
+#define TP_GENERATION_SIZE sizeof(uint32_t)
 #define TP_BUFFER_SIZE_NEW_MEMBER \
-    (TP_NONCE_SIZE + sizeof(stream_trusted_member_t) + TP_CHECKSUM_LEN)
+    (TP_GENERATION_SIZE + sizeof(stream_trusted_member_t) + TP_CHECKSUM_LEN)
 
 #define TP_ENCRYPTED (1 << 7)
 
@@ -32,10 +32,17 @@ typedef enum {
     TP_BUFFER_OVERFLOW = -2,
     TP_FAILED_TO_HASH = -3,
     TP_INVALID_CHECKSUM = -4,
+    TP_STALE_GENERATION = -5,
 } tp_error_e;
 
-int serialize_trusted_member(stream_trusted_member_t *member, uint8_t *buffer, size_t buffer_size);
-int deserialize_trusted_member(uint8_t *buffer, size_t buffer_size, stream_trusted_member_t *out);
+int serialize_trusted_member(stream_trusted_member_t *member,
+                             uint32_t generation,
+                             uint8_t *buffer,
+                             size_t buffer_size);
+int deserialize_trusted_member(uint8_t *buffer,
+                               size_t buffer_size,
+                               uint32_t generation,
+                               stream_trusted_member_t *out);
 
 /**
  * Derive the AES-GCM IV protecting a TP_NEW_MEMBER property from the response IV.

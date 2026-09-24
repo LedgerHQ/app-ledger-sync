@@ -25,6 +25,14 @@ int handler_sign_block(buffer_t *cdata, uint8_t mode) {
     if (G_context.req_type != CONFIRM_BLOCK) {
         return io_send_sw(SW_BAD_STATE);
     }
+    // Signing needs the parser at a block boundary. A stream left mid-block carries the effects
+    // of commands whose issuer was never proven, and the signer would build on them.
+    if (G_context.stream.parsing_state != STREAM_PARSING_STATE_NONE &&
+        G_context.stream.parsing_state != STREAM_PARSING_STATE_BLOCK_HEADER) {
+        PRINTF("Stream parser is not at a block boundary\n");
+        signer_reset();
+        return io_send_sw(SW_BAD_STATE);
+    }
     if (mode == MODE_BLOCK_START) {
         if (!IS_SESSION_INITIALIAZED()) {
             signer_reset();

@@ -295,7 +295,10 @@ int add_member_confirm(void) {
     cx_err_t error = CX_INTERNAL_ERROR;
     buffer_t trusted_property = {.ptr = buffer, .size = sizeof(buffer), .offset = 0};
 
-    serialize_trusted_member(&G_context.stream.trusted_member, buffer, sizeof(buffer));
+    serialize_trusted_member(&G_context.stream.trusted_member,
+                             G_context.stream.trusted_member_generation,
+                             buffer,
+                             sizeof(buffer));
     CX_CHECK(io_push_trusted_property(TP_NEW_MEMBER, &trusted_property));
 
     CX_CHECK(io_send_trusted_property(SW_OK));
@@ -402,7 +405,10 @@ static int signer_inject_publish_key(block_command_t *command) {
 
     // Update the trusted member
     G_context.stream.trusted_member.owns_key = 1;
-    serialize_trusted_member(&G_context.stream.trusted_member, buffer, sizeof(buffer));
+    serialize_trusted_member(&G_context.stream.trusted_member,
+                             G_context.stream.trusted_member_generation,
+                             buffer,
+                             sizeof(buffer));
     error = io_push_trusted_property(TP_NEW_MEMBER, &trusted_property);
 end:
     explicit_bzero(&secret, sizeof(secret));

@@ -3,6 +3,7 @@
 #include "../sw.h"
 #include "../stream/stream.h"
 #include "../block/block_parser.h"
+#include "../block/signer.h"
 #include "../block/trusted_properties.h"
 #include "../trusted_io.h"
 
@@ -58,6 +59,11 @@ int handler_parse_stream(buffer_t *cdata,
 
     // If secure flow was not initialized return an error
     if (!IS_SESSION_INITIALIAZED()) {
+        return io_send_sw(SW_BAD_STATE);
+    }
+    // The signer builds on the parsed stream, which must not move while a block is being signed
+    if (G_context.signer_info.command_count != 0) {
+        signer_reset();
         return io_send_sw(SW_BAD_STATE);
     }
 

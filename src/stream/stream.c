@@ -25,13 +25,49 @@ static member_type_t get_member_type(stream_ctx_t *ctx, uint8_t *member_key) {
     return MEMBER_TYPE_UNKNOWN;
 }
 
-void stream_init(stream_ctx_t *ctx) {
-    // Expect the next item to be a block header
-    ctx->parsing_state = STREAM_PARSING_STATE_BLOCK_HEADER;
+// Promote what the current block changed: its issuer signature has just been verified.
+static void stream_commit_block_effects(stream_ctx_t *ctx) {
+    memcpy(ctx->committed.shared_secret, ctx->shared_secret, sizeof(ctx->shared_secret));
+    ctx->committed.shared_secret_len = ctx->shared_secret_len;
+    memcpy(ctx->committed.expected_group_key,
+           ctx->expected_group_key,
+           sizeof(ctx->expected_group_key));
+    ctx->committed.awaiting_group_key = ctx->awaiting_group_key;
+    ctx->committed.app_id = ctx->app_id;
+    ctx->committed.trusted_member = ctx->trusted_member;
+    ctx->committed.is_created = ctx->is_created;
+    ctx->committed.is_closed = ctx->is_closed;
+}
 
-    // Initialize the hash context
+// Discard what a block changed without ever proving who issued it.
+static void stream_rollback_block_effects(stream_ctx_t *ctx) {
+    memcpy(ctx->shared_secret, ctx->committed.shared_secret, sizeof(ctx->shared_secret));
+    ctx->shared_secret_len = ctx->committed.shared_secret_len;
+    memcpy(ctx->expected_group_key,
+           ctx->committed.expected_group_key,
+           sizeof(ctx->expected_group_key));
+    ctx->awaiting_group_key = ctx->committed.awaiting_group_key;
+    ctx->app_id = ctx->committed.app_id;
+    ctx->trusted_member = ctx->committed.trusted_member;
+    ctx->is_created = ctx->committed.is_created;
+    ctx->is_closed = ctx->committed.is_closed;
+}
+
+// Return the parser to a block boundary, dropping any block left unsigned
+static void stream_reset_to_boundary(stream_ctx_t *ctx) {
+    // Trusted members issued while that block was parsed must not be accepted back
+    if (ctx->parsing_state == STREAM_PARSING_STATE_COMMAND ||
+        ctx->parsing_state == STREAM_PARSING_STATE_SIGNATURE) {
+        ctx->trusted_member_generation += 1;
+    }
+    stream_rollback_block_effects(ctx);
+    ctx->parsing_state = STREAM_PARSING_STATE_BLOCK_HEADER;
     crypto_digest_init(&ctx->digest);
     crypto_digest_init(&ctx->full_block_digest);
+}
+
+void stream_init(stream_ctx_t *ctx) {
+    stream_reset_to_boundary(ctx);
     PRINTF("INIT STREAM\n");
 }
 
@@ -144,7 +180,10 @@ inline static int stream_parse_seed_command(stream_ctx_t *ctx,
         memcpy(ctx->trusted_member.member_key, ctx->current_block_issuer, MEMBER_KEY_LEN);
         ctx->trusted_member.owns_key = true;
         ctx->trusted_member.permissions = OWNER;
-        error = serialize_trusted_member(&ctx->trusted_member, trusted_data, trusted_data_len);
+        error = serialize_trusted_member(&ctx->trusted_member,
+                                         ctx->trusted_member_generation,
+                                         trusted_data,
+                                         trusted_data_len);
     }
 
     // Update the stream context
@@ -206,7 +245,10 @@ inline static int stream_parse_add_member_command(stream_ctx_t *ctx,
     memcpy(ctx->trusted_member.member_key, command->command.add_member.public_key, MEMBER_KEY_LEN);
     ctx->trusted_member.owns_key = false;
     ctx->trusted_member.permissions = command->command.add_member.permissions;
-    return serialize_trusted_member(&ctx->trusted_member, trusted_data, trusted_data_len);
+    return serialize_trusted_member(&ctx->trusted_member,
+                                    ctx->trusted_member_generation,
+                                    trusted_data,
+                                    trusted_data_len);
 }
 
 // Install the xpriv a member published to this device. The command is not authenticated at this
@@ -261,7 +303,10 @@ inline static int stream_parse_publish_key_command(stream_ctx_t *ctx,
         return SP_OK;  // Trusted member was not set, nothing to be done
     }
     ctx->trusted_member.owns_key = true;
-    return serialize_trusted_member(&ctx->trusted_member, trusted_data, trusted_data_len);
+    return serialize_trusted_member(&ctx->trusted_member,
+                                    ctx->trusted_member_generation,
+                                    trusted_data,
+                                    trusted_data_len);
 }
 
 inline static int stream_parse_edit_member_command(stream_ctx_t *ctx,
@@ -366,6 +411,7 @@ int stream_parse_signature(stream_ctx_t *ctx, buffer_t *data) {
 
     signature_len = parse_block_signature(data, signature, sizeof(signature));
     if (signature_len < 0 || signature_len > MAX_DER_SIG_LEN) {
+        stream_reset_to_boundary(ctx);
         return SP_ERR_INVALID_STREAM;
     }
     crypto_digest_finalize(&ctx->digest, final_digest, sizeof(final_digest));
@@ -373,11 +419,16 @@ int stream_parse_signature(stream_ctx_t *ctx, buffer_t *data) {
                                 final_digest,
                                 signature,
                                 signature_len) != CX_OK) {
+        stream_reset_to_boundary(ctx);
         return SP_ERR_INVALID_STREAM;
     }
     block_hash_signature(signature, signature_len, &ctx->full_block_digest);
     crypto_digest_finalize(&ctx->full_block_digest,
                            ctx->last_block_hash,
                            sizeof(ctx->last_block_hash));
+    stream_commit_block_effects(ctx);
+    ctx->parsing_state = STREAM_PARSING_STATE_BLOCK_HEADER;
+    crypto_digest_init(&ctx->digest);
+    crypto_digest_init(&ctx->full_block_digest);
     return 0;
 }

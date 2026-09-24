@@ -37,6 +37,20 @@ typedef struct {
     uint8_t owns_key;                    // 1 if the member owns the key, 0 otherwise
 } stream_trusted_member_t;
 
+// The stream state a block's commands change. Commands are unauthenticated while they are
+// parsed, and a host is free to walk away from a block it never signs, so they write the live
+// copy of these fields only; the committed copy moves forward when the block signature verifies.
+typedef struct {
+    uint8_t shared_secret[XPRIV_LEN];
+    uint8_t shared_secret_len;
+    uint8_t expected_group_key[MEMBER_KEY_LEN];
+    bool awaiting_group_key;
+    uint32_t app_id;
+    stream_trusted_member_t trusted_member;
+    bool is_created;
+    bool is_closed;
+} stream_block_effects_t;
+
 typedef struct {
     // Information about the state of the stream
     uint8_t topic[MAX_TOPIC_LEN];       // Topic of the chain
@@ -59,6 +73,12 @@ typedef struct {
 
     // Last recorded trusted member
     stream_trusted_member_t trusted_member;
+
+    // The block-effect fields above as of the last block whose signature verified
+    stream_block_effects_t committed;
+
+    // Stamped into every trusted member issued; advanced when a block is dropped unsigned
+    uint32_t trusted_member_generation;
 
     // Information about the current block being parsed
     uint8_t current_block_issuer[MEMBER_KEY_LEN];  // Issuer of the current block
