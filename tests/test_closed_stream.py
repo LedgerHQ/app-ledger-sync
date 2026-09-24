@@ -131,3 +131,24 @@ def test_close_stream_still_signs_its_own_block(backend: BackendInterface, navig
     stream = stream.edit().close().issue(alice, tree)
 
     assert len(stream.get_blocks()[-1].signature) > 0
+
+
+def test_parse_block_header_refused_after_close(backend: BackendInterface, navigator: Navigator, test_name: str) -> None:
+    """The parser must not replay a successor to an authenticated close block either.
+
+    Refusing only at SIGN_BLOCK would still let a host rebuild a post-closure trusted member
+    and stream key in the parser before switching flows.
+    """
+    alice, _bob, blocks = _closed_stream(backend, navigator, test_name)
+    _parse_through_close(alice, blocks)
+
+    successor = CommandBlock(
+        1,
+        hash_command_block(blocks[-1]),
+        blocks[-1].issuer,
+        [commands.Derive(get_ledger_sync_path(1), b"", b"", b"", b"")],
+        b"",
+    )
+    with pytest.raises(ExceptionRAPDU) as error:
+        Device.parse_block_header(alice.transport, CommandStreamEncoder.encodeBlockHeader(successor))
+    assert error.value.status == SW_STREAM_PARSER_INVALID_FORMAT

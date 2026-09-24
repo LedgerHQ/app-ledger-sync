@@ -92,6 +92,11 @@ int stream_parse_block_header(stream_ctx_t *ctx, buffer_t *data) {
     if (ctx->parsing_state != STREAM_PARSING_STATE_BLOCK_HEADER) {
         return SP_ERR_INVALID_STATE;
     }
+    // A stream whose CLOSE_STREAM block has been authenticated has no successor to replay
+    if (ctx->is_closed) {
+        PRINTF("Stream is closed\n");
+        return SP_ERR_INVALID_STATE;
+    }
     err = parse_block_header(data, &header);
     if (err < 0) {
         return SP_ERR_INVALID_STREAM;
