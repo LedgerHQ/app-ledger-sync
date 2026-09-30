@@ -72,12 +72,14 @@ static int parse_seed_command(buffer_t *data, block_command_t *out) {
         !tlv_read_bytes(&tlv, out->command.seed.initialization_vector, IV_LEN)) {
         return BP_UNEXPECTED_TLV;
     }
+    out->command.seed.initialization_vector_size = tlv.length;
 
     // Read encrypted xpriv
     if (!tlv_read_next(data, &tlv) ||
         !tlv_read_bytes(&tlv, out->command.seed.encrypted_xpriv, MAX_ENCRYPTED_KEY_LEN)) {
         return BP_UNEXPECTED_TLV;
     }
+    out->command.seed.encrypted_xpriv_size = tlv.length;
 
     // Read ephemeral public key
     if (!tlv_read_next(data, &tlv) ||
@@ -136,6 +138,7 @@ static int parse_publish_key_command(buffer_t *data, block_command_t *out) {
         !tlv_read_bytes(&tlv, out->command.publish_key.initialization_vector, IV_LEN)) {
         return BP_UNEXPECTED_TLV;
     }
+    out->command.publish_key.initialization_vector_size = tlv.length;
 
     // Read encrypted xpriv
     if (!tlv_read_next(data, &tlv) ||
@@ -217,12 +220,14 @@ static int parse_derive_command(buffer_t *data, block_command_t *out) {
         !tlv_read_bytes(&tlv, out->command.derive.initialization_vector, IV_LEN)) {
         return BP_UNEXPECTED_TLV;
     }
+    out->command.derive.initialization_vector_size = tlv.length;
 
     // Read encrypted xpriv
     if (!tlv_read_next(data, &tlv) ||
         !tlv_read_bytes(&tlv, out->command.derive.encrypted_xpriv, MAX_ENCRYPTED_KEY_LEN)) {
         return BP_UNEXPECTED_TLV;
     }
+    out->command.derive.encrypted_xpriv_size = tlv.length;
 
     // Read ephemeral public key
     if (!tlv_read_next(data, &tlv) ||

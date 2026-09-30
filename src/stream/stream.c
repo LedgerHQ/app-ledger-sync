@@ -150,11 +150,21 @@ static void stream_hold_group_key(stream_ctx_t *ctx) {
     ctx->awaiting_group_key = false;
 }
 
+// A stored command carries a full IV and encrypted xpriv, the sizes the block hasher covers
+static bool stream_key_fields_are_complete(uint8_t iv_size, uint8_t encrypted_xpriv_size) {
+    return iv_size == IV_LEN && encrypted_xpriv_size == MAX_ENCRYPTED_KEY_LEN;
+}
+
 inline static int stream_parse_seed_command(stream_ctx_t *ctx,
                                             block_command_t *command,
                                             uint8_t *trusted_data,
                                             size_t trusted_data_len) {
     cx_err_t error = CX_INTERNAL_ERROR;
+
+    if (!stream_key_fields_are_complete(command->command.seed.initialization_vector_size,
+                                        command->command.seed.encrypted_xpriv_size)) {
+        return SP_ERR_INVALID_STREAM;
+    }
 
     // Root material is shared by every application subtree, so it carries no policy of its own
     ctx->app_id = APP_ID_NONE;
@@ -199,6 +209,11 @@ end:
 
 inline static int stream_parse_derive_command(stream_ctx_t *ctx, block_command_t *command) {
     cx_err_t error = CX_INTERNAL_ERROR;
+
+    if (!stream_key_fields_are_complete(command->command.derive.initialization_vector_size,
+                                        command->command.derive.encrypted_xpriv_size)) {
+        return SP_ERR_INVALID_STREAM;
+    }
 
     if (command->command.derive.path_len > 1) {
         ctx->app_id = derive_path_app_id(command->command.derive.path);
@@ -290,6 +305,11 @@ inline static int stream_parse_publish_key_command(stream_ctx_t *ctx,
                                                    block_command_t *command,
                                                    uint8_t *trusted_data,
                                                    size_t trusted_data_len) {
+    if (!stream_key_fields_are_complete(command->command.publish_key.initialization_vector_size,
+                                        command->command.publish_key.encrypted_xpriv_size)) {
+        return SP_ERR_INVALID_STREAM;
+    }
+
     if (memcmp(command->command.publish_key.recipient, ctx->device_public_key, MEMBER_KEY_LEN) ==
         0) {
         // A publication addressed to the device is how it receives the secret of a stream it

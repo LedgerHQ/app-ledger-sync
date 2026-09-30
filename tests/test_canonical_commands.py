@@ -7,16 +7,20 @@ has to have exactly one accepted serialization.
 These tests drive raw APDUs, because the client only ever produces canonical commands.
 """
 
+from typing import cast
+
 import pytest
 from constants import DEFAULT_TOPIC
 from ragger.backend import BackendInterface
 from ragger.error import ExceptionRAPDU
 from utils.ApduDevice import Device
 from utils.CommandBlock import CommandBlock, Permissions, commands, hash_command_block
+from utils.CommandStream import CommandStream
 from utils.CommandStreamEncoder import CommandStreamEncoder
 from utils.index import device
 from utils.NobleCrypto import Crypto
-from utils.test_helpers import create_seed_and_derive_stream
+from utils.streamTree import StreamTree
+from utils.test_helpers import create_seed_and_derive_stream, get_ledger_sync_path
 
 SW_STREAM_PARSER_INVALID_FORMAT = 0xB00A
 
@@ -117,3 +121,53 @@ def test_seed_topic_is_unaffected(backend: BackendInterface) -> None:
     alice = device.apdu(backend)
     stream, _tree = create_seed_and_derive_stream(alice, 0, topic=Crypto.from_hex(DEFAULT_TOPIC))
     assert len(stream.get_blocks()[-1].signature) > 0
+
+
+def _parsed_foreign_seed_header(backend: BackendInterface):
+    """Open a session and parse the header of a root Seed block issued by another member."""
+    alice = device.apdu(backend)
+    root = CommandStream().edit().seed(Crypto.from_hex(DEFAULT_TOPIC)).issue(device.software())
+    seed_block = root.get_blocks()[0]
+
+    Device.initFlow(alice.transport, alice.session_key_pair["publicKey"])
+    Device.parse_block_header(alice.transport, CommandStreamEncoder.encodeBlockHeader(seed_block))
+    return alice, seed_block
+
+
+@pytest.mark.parametrize("field", ["initialization_vector", "encrypted_xpriv"])
+def test_short_seed_key_field_is_refused(backend: BackendInterface, field: str) -> None:
+    """A stored Seed carries a full IV and encrypted xpriv, the sizes its digest covers."""
+    alice, seed_block = _parsed_foreign_seed_header(backend)
+    seed = seed_block.commands[0]
+    setattr(seed, field, getattr(seed, field)[:-1])
+
+    with pytest.raises(ExceptionRAPDU) as error:
+        Device.parseCommand(alice.transport, CommandStreamEncoder.encodeCommand(seed_block, 0), True)
+    assert error.value.status == SW_STREAM_PARSER_INVALID_FORMAT
+
+
+def test_short_derive_key_field_is_refused(backend: BackendInterface) -> None:
+    """A stored Derive carries a full IV too."""
+    alice = device.apdu(backend)
+    bob = device.software()
+    root = CommandStream().edit().seed(Crypto.from_hex(DEFAULT_TOPIC)).issue(bob)
+    tree = StreamTree.from_streams(root)
+    derived = CommandStream().edit().derive(get_ledger_sync_path(0)).issue(bob, tree)
+    seed_block, derive_block = root.get_blocks()[0], derived.get_blocks()[0]
+
+    Device.initFlow(alice.transport, alice.session_key_pair["publicKey"])
+    alice.parse_block(seed_block, Device.TrustedParams())
+    Device.parse_block_header(alice.transport, CommandStreamEncoder.encodeBlockHeader(derive_block))
+
+    derive = cast(commands.Derive, derive_block.commands[0])
+    derive.initialization_vector = derive.initialization_vector[:-1]
+    with pytest.raises(ExceptionRAPDU) as error:
+        Device.parseCommand(alice.transport, CommandStreamEncoder.encodeCommand(derive_block, 0), True)
+    assert error.value.status == SW_STREAM_PARSER_INVALID_FORMAT
+
+
+def test_complete_foreign_seed_still_parses(backend: BackendInterface) -> None:
+    """Positive control: the same Seed with its fields intact is accepted."""
+    alice, seed_block = _parsed_foreign_seed_header(backend)
+
+    Device.parseCommand(alice.transport, CommandStreamEncoder.encodeCommand(seed_block, 0), True)

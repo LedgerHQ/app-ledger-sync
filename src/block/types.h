@@ -51,6 +51,7 @@ typedef struct {
     uint16_t protocol_version;
     uint8_t group_public_key[MEMBER_KEY_LEN];
     uint8_t initialization_vector[IV_LEN];
+    uint8_t initialization_vector_size;
     uint8_t encrypted_xpriv_size;
     uint8_t encrypted_xpriv[MAX_ENCRYPTED_KEY_LEN];
     uint8_t ephemeral_public_key[MEMBER_KEY_LEN];
@@ -61,6 +62,7 @@ typedef struct {
     uint8_t path_len;
     uint8_t group_public_key[MEMBER_KEY_LEN];
     uint8_t initialization_vector[IV_LEN];
+    uint8_t initialization_vector_size;
     uint8_t encrypted_xpriv_size;
     uint8_t encrypted_xpriv[MAX_ENCRYPTED_KEY_LEN];
     uint8_t ephemeral_public_key[MEMBER_KEY_LEN];
@@ -74,6 +76,7 @@ typedef struct {
 
 typedef struct {
     uint8_t initialization_vector[IV_LEN];
+    uint8_t initialization_vector_size;
     uint8_t encrypted_xpriv[MAX_ENCRYPTED_KEY_LEN];
     uint8_t encrypted_xpriv_size;
     uint8_t recipient[MEMBER_KEY_LEN];
