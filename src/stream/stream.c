@@ -200,9 +200,8 @@ end:
 inline static int stream_parse_derive_command(stream_ctx_t *ctx, block_command_t *command) {
     cx_err_t error = CX_INTERNAL_ERROR;
 
-    // Extract AppID from path[1] (format: {treeIndex}h/{appId}h/...)
     if (command->command.derive.path_len > 1) {
-        ctx->app_id = command->command.derive.path[1] & 0x7FFFFFFF;
+        ctx->app_id = derive_path_app_id(command->command.derive.path);
     } else {
         ctx->app_id = APP_ID_NONE;
     }

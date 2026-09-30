@@ -40,6 +40,11 @@ typedef uint32_t member_permission_t;
 #define APP_ID_WALLET_CLI_RING 17u
 #define APP_ID_AGENT_INTENT    18u
 
+// AppID of a Derive path {tree}'/{appId}'/{index}'
+static inline uint32_t derive_path_app_id(const uint32_t *path) {
+    return path[1] & ~BIP32_HARDENED_MASK;
+}
+
 typedef struct {
     uint8_t topic[MAX_TOPIC_LEN];
     uint8_t topic_len;

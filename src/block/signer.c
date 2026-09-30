@@ -160,6 +160,21 @@ end:
     return error;
 }
 
+// Derive paths the device signs: {tree}'/{appId}'/{index}', for a known AppID
+static bool derive_path_is_supported(const uint32_t *path, uint8_t path_len) {
+    if (path_len != 3 || !bip32_path_is_hardened(path, path_len)) {
+        return false;
+    }
+    switch (derive_path_app_id(path)) {
+        case APP_ID_LEDGER_SYNC:
+        case APP_ID_WALLET_CLI_RING:
+        case APP_ID_AGENT_INTENT:
+            return true;
+        default:
+            return false;
+    }
+}
+
 static int signer_inject_derive(block_command_t *command) {
     cx_err_t error = CX_INTERNAL_ERROR;
     uint8_t xpriv[XPRIV_LEN] = {0};
@@ -172,19 +187,11 @@ static int signer_inject_derive(block_command_t *command) {
         return SP_ERR_INVALID_STATE;
     }
     PRINTF("INJECT DERIVE 1\n");
-    // Check the derivation path is valid
-    if (!bip32_path_is_hardened(command->command.derive.path, command->command.derive.path_len)) {
-        // Only accept hardened derivations
+    if (!derive_path_is_supported(command->command.derive.path, command->command.derive.path_len)) {
         return SP_ERR_INVALID_STREAM;
     }
-    // Extract AppID from path[1] (format: {treeIndex}h/{appId}h/...): mirrors
-    // stream_parse_derive_command, needed when Derive and ADD_MEMBER appear in
-    // the same SIGN_BLOCK session.
-    if (command->command.derive.path_len > 1) {
-        G_context.stream.app_id = command->command.derive.path[1] & 0x7FFFFFFF;
-    } else {
-        G_context.stream.app_id = APP_ID_NONE;
-    }
+    // An ADD_MEMBER signed in the same block routes on this AppID
+    G_context.stream.app_id = derive_path_app_id(command->command.derive.path);
     PRINTF("INJECT DERIVE 2\n");
     // Derive the xpriv with the derivation path
     CX_CHECK(bip32_derive_xpriv_to_path(G_context.stream.shared_secret,
