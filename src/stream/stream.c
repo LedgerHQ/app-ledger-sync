@@ -354,7 +354,10 @@ inline static int stream_parse_close_stream_command(stream_ctx_t *ctx,
     (void) trusted_data;
     (void) trusted_data_len;
 
-    // Update the stream context
+    // Closure is terminal: no command may follow it in the block
+    if (ctx->parsed_command_count + 1 != ctx->current_block_length) {
+        return SP_ERR_INVALID_STREAM;
+    }
     ctx->is_closed = true;
     return SP_OK;
 }

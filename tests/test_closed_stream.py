@@ -152,3 +152,52 @@ def test_parse_block_header_refused_after_close(backend: BackendInterface, navig
     with pytest.raises(ExceptionRAPDU) as error:
         Device.parse_block_header(alice.transport, CommandStreamEncoder.encodeBlockHeader(successor))
     assert error.value.status == SW_STREAM_PARSER_INVALID_FORMAT
+
+
+def _session_on_open_tip(backend: BackendInterface):
+    """Open a session whose stream is parsed up to its verified, still open, tip."""
+    alice = device.apdu(backend)
+    stream, tree = create_seed_and_derive_stream(alice, 0)
+    root = tree.get_root()
+    assert root is not None
+    blocks = [root.get_blocks()[0], *stream.get_blocks()]
+
+    Device.initFlow(alice.transport, alice.session_key_pair["publicKey"])
+    trusted_params = Device.TrustedParams()
+    for block in blocks:
+        alice.parse_block(block, trusted_params)
+    return alice, blocks
+
+
+def test_sign_block_refuses_a_command_after_close(backend: BackendInterface) -> None:
+    """CLOSE_STREAM must be the last command of the block, refused before its approval screen."""
+    alice, blocks = _session_on_open_tip(backend)
+
+    block = CommandBlock(
+        1,
+        hash_command_block(blocks[-1]),
+        ISSUER_PLACEHOLDER,
+        [commands.CloseStream(), commands.Derive(get_ledger_sync_path(1), b"", b"", b"", b"")],
+        b"",
+    )
+    Device.signBlockHeader(alice.transport, CommandStreamEncoder.encodeBlockHeader(block))
+    with pytest.raises(ExceptionRAPDU) as error:
+        Device.signCommand(alice.transport, CommandStreamEncoder.encodeCommand(block, 0))
+    assert error.value.status == SW_BAD_STATE
+
+
+def test_parse_stream_refuses_a_command_after_close(backend: BackendInterface) -> None:
+    """A stored block cannot carry commands past its CLOSE_STREAM either."""
+    alice, blocks = _session_on_open_tip(backend)
+
+    block = CommandBlock(
+        1,
+        hash_command_block(blocks[-1]),
+        blocks[-1].issuer,
+        [commands.CloseStream(), commands.Derive(get_ledger_sync_path(1), b"", b"", b"", b"")],
+        b"",
+    )
+    Device.parse_block_header(alice.transport, CommandStreamEncoder.encodeBlockHeader(block))
+    with pytest.raises(ExceptionRAPDU) as error:
+        Device.parseCommand(alice.transport, CommandStreamEncoder.encodeCommand(block, 0), True)
+    assert error.value.status == SW_STREAM_PARSER_INVALID_FORMAT

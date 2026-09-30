@@ -486,6 +486,11 @@ int signer_parse_command(signer_ctx_t *signer, stream_ctx_t *stream, buffer_t *d
             err = signer_inject_derive(&command);
             break;
         case COMMAND_CLOSE_STREAM:
+            // Closure is terminal: no command may follow it in the block
+            if (signer->parsed_command + 1 != signer->command_count) {
+                err = BS_INVALID_STATE;
+                break;
+            }
             ret_sw = false;
             ui_display_update_instances();
             err = SWO_NO_RESPONSE;
