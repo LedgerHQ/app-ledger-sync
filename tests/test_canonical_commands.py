@@ -14,7 +14,7 @@ from constants import DEFAULT_TOPIC
 from ragger.backend import BackendInterface
 from ragger.error import ExceptionRAPDU
 from utils.ApduDevice import Device
-from utils.CommandBlock import CommandBlock, Permissions, commands, hash_command_block
+from utils.CommandBlock import CommandBlock, Permissions, commands, hash_command_block, sign_command_block
 from utils.CommandStream import CommandStream
 from utils.CommandStreamEncoder import CommandStreamEncoder
 from utils.index import device
@@ -22,6 +22,7 @@ from utils.NobleCrypto import Crypto
 from utils.streamTree import StreamTree
 from utils.test_helpers import create_seed_and_derive_stream, get_ledger_sync_path
 
+SW_STREAM_PARSER_BAD_STATE = 0xB009
 SW_STREAM_PARSER_INVALID_FORMAT = 0xB00A
 
 COMMAND_CLOSE_STREAM = 0x13
@@ -164,6 +165,40 @@ def test_short_derive_key_field_is_refused(backend: BackendInterface) -> None:
     with pytest.raises(ExceptionRAPDU) as error:
         Device.parseCommand(alice.transport, CommandStreamEncoder.encodeCommand(derive_block, 0), True)
     assert error.value.status == SW_STREAM_PARSER_INVALID_FORMAT
+
+
+def test_refused_short_derive_is_not_committed_by_its_signature(backend: BackendInterface) -> None:
+    """A refused command drops its block, so the block signature that follows has nothing to verify.
+
+    The IV ends with a zero byte, which is what the hasher pads a short IV with: the canonical
+    signature would verify over the shortened encoding if the refused command stayed in the block.
+    """
+    alice = device.apdu(backend)
+    bob = device.software()
+    root = CommandStream().edit().seed(Crypto.from_hex(DEFAULT_TOPIC)).issue(bob)
+    tree = StreamTree.from_streams(root)
+    derived = CommandStream().edit().derive(get_ledger_sync_path(0)).issue(bob, tree)
+    seed_block, derive_block = root.get_blocks()[0], derived.get_blocks()[0]
+
+    derive = cast(commands.Derive, derive_block.commands[0])
+    derive.initialization_vector = derive.initialization_vector[:-1] + b"\x00"
+    derive_block.signature = b""
+    sign_command_block(derive_block, bob.key_pair["privateKey"])
+
+    Device.initFlow(alice.transport, alice.session_key_pair["publicKey"])
+    alice.parse_block(seed_block, Device.TrustedParams())
+    Device.parse_block_header(alice.transport, CommandStreamEncoder.encodeBlockHeader(derive_block))
+
+    canonical_iv = derive.initialization_vector
+    derive.initialization_vector = canonical_iv[:-1]
+    with pytest.raises(ExceptionRAPDU) as error:
+        Device.parseCommand(alice.transport, CommandStreamEncoder.encodeCommand(derive_block, 0), True)
+    assert error.value.status == SW_STREAM_PARSER_INVALID_FORMAT
+
+    derive.initialization_vector = canonical_iv
+    with pytest.raises(ExceptionRAPDU) as error:
+        Device.parse_signature(alice.transport, CommandStreamEncoder.encodeSignature(derive_block))
+    assert error.value.status == SW_STREAM_PARSER_BAD_STATE
 
 
 def test_complete_foreign_seed_still_parses(backend: BackendInterface) -> None:

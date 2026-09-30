@@ -363,23 +363,28 @@ int stream_parse_command(stream_ctx_t *ctx,
                          buffer_t *data,
                          uint8_t *trusted_data,
                          size_t trusted_data_len) {
-    int err = SP_OK;
     int length = 0;
     block_command_t command = {0};
+    // Commands issue their trusted member even when the host did not ask to receive it
+    uint8_t unrequested_output[TP_BUFFER_SIZE_NEW_MEMBER];
+    bool output_requested = trusted_data != NULL;
 
     if (ctx->parsing_state != STREAM_PARSING_STATE_COMMAND) {
         return SP_ERR_INVALID_STATE;
     }
+    if (!output_requested) {
+        trusted_data = unrequested_output;
+        trusted_data_len = sizeof(unrequested_output);
+    }
 
     // Parse command
-    err = parse_block_command(data, &command);
-    if (err < 0) {
-        return SP_ERR_INVALID_STREAM;
+    if (parse_block_command(data, &command) < 0) {
+        goto reject_block;
     }
 
     // If the stream.is_created is false, only the seed command is allowed.
     if (!ctx->is_created && command.type != COMMAND_SEED) {
-        return SP_ERR_INVALID_STREAM;
+        goto reject_block;
     }
 
     switch (command.type) {
@@ -405,14 +410,18 @@ int stream_parse_command(stream_ctx_t *ctx,
                 stream_parse_close_stream_command(ctx, &command, trusted_data, trusted_data_len);
             break;
         default:
+            length = SP_ERR_UNKNOWN_COMMAND;
             break;
+    }
+    // A command the device refuses cannot be part of a block it goes on to verify
+    if (length < 0) {
+        goto reject_block;
     }
 
     // Digest command
-    err = block_hash_command(&command, &ctx->digest);
-    block_hash_command(&command, &ctx->full_block_digest);
-    if (err < 0) {
-        return SP_ERR_INVALID_STREAM;
+    if (block_hash_command(&command, &ctx->digest) < 0 ||
+        block_hash_command(&command, &ctx->full_block_digest) < 0) {
+        goto reject_block;
     }
     // Update context
     ctx->parsed_command_count += 1;
@@ -422,10 +431,11 @@ int stream_parse_command(stream_ctx_t *ctx,
         ctx->parsing_state = STREAM_PARSING_STATE_SIGNATURE;
     }
 
-    if (length == TP_BUFFER_OVERFLOW) {
-        return 0;
-    }
-    return err == SP_OK ? length : err;
+    return output_requested ? length : SP_OK;
+
+reject_block:
+    stream_reset_to_boundary(ctx);
+    return SP_ERR_INVALID_STREAM;
 }
 
 int stream_parse_signature(stream_ctx_t *ctx, buffer_t *data) {
