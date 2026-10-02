@@ -291,7 +291,8 @@ def test_publish_by_non_member(backend: BackendInterface, navigator: Navigator, 
     stream = stream.edit().add_member("Charlie", charlie_public_key, 0xFFFFFFFF).issue(alice, tree)
     tree = tree.update(stream)
 
-    with pytest.raises(ValueError):
+    # Charlie is a member, so the rejection must come from Bob not holding the stream key
+    with pytest.raises(ValueError, match="Cannot read the seed key from another device"):
         stream = stream.edit().publish_key(charlie_public_key).issue(bob, tree)
 
 
@@ -313,7 +314,7 @@ def test_publish_key_to_non_member_by_software(backend: BackendInterface, naviga
     alice.update_automation(member_automation)
     stream = stream.edit().add_member("Bob", bob_public_key, 0xFFFFFFFF, True).issue(alice, tree)
     tree = tree.update(stream)
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="Recipient is not part of the trustchain"):
         stream = stream.edit().publish_key(charlie_public_key).issue(bob, tree)
 
 

@@ -60,6 +60,7 @@ int handler_set_trusted_member(buffer_t *cdata) {
 
     if (deserialize_trusted_member(rawTrustedMember,
                                    decrypted_len,
+                                   G_context.stream.trusted_member_generation,
                                    &G_context.stream.trusted_member) < 0) {
         return io_send_sw(SW_WRONG_DATA);
     }

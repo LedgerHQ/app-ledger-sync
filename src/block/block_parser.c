@@ -72,12 +72,14 @@ static int parse_seed_command(buffer_t *data, block_command_t *out) {
         !tlv_read_bytes(&tlv, out->command.seed.initialization_vector, IV_LEN)) {
         return BP_UNEXPECTED_TLV;
     }
+    out->command.seed.initialization_vector_size = tlv.length;
 
     // Read encrypted xpriv
     if (!tlv_read_next(data, &tlv) ||
         !tlv_read_bytes(&tlv, out->command.seed.encrypted_xpriv, MAX_ENCRYPTED_KEY_LEN)) {
         return BP_UNEXPECTED_TLV;
     }
+    out->command.seed.encrypted_xpriv_size = tlv.length;
 
     // Read ephemeral public key
     if (!tlv_read_next(data, &tlv) ||
@@ -136,6 +138,7 @@ static int parse_publish_key_command(buffer_t *data, block_command_t *out) {
         !tlv_read_bytes(&tlv, out->command.publish_key.initialization_vector, IV_LEN)) {
         return BP_UNEXPECTED_TLV;
     }
+    out->command.publish_key.initialization_vector_size = tlv.length;
 
     // Read encrypted xpriv
     if (!tlv_read_next(data, &tlv) ||
@@ -217,12 +220,14 @@ static int parse_derive_command(buffer_t *data, block_command_t *out) {
         !tlv_read_bytes(&tlv, out->command.derive.initialization_vector, IV_LEN)) {
         return BP_UNEXPECTED_TLV;
     }
+    out->command.derive.initialization_vector_size = tlv.length;
 
     // Read encrypted xpriv
     if (!tlv_read_next(data, &tlv) ||
         !tlv_read_bytes(&tlv, out->command.derive.encrypted_xpriv, MAX_ENCRYPTED_KEY_LEN)) {
         return BP_UNEXPECTED_TLV;
     }
+    out->command.derive.encrypted_xpriv_size = tlv.length;
 
     // Read ephemeral public key
     if (!tlv_read_next(data, &tlv) ||
@@ -264,14 +269,27 @@ int parse_block_command(buffer_t *data, block_command_t *out) {
             read = parse_derive_command(&commandBuffer, out);
             break;
         case COMMAND_CLOSE_STREAM:
-            read = tlv.length;
+            // The hasher emits this command with an empty value, so only an empty value can be
+            // covered by the signature
+            if (tlv.length != 0) {
+                return BP_UNEXPECTED_TLV;
+            }
+            read = 0;
             PRINTF("Close stream command\n");
             break;
         default:
             return BP_ERROR_UNKNOWN_COMMAND;
             break;
     }
-    return read < 0 ? read : data->offset - offset;
+    if (read < 0) {
+        return read;
+    }
+    // Bytes left inside the command are absent from the digest the signature covers
+    if (commandBuffer.offset != commandBuffer.size) {
+        PRINTF("Trailing bytes in command\n");
+        return BP_UNEXPECTED_TLV;
+    }
+    return data->offset - offset;
 }
 
 int parse_block_signature(buffer_t *data, uint8_t *out, size_t out_len) {

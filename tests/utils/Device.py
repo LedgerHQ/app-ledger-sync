@@ -43,8 +43,15 @@ class SodiumDevice(device):
             index += 1
         return cast(bytes, shared_key["xpriv"])
 
-    def derive_key(self, tree, path) -> bytes:
-        raise NotImplementedError
+    def derive_key(self, tree, path):
+        """Derive the stream key at `path` from the root stream key this device can read.
+
+        Lets a software device create derived streams, so that tests can drive a device that
+        joins a subtree someone else created instead of always creating it itself.
+        """
+        root_xpriv = self.read_key(tree, [])
+        derived = Crypto.derive_private(root_xpriv, path)
+        return {"xpriv": derived["privateKey"] + derived["chainCode"], "publicKey": derived["publicKey"]}
 
     def get_public_key(self):
         return self.key_pair["publicKey"]
@@ -117,7 +124,7 @@ class SodiumDevice(device):
                 command = cast(commands.Derive, command)
                 if not tree:
                     raise ValueError("Cannot derive a key without a tree")
-                shared_key = super().derive_key(tree, command.path)
+                shared_key = self.derive_key(tree, command.path)
                 encrypted_derived_key = self.encrypt_shared_key(shared_key, self.key_pair["publicKey"])
                 if shared_key:
                     command.group_key = shared_key["publicKey"]  # type:ignore
@@ -127,8 +134,12 @@ class SodiumDevice(device):
 
             elif command_type == CommandType.PublishKey:
                 command = cast(commands.PublishKey, command)
-                is_added_in_current_block = Crypto.to_hex(command.recipient) in added_members
-                if Crypto.to_hex(command.recipient) not in resolved.get_members() and not is_added_in_current_block:
+                # The resolver stores members as raw bytes, so both sides must be hex here or
+                # the comparison never matches and every recipient looks absent
+                recipient_hex = Crypto.to_hex(command.recipient)
+                resolved_members = {Crypto.to_hex(member) for member in resolved.get_members()}
+                is_added_in_current_block = recipient_hex in added_members
+                if recipient_hex not in resolved_members and not is_added_in_current_block:
                     raise ValueError("Recipient is not part of the trustchain")
                 if not shared_key:
                     encrypted_key = resolved.get_encrypted_key(self.key_pair["publicKey"])
@@ -146,7 +157,7 @@ class SodiumDevice(device):
                         if Crypto.to_hex(stream[0].issuer) != Crypto.to_hex(self.key_pair["publicKey"]):
                             raise ValueError("Cannot read the seed key from another device")
                     else:
-                        shared_key = super().derive_key(tree, resolved.get_stream_derivation_path())
+                        shared_key = self.derive_key(tree, resolved.get_stream_derivation_path())
                     if not shared_key:
                         raise ValueError("Cannot find the shared key")
 

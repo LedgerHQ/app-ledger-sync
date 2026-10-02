@@ -88,7 +88,9 @@ static int bip32_derive_xpriv(uint8_t *parent_private_key,
     LEDGER_ASSERT(child_private_key != NULL, "Null child_private_key\n");
     LEDGER_ASSERT(child_chain_code != NULL, "Null child_chain_code\n");
 
-    do {
+    // Not a do/while: a retry has to restart the HMAC, and `continue` in a do/while would jump
+    // to the condition instead, testing a child key this iteration never computed
+    for (;;) {
         if (index >= (1u << 31u)) {
             data.hard[0] = 0x00;
             memcpy(data.hard + 1, parent_private_key, PRIVATE_KEY_LEN);
@@ -110,12 +112,22 @@ static int bip32_derive_xpriv(uint8_t *parent_private_key,
                                sizeof(I));
         }
         explicit_bzero(&data, sizeof(data));
+        // Both retry conditions move on to the next index, so advance it before testing them
+        index++;
+
+        // parse256(IL) >= n: invalid per BIP32, and out of range for the modular addition below
+        if (!crypto_ec_is_scalar_below_order(I)) {
+            continue;
+        }
         ret = crypto_ec_add_mod_n(parent_private_key, I, child_private_key);
         if (ret != 0) {
             goto end;
         }
-        index++;
-    } while (!crypto_ec_is_point_on_curve(child_private_key));
+        // ki = 0: invalid per BIP32
+        if (!crypto_ec_is_scalar_zero(child_private_key)) {
+            break;
+        }
+    }
 
     memcpy(child_chain_code, I + 32, 32);
 

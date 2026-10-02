@@ -12,6 +12,8 @@ from utils.NobleCrypto import Crypto, DerivationPath
 from utils.streamTree import StreamTree
 from utils.test_helpers import create_seed_and_derive_stream
 
+SW_BAD_STATE = 0xB007
+
 valid_member_instructions_nano = [NavInsID.RIGHT_CLICK, NavInsID.RIGHT_CLICK, NavInsID.BOTH_CLICK, NavInsID.BOTH_CLICK]
 valid_member_instructions_stax = [NavInsID.USE_CASE_CHOICE_CONFIRM, NavInsID.USE_CASE_STATUS_DISMISS]
 
@@ -322,21 +324,22 @@ def test_add_member_without_can_add_block_permission(backend: BackendInterface, 
         tampered_stream.edit().add_member("Dany", dany_public_key, Permissions.OWNER, True).issue(alice, tampered_tree)
 
 
-def test_add_member_unknown_app_id(backend: BackendInterface) -> None:
-    """Test that add_member on a stream derived with an unknown APP_ID is rejected without showing any UI."""
+@pytest.mark.parametrize(
+    "path",
+    [
+        "0'/99'/0'",  # unknown AppID
+        "0'/16'",  # AppID but no index
+        "0'/16'/0'/0'",  # one component too many
+        "0'/16'/0",  # non-hardened index
+    ],
+)
+def test_derive_unsupported_path_is_refused(backend: BackendInterface, path: str) -> None:
+    """The device only signs a Derive of the form {tree}'/{appId}'/{index}' for a known AppID."""
     alice = device.apdu(backend)
-    bob = device.software()
 
-    topic = Crypto.from_hex(DEFAULT_TOPIC)
-    root_stream = CommandStream()
-    root_stream = root_stream.edit().seed(topic).issue(alice)
+    root_stream = CommandStream().edit().seed(Crypto.from_hex(DEFAULT_TOPIC)).issue(alice)
     tree = StreamTree.from_streams(root_stream)
 
-    # APP_ID 99 is not registered (only 16=LEDGER_SYNC and 18=AGENT_INTENT are valid)
-    unknown_path = DerivationPath.to_index_array("0'/99'/0'")
-    derived = CommandStream()
-    derived = derived.edit().derive(unknown_path).issue(alice, tree)
-    tree = tree.update(derived)
-
-    with pytest.raises(ExceptionRAPDU):
-        derived.edit().add_member("Bob", bob.get_public_key(), Permissions.OWNER, True).issue(alice, tree)
+    with pytest.raises(ExceptionRAPDU) as error:
+        CommandStream().edit().derive(DerivationPath.to_index_array(path)).issue(alice, tree)
+    assert error.value.status == SW_BAD_STATE

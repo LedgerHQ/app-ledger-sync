@@ -87,6 +87,15 @@ void crypto_init_public_key(crypto_private_key_t *private_key,
 void crypto_init_private_key(uint8_t raw_private_key[static 32], crypto_private_key_t *private_key);
 
 /**
+ * Compute the compressed public key matching a raw private key.
+ * @param[in]  raw_private_key The raw private key. MUST BE 32 BYTES LONG.
+ * @param[out] compressed_public_key The compressed public key. Must be 33 bytes long.
+ */
+void crypto_compressed_public_key_from_private(
+    uint8_t raw_private_key[static PRIVATE_KEY_LEN],
+    uint8_t compressed_public_key[static MEMBER_KEY_LEN]);
+
+/**
  * Compress public key.
  * @param[in]  public_key The public key to compress. Must be 65 bytes long (with 0x04 prefix).
  * @param[out] compressed_public_key The compressed public key. Must be 33 bytes long.
@@ -238,11 +247,18 @@ void crypto_digest(const uint8_t *data, uint32_t len, uint8_t *digest, uint32_t 
 int crypto_ec_add_mod_n(const uint8_t *a, const uint8_t *b, uint8_t *out);
 
 /**
- * Check if the given private key is valid.
- * @param[in] private_key The private key to check. Must be 32 bytes long.
- * @return true if the private key is valid, false otherwise.
+ * Check that a scalar is strictly below the curve order.
+ * @param[in] scalar The scalar to check. Must be 32 bytes long.
+ * @return true if the scalar is below the order, false otherwise or on error.
  */
-bool crypto_ec_is_point_on_curve(const uint8_t *private_key);
+bool crypto_ec_is_scalar_below_order(const uint8_t *scalar);
+
+/**
+ * Check whether a scalar is zero, which is not a usable private key.
+ * @param[in] scalar The scalar to check. Must be 32 bytes long.
+ * @return true if every byte is zero.
+ */
+bool crypto_ec_is_scalar_zero(const uint8_t *scalar);
 
 /**
  * Generate a random private/public key pair.

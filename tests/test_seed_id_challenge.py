@@ -1,15 +1,22 @@
 import hashlib
 from pathlib import Path
 
+import pytest
 from constants import approve_instructions_nano, approve_instructions_stax
 from ecdsa import BadSignatureError, VerifyingKey, curves  # type: ignore
 from ecdsa.util import sigdecode_der  # type: ignore
 from PubKeyCredential import PubKeyCredential
 from ragger.backend import BackendInterface
+from ragger.error import ExceptionRAPDU
 from ragger.navigator import Navigator
 from SeedIdChallenge import SeedIdChallenge
-from SeedIdClient import Errors, SeedIdClient
+from SeedIdClient import Errors, PKIClient, PKIPubKeyUsage, SeedIdClient
 from utils.keychain.keychain import Key, get_pub_key, sign_data
+
+# Compressed form of TEST_ATTESTATION_PUBKEY in src/crypto_data.h, pinned here so the test
+# cannot be satisfied by whatever key the response happens to carry. A build signing with the
+# production key needs its own expected value.
+EXPECTED_TEST_ATTESTATION_PUBLIC_KEY = bytes.fromhex("029a8bef4947807f60aa2130f194f83b45e3989746a40d7b5a027ba13a38c2115f")
 
 
 def check_signature(public_key: str, message, signature, curve: curves.Curve = curves.SECP256k1) -> bool:
@@ -97,6 +104,8 @@ def test_seed_id_challenge(
     pubkey, signature, attestation_type, attestation_pubkey, attestation_signature = parse_result(response.data)
 
     assert attestation_type == 0x00
+    # Identity first: the signature below only proves the response is self-consistent
+    assert bytes(attestation_pubkey.public_key) == EXPECTED_TEST_ATTESTATION_PUBLIC_KEY
     assert check_signature(pubkey.public_key, challenge_hash, signature)
     assert check_signature(
         attestation_pubkey.public_key, hashlib.sha256(challenge_hash).digest() + signature, attestation_signature
@@ -106,3 +115,16 @@ def test_seed_id_challenge(
 # def test_seed_id_invalid_challenge(backend, navigator, test_name):
 # Should be rejected if challenge is different from what is signed in payload
 # TODO
+
+
+def test_rejected_certificate_is_not_silently_ignored(backend: BackendInterface) -> None:
+    """A certificate the device rejects must fail the test, not fall back to the legacy path.
+
+    Only NOT_IMPLEMENTED selects the legacy path. Swallowing any other status would run the
+    positive Seed-ID test through the no-certificate path and hide a loss of PKI enforcement.
+    """
+    pki = PKIClient(backend)
+
+    with pytest.raises(ExceptionRAPDU) as error:
+        pki.send_certificate(PKIPubKeyUsage.PUBKEY_USAGE_SEED_ID_AUTH, bytes.fromhex("0101"))
+    assert error.value.status != Errors.NOT_IMPLEMENTED
