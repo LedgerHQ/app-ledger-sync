@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Seed ID authentication refused by Ledger Wallet (0xB00F) when no Ledger-PKI certificate is loaded
+- Agent Intent per-agent subtree creation refused (0xB007)
 
 ## [1.4.0] - 2026-09-25
 
