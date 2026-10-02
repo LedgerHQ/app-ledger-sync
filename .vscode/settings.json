@@ -23,6 +23,8 @@
             "test_agent_intent.py::test_register_agent_happy_path",
             "test_agent_intent.py::test_register_agent_decline",
             "test_agent_intent.py::test_add_member_invalid_permissions",
+            "test_agent_intent.py::test_register_agent_in_new_subtree",
+            "test_agent_intent.py::test_enable_agent_access_in_subtree",
             "test_app_id_scope.py::test_add_member_on_root_after_derived_stream",
             "test_app_id_scope.py::test_add_member_on_root_seed_stream",
             "test_app_id_scope.py::test_derived_stream_policy_does_not_reach_a_second_derived_stream",
@@ -106,8 +108,6 @@
             "test_seed_id_parser.py::test_seed_id_wrong_protocol_version",
             "test_seed_id_parser.py::test_seed_id_extra_data",
             "test_seed_id_parser.py::test_seed_id_missing_field",
-            "test_seed_id_pki_required.py::test_self_signed_challenge_without_certificate_is_refused",
-            "test_seed_id_pki_required.py::test_genuine_challenge_without_certificate_is_refused",
             "test_signer_transcript.py::test_second_block_start_is_refused",
             "test_signer_transcript.py::test_stale_command_count_cannot_finalize_a_header_only_block",
             "test_signer_transcript.py::test_more_commands_than_declared_are_refused",
@@ -118,6 +118,7 @@
             "test_unverified_block_effects.py::test_omitted_signature_rolls_back_the_injected_member",
             "test_unverified_block_effects.py::test_invalid_signature_rolls_back_the_injected_member",
             "test_unverified_block_effects.py::test_member_from_a_dropped_block_cannot_be_replayed",
+            "test_unverified_block_effects.py::test_parse_stream_refused_while_a_block_is_being_signed",
             "test_run_as_owner.py::test_seed_twice_by_bob_block",
             "test_run_as_owner.py::test_seed_twice_by_bob_stream"
         ]

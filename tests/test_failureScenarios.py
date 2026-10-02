@@ -331,10 +331,15 @@ def test_add_member_without_can_add_block_permission(backend: BackendInterface, 
         "0'/16'",  # AppID but no index
         "0'/16'/0'/0'",  # one component too many
         "0'/16'/0",  # non-hardened index
+        "0'/16'/0'/0'/0'",  # agent subtree depth outside Agent Intent
+        "0'/18'/0'/0'",  # Agent Intent object without a generation
+        "0'/18'/0'/0'/0'/0'",  # Agent Intent subtree one component too deep
+        "0'/18'/0'/0'/0",  # non-hardened Agent Intent generation
     ],
 )
 def test_derive_unsupported_path_is_refused(backend: BackendInterface, path: str) -> None:
-    """The device only signs a Derive of the form {tree}'/{appId}'/{index}' for a known AppID."""
+    """The device only signs a Derive of the form {tree}'/{appId}'/{index}' for a known AppID,
+    plus {tree}'/18'/{index}'/{object}'/{generation}' agent subtrees for Agent Intent."""
     alice = device.apdu(backend)
 
     root_stream = CommandStream().edit().seed(Crypto.from_hex(DEFAULT_TOPIC)).issue(alice)

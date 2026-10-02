@@ -160,16 +160,19 @@ end:
     return error;
 }
 
-// Derive paths the device signs: {tree}'/{appId}'/{index}', for a known AppID
+// Derive paths the device signs: {tree}'/{appId}'/{index}', for a known AppID.
+// Agent Intent also derives one subtree per agent below its application stream:
+// {tree}'/18'/{index}'/{object}'/{generation}'
 static bool derive_path_is_supported(const uint32_t *path, uint8_t path_len) {
-    if (path_len != 3 || !bip32_path_is_hardened(path, path_len)) {
+    if (path_len < 3 || !bip32_path_is_hardened(path, path_len)) {
         return false;
     }
     switch (derive_path_app_id(path)) {
         case APP_ID_LEDGER_SYNC:
         case APP_ID_WALLET_CLI_RING:
+            return path_len == 3;
         case APP_ID_AGENT_INTENT:
-            return true;
+            return path_len == 3 || path_len == 5;
         default:
             return false;
     }
