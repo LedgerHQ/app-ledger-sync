@@ -23,6 +23,8 @@
             "test_agent_intent.py::test_register_agent_happy_path",
             "test_agent_intent.py::test_register_agent_decline",
             "test_agent_intent.py::test_add_member_invalid_permissions",
+            "test_agent_intent.py::test_register_agent_in_new_subtree",
+            "test_agent_intent.py::test_enable_agent_access_in_subtree",
             "test_app_id_scope.py::test_add_member_on_root_after_derived_stream",
             "test_app_id_scope.py::test_add_member_on_root_seed_stream",
             "test_app_id_scope.py::test_derived_stream_policy_does_not_reach_a_second_derived_stream",
