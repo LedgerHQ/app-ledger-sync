@@ -139,6 +139,17 @@ The signature phase returns TP when providing header and commands.
 - **SIGN_BLOCK PublishKey:** Returns a TP of type `NEW_MEMBER` with the member.
   Also returns the ephemeral public key as `EPHEMERAL_PUBLIC_KEY`, the `IV` as `COMMAND_IV`, the xpriv as `XPRIV`
 
+## Derive paths
+
+`SIGN_BLOCK` only signs a Derive command whose path is fully hardened and matches one of the
+layouts below, the AppID being the second level. Any other path is refused with `0xB007`.
+
+| AppID | Application | Accepted paths |
+| --- | --- | --- |
+| 16 | Ledger Sync | `{tree}'/16'/{index}'` |
+| 17 | Wallet CLI ring | `{tree}'/17'/{index}'` |
+| 18 | Agent Intent | `{tree}'/18'/{index}'` (application stream) <br> `{tree}'/18'/{index}'/{object}'/{generation}'` (per-agent subtree) |
+
 ## Commands
 
 ### Overview
