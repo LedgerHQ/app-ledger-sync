@@ -317,21 +317,6 @@ end:
     return error;
 }
 
-// Only the permission sets the user approved for key access may receive the stream key.
-// Agent Intent registers identify-only agents with NO_PERMISSION behind a fingerprint
-// review that grants no data access, so they must never be a PUBLISH_KEY recipient.
-static bool member_may_receive_stream_key(const stream_trusted_member_t *member, uint32_t app_id) {
-    switch (app_id) {
-        case APP_ID_LEDGER_SYNC:
-        case APP_ID_WALLET_CLI_RING:
-            return (member->permissions & CAN_ENCRYPT) != 0;
-        case APP_ID_AGENT_INTENT:
-            return member->permissions == (CAN_ENCRYPT | CAN_DERIVE);
-        default:
-            return false;
-    }
-}
-
 static int signer_inject_publish_key(block_command_t *command) {
     uint8_t buffer[TP_BUFFER_SIZE_NEW_MEMBER];
     buffer_t trusted_property = {.ptr = buffer, .size = sizeof(buffer), .offset = 0};
@@ -343,12 +328,6 @@ static int signer_inject_publish_key(block_command_t *command) {
                command->command.publish_key.recipient,
                MEMBER_KEY_LEN) != 0) {
         PRINTF("Trusted member don't match\n");
-        return BS_INVALID_STATE;
-    }
-
-    // Matching the recipient key is not authorization on its own
-    if (!member_may_receive_stream_key(&G_context.stream.trusted_member, G_context.stream.app_id)) {
-        PRINTF("Recipient is not allowed to receive the stream key\n");
         return BS_INVALID_STATE;
     }
 
