@@ -22,6 +22,12 @@
 #define SIGNATURE_LENGTH        75
 
 /**
+ * DER encoding of the relying party signature
+ */
+#define DER_SEQUENCE_TAG  0x30
+#define DER_HEADER_LENGTH 2
+
+/**
  * Enumeration Attestions
  */
 typedef enum {
@@ -60,6 +66,7 @@ typedef struct {
     uint8_t rp_credential_curve_id;
     uint8_t rp_credential_public_key[PUBLIC_KEY_LENGTH];
     uint8_t rp_signature[SIGNATURE_LENGTH];
+    uint8_t rp_signature_len;
 } challenge_ctx_t;
 
 typedef struct {

@@ -72,7 +72,7 @@ static int bip32_derive_xpriv(uint8_t *parent_private_key,
     // - In case parse256(IL) ≥ n or ki = 0, the resulting key is invalid, and one should proceed
     // with the next value for i. (Note: this has probability lower than 1 in 2^127)
     int ret = 0;
-    uint8_t I[RAW_PUBLIC_KEY_LENGTH];
+    uint8_t I[RAW_PUBLIC_KEY_LENGTH] = {0};
     union {
         uint8_t hard[MEMBER_KEY_LEN + 4];  // 0x00 || ser256(kpar) || ser32(i)
         struct {
@@ -88,7 +88,9 @@ static int bip32_derive_xpriv(uint8_t *parent_private_key,
     LEDGER_ASSERT(child_private_key != NULL, "Null child_private_key\n");
     LEDGER_ASSERT(child_chain_code != NULL, "Null child_chain_code\n");
 
-    do {
+    // Not a do/while: a retry has to restart the HMAC, and `continue` in a do/while would jump
+    // to the condition instead, testing a child key this iteration never computed
+    for (;;) {
         if (index >= (1u << 31u)) {
             data.hard[0] = 0x00;
             memcpy(data.hard + 1, parent_private_key, PRIVATE_KEY_LEN);
@@ -110,14 +112,28 @@ static int bip32_derive_xpriv(uint8_t *parent_private_key,
                                sizeof(I));
         }
         explicit_bzero(&data, sizeof(data));
+        // Both retry conditions move on to the next index, so advance it before testing them
+        index++;
+
+        // parse256(IL) >= n: invalid per BIP32, and out of range for the modular addition below
+        if (!crypto_ec_is_scalar_below_order(I)) {
+            continue;
+        }
         ret = crypto_ec_add_mod_n(parent_private_key, I, child_private_key);
         if (ret != 0) {
-            return ret;
+            goto end;
         }
-        index++;
-    } while (!crypto_ec_is_point_on_curve(child_private_key));
+        // ki = 0: invalid per BIP32
+        if (!crypto_ec_is_scalar_zero(child_private_key)) {
+            break;
+        }
+    }
 
     memcpy(child_chain_code, I + 32, 32);
+
+end:
+    // I holds IL || IR, both child key derivation material
+    explicit_bzero(I, sizeof(I));
     return ret;
 }
 
@@ -128,13 +144,19 @@ int bip32_derive_xpriv_to_path(uint8_t *parent_private_key,
                                uint8_t *child_private_key,
                                uint8_t *child_chain_code) {
     int ret = 0;
-    uint8_t kpar[32];
-    uint8_t cpar[32];
+    uint8_t kpar[32] = {0};
+    uint8_t cpar[32] = {0};
 
     LEDGER_ASSERT(parent_private_key != NULL, "Null parent_private_key\n");
     LEDGER_ASSERT(parent_chain_code != NULL, "Null parent_chain_code\n");
     LEDGER_ASSERT(child_private_key != NULL, "Null child_private_key\n");
     LEDGER_ASSERT(child_chain_code != NULL, "Null child_chain_code\n");
+
+    // An empty path would leave the child key and chain code untouched
+    if (path_len == 0) {
+        ret = -1;
+        goto end;
+    }
 
     // Copy parent private key and chain code to temporary buffer
     memcpy(kpar, parent_private_key, PRIVATE_KEY_LEN);
@@ -148,8 +170,12 @@ int bip32_derive_xpriv_to_path(uint8_t *parent_private_key,
         }
         ret = bip32_derive_xpriv(kpar, cpar, path[i], child_private_key, child_chain_code);
         if (ret != 0) {
-            return ret;
+            goto end;
         }
     }
-    return 0;
+
+end:
+    explicit_bzero(kpar, sizeof(kpar));
+    explicit_bzero(cpar, sizeof(cpar));
+    return ret;
 }

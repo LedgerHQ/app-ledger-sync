@@ -26,6 +26,7 @@ typedef enum {
 } block_command_type_e;
 
 enum member_permission_e {
+    NO_PERMISSION = 0x00,
     CAN_ENCRYPT = 0x01,
     CAN_DERIVE = 0x01 << 1,
     CAN_ADD_BLOCK = 0x01 << 2,
@@ -33,12 +34,24 @@ enum member_permission_e {
 typedef uint32_t member_permission_t;
 #define OWNER (member_permission_t) 0xFFFFFFFF
 
+// Not an application: ADD_MEMBER and PUBLISH_KEY have no policy to apply and refuse the stream
+#define APP_ID_NONE            0u
+#define APP_ID_LEDGER_SYNC     16u
+#define APP_ID_WALLET_CLI_RING 17u
+#define APP_ID_AGENT_INTENT    18u
+
+// AppID of a Derive path {tree}'/{appId}'/{index}'
+static inline uint32_t derive_path_app_id(const uint32_t *path) {
+    return path[1] & ~BIP32_HARDENED_MASK;
+}
+
 typedef struct {
     uint8_t topic[MAX_TOPIC_LEN];
     uint8_t topic_len;
     uint16_t protocol_version;
     uint8_t group_public_key[MEMBER_KEY_LEN];
     uint8_t initialization_vector[IV_LEN];
+    uint8_t initialization_vector_size;
     uint8_t encrypted_xpriv_size;
     uint8_t encrypted_xpriv[MAX_ENCRYPTED_KEY_LEN];
     uint8_t ephemeral_public_key[MEMBER_KEY_LEN];
@@ -49,6 +62,7 @@ typedef struct {
     uint8_t path_len;
     uint8_t group_public_key[MEMBER_KEY_LEN];
     uint8_t initialization_vector[IV_LEN];
+    uint8_t initialization_vector_size;
     uint8_t encrypted_xpriv_size;
     uint8_t encrypted_xpriv[MAX_ENCRYPTED_KEY_LEN];
     uint8_t ephemeral_public_key[MEMBER_KEY_LEN];
@@ -62,6 +76,7 @@ typedef struct {
 
 typedef struct {
     uint8_t initialization_vector[IV_LEN];
+    uint8_t initialization_vector_size;
     uint8_t encrypted_xpriv[MAX_ENCRYPTED_KEY_LEN];
     uint8_t encrypted_xpriv_size;
     uint8_t recipient[MEMBER_KEY_LEN];
@@ -86,6 +101,7 @@ typedef struct {
 
     uint8_t command_count;   // Number of commands in the block to sign
     uint8_t parsed_command;  // Number of commands parsed
+    uint8_t close_pending;   // The block being signed carries a CLOSE_STREAM the user approved
 
     uint8_t session_key[MEMBER_KEY_LEN];  // Session key (ephemeral public key)
     uint8_t session_encryption_key[SESSION_ENCRYPTION_KEY_LEN];

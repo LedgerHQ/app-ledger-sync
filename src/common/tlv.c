@@ -65,10 +65,10 @@ bool tlv_read_hash(tlv_t *tlv, uint8_t *out) {
     LEDGER_ASSERT(tlv != NULL, "Null tlv\n");
     LEDGER_ASSERT(out != NULL, "Null out\n");
 
-    if (tlv->type != TLV_TYPE_HASH || tlv->length > HASH_LEN) {
+    if (tlv->type != TLV_TYPE_HASH || tlv->length != HASH_LEN) {
         return false;
     }
-    memcpy(out, tlv->value, tlv->length);
+    memcpy(out, tlv->value, HASH_LEN);
     return true;
 }
 
@@ -76,9 +76,21 @@ bool tlv_read_pubkey(tlv_t *tlv, uint8_t *out) {
     LEDGER_ASSERT(tlv != NULL, "Null tlv\n");
     LEDGER_ASSERT(out != NULL, "Null out\n");
 
+    if (tlv->type != TLV_TYPE_PUBKEY || tlv->length != MEMBER_KEY_LEN) {
+        return false;
+    }
+    memcpy(out, tlv->value, MEMBER_KEY_LEN);
+    return true;
+}
+
+bool tlv_read_generated_pubkey(tlv_t *tlv, uint8_t *out) {
+    LEDGER_ASSERT(tlv != NULL, "Null tlv\n");
+    LEDGER_ASSERT(out != NULL, "Null out\n");
+
     if (tlv->type != TLV_TYPE_PUBKEY || tlv->length > MEMBER_KEY_LEN) {
         return false;
     }
+    memset(out, 0, MEMBER_KEY_LEN);
     memcpy(out, tlv->value, tlv->length);
     return true;
 }
@@ -99,6 +111,11 @@ bool tlv_read_string(tlv_t *tlv, char *out, size_t out_size) {
     LEDGER_ASSERT(out != NULL, "Null out\n");
 
     if (tlv->type != TLV_TYPE_STRING || tlv->length >= out_size) {
+        return false;
+    }
+    // An embedded NUL would make the C string shorter than the accepted TLV, and the block
+    // hasher would then cover less than what was parsed
+    if (memchr(tlv->value, '\0', tlv->length) != NULL) {
         return false;
     }
     memcpy(out, tlv->value, tlv->length);

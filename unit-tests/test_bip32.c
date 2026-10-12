@@ -10,6 +10,8 @@
 #include "base58.h"
 #include "bip32.h"
 #include "common/bip32_derivation.h"
+#include "crypto.h"
+#include "lib/hmac_sha2.h"
 
 // Test plan based on the BIP32 specification
 // (https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki)
@@ -268,11 +270,104 @@ static void test_bip32_derive_vector_4(void **state) {
 // Dont test vector 5 because it's focused on invalid xpriv, since we don't implement xpriv format
 // serialization these tests are not relevant.
 
+typedef void (*hmac_fn_t)(const unsigned char *key,
+                          unsigned int key_size,
+                          const unsigned char *message,
+                          unsigned int message_len,
+                          unsigned char *mac,
+                          unsigned mac_size);
+
+// The output buffer is oversized for every digest and pre-filled, so any byte still holding the
+// filler beyond the digest proves the finalizer did not copy past it
+#define HMAC_CANARY_FILL 0xAA
+
+static void assert_hmac_output_bounded(hmac_fn_t hmac, size_t digest_size) {
+    const uint8_t key[32] = {0};
+    const uint8_t data[32] = {0};
+    uint8_t out[SHA512_DIGEST_SIZE + 64];
+
+    // Nominal length: nothing beyond the digest is written
+    memset(out, HMAC_CANARY_FILL, sizeof(out));
+    hmac(key, sizeof(key), data, sizeof(data), out, digest_size);
+    for (size_t i = digest_size; i < sizeof(out); i++) {
+        assert_int_equal(out[i], HMAC_CANARY_FILL);
+    }
+
+    // An output length larger than the digest must not copy past it
+    memset(out, HMAC_CANARY_FILL, sizeof(out));
+    hmac(key, sizeof(key), data, sizeof(data), out, sizeof(out));
+    for (size_t i = digest_size; i < sizeof(out); i++) {
+        assert_int_equal(out[i], HMAC_CANARY_FILL);
+    }
+}
+
+// The secp256k1 group order, the boundary BIP32 retries on
+static const uint8_t SECP256K1_ORDER[32] = {
+    0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFE,
+    0xBA, 0xAE, 0xDC, 0xE6, 0xAF, 0x48, 0xA0, 0x3B, 0xBF, 0xD2, 0x5E, 0x8C, 0xD0, 0x36, 0x41, 0x41};
+
+static void test_scalar_below_order(void **state) {
+    (void) state;
+    uint8_t scalar[32];
+
+    // The order itself and anything above it are the values BIP32 rejects
+    assert_false(crypto_ec_is_scalar_below_order(SECP256K1_ORDER));
+    memset(scalar, 0xFF, sizeof(scalar));
+    assert_false(crypto_ec_is_scalar_below_order(scalar));
+
+    // One below the order is the largest valid scalar
+    memcpy(scalar, SECP256K1_ORDER, sizeof(scalar));
+    scalar[31] -= 1;
+    assert_true(crypto_ec_is_scalar_below_order(scalar));
+
+    memset(scalar, 0x00, sizeof(scalar));
+    assert_true(crypto_ec_is_scalar_below_order(scalar));
+}
+
+static void test_scalar_zero(void **state) {
+    (void) state;
+    uint8_t scalar[32] = {0};
+
+    // A zero child key is invalid per BIP32, whatever the byte that makes it non-zero
+    assert_true(crypto_ec_is_scalar_zero(scalar));
+    scalar[31] = 0x01;
+    assert_false(crypto_ec_is_scalar_zero(scalar));
+    scalar[31] = 0x00;
+    scalar[0] = 0x01;
+    assert_false(crypto_ec_is_scalar_zero(scalar));
+}
+
+static void test_hmac_sha224_oversized_output(void **state) {
+    (void) state;
+    assert_hmac_output_bounded(hmac_sha224, SHA224_DIGEST_SIZE);
+}
+
+static void test_hmac_sha256_oversized_output(void **state) {
+    (void) state;
+    assert_hmac_output_bounded(hmac_sha256, SHA256_DIGEST_SIZE);
+}
+
+static void test_hmac_sha384_oversized_output(void **state) {
+    (void) state;
+    assert_hmac_output_bounded(hmac_sha384, SHA384_DIGEST_SIZE);
+}
+
+static void test_hmac_sha512_oversized_output(void **state) {
+    (void) state;
+    assert_hmac_output_bounded(hmac_sha512, SHA512_DIGEST_SIZE);
+}
+
 int main() {
     const struct CMUnitTest tests[] = {cmocka_unit_test(test_bip32_derive_vector_1),
                                        cmocka_unit_test(test_bip32_derive_vector_2),
                                        cmocka_unit_test(test_bip32_derive_vector_3),
-                                       cmocka_unit_test(test_bip32_derive_vector_4)};
+                                       cmocka_unit_test(test_bip32_derive_vector_4),
+                                       cmocka_unit_test(test_scalar_below_order),
+                                       cmocka_unit_test(test_scalar_zero),
+                                       cmocka_unit_test(test_hmac_sha224_oversized_output),
+                                       cmocka_unit_test(test_hmac_sha256_oversized_output),
+                                       cmocka_unit_test(test_hmac_sha384_oversized_output),
+                                       cmocka_unit_test(test_hmac_sha512_oversized_output)};
 
     return cmocka_run_group_tests(tests, NULL, NULL);
 }

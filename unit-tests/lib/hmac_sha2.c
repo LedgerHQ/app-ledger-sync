@@ -94,10 +94,18 @@ void hmac_sha224_final(hmac_sha224_ctx *ctx, unsigned char *mac, unsigned int ma
     unsigned char digest_inside[SHA224_DIGEST_SIZE];
     unsigned char mac_temp[SHA224_DIGEST_SIZE];
 
+    /* Mirror cx_hmac_final(): never return more than the digest holds. */
+    if (mac_size > SHA224_DIGEST_SIZE) {
+        mac_size = SHA224_DIGEST_SIZE;
+    }
+
     sha224_final(&ctx->ctx_inside, digest_inside);
     sha224_update(&ctx->ctx_outside, digest_inside, SHA224_DIGEST_SIZE);
     sha224_final(&ctx->ctx_outside, mac_temp);
     memcpy(mac, mac_temp, mac_size);
+
+    memset(digest_inside, 0, sizeof(digest_inside));
+    memset(mac_temp, 0, sizeof(mac_temp));
 }
 
 void hmac_sha224(const unsigned char *key,
@@ -172,10 +180,18 @@ void hmac_sha256_final(hmac_sha256_ctx *ctx, unsigned char *mac, unsigned int ma
     unsigned char digest_inside[SHA256_DIGEST_SIZE];
     unsigned char mac_temp[SHA256_DIGEST_SIZE];
 
+    /* Mirror cx_hmac_final(): never return more than the digest holds. */
+    if (mac_size > SHA256_DIGEST_SIZE) {
+        mac_size = SHA256_DIGEST_SIZE;
+    }
+
     sha256_final(&ctx->ctx_inside, digest_inside);
     sha256_update(&ctx->ctx_outside, digest_inside, SHA256_DIGEST_SIZE);
     sha256_final(&ctx->ctx_outside, mac_temp);
     memcpy(mac, mac_temp, mac_size);
+
+    memset(digest_inside, 0, sizeof(digest_inside));
+    memset(mac_temp, 0, sizeof(mac_temp));
 }
 
 void hmac_sha256(const unsigned char *key,
@@ -250,10 +266,18 @@ void hmac_sha384_final(hmac_sha384_ctx *ctx, unsigned char *mac, unsigned int ma
     unsigned char digest_inside[SHA384_DIGEST_SIZE];
     unsigned char mac_temp[SHA384_DIGEST_SIZE];
 
+    /* Mirror cx_hmac_final(): never return more than the digest holds. */
+    if (mac_size > SHA384_DIGEST_SIZE) {
+        mac_size = SHA384_DIGEST_SIZE;
+    }
+
     sha384_final(&ctx->ctx_inside, digest_inside);
     sha384_update(&ctx->ctx_outside, digest_inside, SHA384_DIGEST_SIZE);
     sha384_final(&ctx->ctx_outside, mac_temp);
     memcpy(mac, mac_temp, mac_size);
+
+    memset(digest_inside, 0, sizeof(digest_inside));
+    memset(mac_temp, 0, sizeof(mac_temp));
 }
 
 void hmac_sha384(const unsigned char *key,
@@ -328,10 +352,18 @@ void hmac_sha512_final(hmac_sha512_ctx *ctx, unsigned char *mac, unsigned int ma
     unsigned char digest_inside[SHA512_DIGEST_SIZE];
     unsigned char mac_temp[SHA512_DIGEST_SIZE];
 
+    /* Mirror cx_hmac_final(): never return more than the digest holds. */
+    if (mac_size > SHA512_DIGEST_SIZE) {
+        mac_size = SHA512_DIGEST_SIZE;
+    }
+
     sha512_final(&ctx->ctx_inside, digest_inside);
     sha512_update(&ctx->ctx_outside, digest_inside, SHA512_DIGEST_SIZE);
     sha512_final(&ctx->ctx_outside, mac_temp);
     memcpy(mac, mac_temp, mac_size);
+
+    memset(digest_inside, 0, sizeof(digest_inside));
+    memset(mac_temp, 0, sizeof(mac_temp));
 }
 
 void hmac_sha512(const unsigned char *key,

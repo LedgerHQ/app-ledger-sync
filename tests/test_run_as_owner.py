@@ -8,18 +8,18 @@ from utils.CommandBlock import Permissions
 from utils.CommandStream import CommandStream
 from utils.index import device
 from utils.NobleCrypto import Crypto
-from utils.test_helpers import create_seed_and_derive_stream, get_derivation_path
+from utils.test_helpers import create_seed_and_derive_stream, create_wallet_cli_ring_stream, get_ledger_sync_path
 
 valid_member_instructions_nano = [NavInsID.RIGHT_CLICK, NavInsID.RIGHT_CLICK, NavInsID.BOTH_CLICK, NavInsID.BOTH_CLICK]
 valid_member_instructions1_nano = [
     NavInsID.RIGHT_CLICK,
     NavInsID.RIGHT_CLICK,
-    NavInsID.RIGHT_CLICK,
-    NavInsID.BOTH_CLICK,
     NavInsID.BOTH_CLICK,
 ]
 valid_member_instructions2_nano = [NavInsID.RIGHT_CLICK, NavInsID.BOTH_CLICK, NavInsID.BOTH_CLICK]
 valid_member_instructions_stax = [NavInsID.USE_CASE_CHOICE_CONFIRM, NavInsID.USE_CASE_STATUS_DISMISS]
+decline_member_instructions_nano = [NavInsID.RIGHT_CLICK, NavInsID.RIGHT_CLICK, NavInsID.RIGHT_CLICK, NavInsID.BOTH_CLICK]
+decline_member_instructions_stax = [NavInsID.USE_CASE_CHOICE_REJECT, NavInsID.USE_CASE_STATUS_DISMISS]
 close_stream_instructions_stax = [NavInsID.USE_CASE_CHOICE_CONFIRM, NavInsID.USE_CASE_REVIEW_TAP]
 
 
@@ -29,6 +29,13 @@ def test_basic(backend: BackendInterface) -> None:
     topic = Crypto.from_hex(DEFAULT_TOPIC)
     stream = CommandStream()
     stream = stream.edit().seed(topic).issue(alice)
+
+
+def test_basic_without_topic(backend: BackendInterface) -> None:
+    # An absent topic is a valid encoding: the encoder emits a zero-length NULL TLV
+    alice = device.apdu(backend)
+    stream = CommandStream()
+    stream = stream.edit().seed().issue(alice)
 
 
 def test_tree_flow(backend: BackendInterface, navigator: Navigator, test_name: str) -> None:
@@ -50,7 +57,7 @@ def test_tree_flow(backend: BackendInterface, navigator: Navigator, test_name: s
     tree = tree.update(stream)
 
     # Derive another subtree
-    stream = CommandStream().edit().derive(get_derivation_path(1)).issue(alice, tree)
+    stream = CommandStream().edit().derive(get_ledger_sync_path(1)).issue(alice, tree)
     tree = tree.update(stream)
 
     # Add bob to the new subtree
@@ -85,10 +92,8 @@ def test_seed(backend: BackendInterface) -> None:
 def test_seed_and_add_bob(backend: BackendInterface, navigator: Navigator, test_name: str) -> None:
     if backend.device.is_nano:
         valid_member_instructions = valid_member_instructions_nano
-        dismiss_notification_instructions = [NavInsID.BOTH_CLICK]
     else:
         valid_member_instructions = valid_member_instructions_stax
-        dismiss_notification_instructions = [NavInsID.USE_CASE_STATUS_DISMISS]
     alice = device.apdu(backend)
 
     bob = device.software()
@@ -102,14 +107,30 @@ def test_seed_and_add_bob(backend: BackendInterface, navigator: Navigator, test_
     alice.update_automation(member_automation)
     stream = stream.edit().add_member("Bob", bob_public_key, 0xFFFFFFFF, True).issue(alice, tree)
 
-    # dismiss notif
-    navigator.navigate(dismiss_notification_instructions, screen_change_before_first_instruction=False)
     resolved = stream.resolve()
     assert resolved.is_created() is True
     assert len(resolved.get_members()) == 2
     # Note: topic verification would need to be adapted for derived streams
     assert bob_public_key in resolved.get_members()
     assert stream.get_blocks()[-1].issuer in resolved.get_members()
+
+
+def test_add_member_decline(backend: BackendInterface, navigator: Navigator, test_name: str) -> None:
+    """Test that declining the add_member prompt with OWNER permissions aborts the operation."""
+    if backend.device.is_nano:
+        decline_instructions = decline_member_instructions_nano
+    else:
+        decline_instructions = decline_member_instructions_stax
+
+    alice = device.apdu(backend)
+    bob = device.software()
+
+    stream, tree = create_seed_and_derive_stream(alice, 0)
+
+    automation = Automation(navigator, test_name=test_name, instructions=decline_instructions)
+    alice.update_automation(automation)
+    with pytest.raises(ExceptionRAPDU):
+        stream.edit().add_member("Bob", bob.get_public_key(), Permissions.OWNER, True).issue(alice, tree)
 
 
 def seed_tree_and_derive_subtree(backend: BackendInterface) -> None:
@@ -270,7 +291,8 @@ def test_publish_by_non_member(backend: BackendInterface, navigator: Navigator, 
     stream = stream.edit().add_member("Charlie", charlie_public_key, 0xFFFFFFFF).issue(alice, tree)
     tree = tree.update(stream)
 
-    with pytest.raises(ValueError):
+    # Charlie is a member, so the rejection must come from Bob not holding the stream key
+    with pytest.raises(ValueError, match="Cannot read the seed key from another device"):
         stream = stream.edit().publish_key(charlie_public_key).issue(bob, tree)
 
 
@@ -292,7 +314,7 @@ def test_publish_key_to_non_member_by_software(backend: BackendInterface, naviga
     alice.update_automation(member_automation)
     stream = stream.edit().add_member("Bob", bob_public_key, 0xFFFFFFFF, True).issue(alice, tree)
     tree = tree.update(stream)
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="Recipient is not part of the trustchain"):
         stream = stream.edit().publish_key(charlie_public_key).issue(bob, tree)
 
 
@@ -335,7 +357,7 @@ def test_derive_subtree_with_publish_key(backend: BackendInterface, navigator: N
     tree = tree.update(stream)
 
     # Read key from bob
-    xpriv = bob.read_key(tree, get_derivation_path(0))
+    xpriv = bob.read_key(tree, get_ledger_sync_path(0))
     assert xpriv is not None and len(xpriv) == 64
 
 
@@ -381,7 +403,7 @@ def test_key_rotation(backend: BackendInterface, navigator: Navigator, test_name
     stream = (
         CommandStream()
         .edit()
-        .derive(get_derivation_path(1))
+        .derive(get_ledger_sync_path(1))
         .add_member("Bob", bob.get_public_key(), 0xFFFFFFFF, True)
         .issue(alice, tree)
     )
@@ -403,8 +425,8 @@ def test_key_rotation(backend: BackendInterface, navigator: Navigator, test_name
     tree = tree.update(stream)
 
     # Keys should be equal
-    bob_xpriv = bob.read_key(tree, get_derivation_path(1))
-    edward_xpriv = edward.read_key(tree, get_derivation_path(1))
+    bob_xpriv = bob.read_key(tree, get_ledger_sync_path(1))
+    edward_xpriv = edward.read_key(tree, get_ledger_sync_path(1))
     assert bob_xpriv is not None and edward_xpriv is not None
     assert len(bob_xpriv) == 64 and len(edward_xpriv) == 64
     assert bob_xpriv == edward_xpriv
@@ -431,3 +453,57 @@ def test_add_restricted_member(backend: BackendInterface, navigator: Navigator, 
     alice.update_automation(member_automation)
     stream = stream.edit().add_member("Bob", bob_public_key, permissions_without_add_block, True).issue(alice, tree)
     tree = tree.update(stream)
+
+
+def test_add_restricted_member_decline(backend: BackendInterface, navigator: Navigator, test_name: str) -> None:
+    """Test that declining the add_member prompt with OWNER & ~CAN_ADD_BLOCK permissions aborts the operation."""
+    if backend.device.is_nano:
+        decline_instructions = decline_member_instructions_nano
+    else:
+        decline_instructions = decline_member_instructions_stax
+
+    alice = device.apdu(backend)
+    bob = device.software()
+
+    stream, tree = create_seed_and_derive_stream(alice, 0)
+    permissions_without_add_block = Permissions.OWNER & ~Permissions.CAN_ADD_BLOCK
+
+    automation = Automation(navigator, test_name=test_name, instructions=decline_instructions)
+    alice.update_automation(automation)
+    with pytest.raises(ExceptionRAPDU):
+        stream.edit().add_member("Bob", bob.get_public_key(), permissions_without_add_block, True).issue(alice, tree)
+
+
+# --- AppID 17 (wallet-cli ring) regression tests ---
+
+
+def test_app_id_17_add_member_owner(backend: BackendInterface, navigator: Navigator, test_name: str) -> None:
+    """Regression: AppID 17 stream must show the add-member UI for OWNER permissions, not return SW_WRONG_DATA."""
+    if backend.device.is_nano:
+        valid_member_instructions = valid_member_instructions_nano
+    else:
+        valid_member_instructions = valid_member_instructions_stax
+
+    alice = device.apdu(backend)
+    bob = device.software()
+
+    stream, tree = create_wallet_cli_ring_stream(alice, 0)
+
+    member_automation = Automation(navigator, test_name=test_name, instructions=valid_member_instructions)
+    alice.update_automation(member_automation)
+    stream = stream.edit().add_member("Bob", bob.get_public_key(), Permissions.OWNER, True).issue(alice, tree)
+
+    resolved = stream.resolve()
+    assert resolved.is_created() is True
+    assert len(resolved.get_members()) == 2
+
+
+def test_app_id_17_add_member_invalid_permissions(backend: BackendInterface) -> None:
+    """AppID 17 with permissions other than OWNER / OWNER & ~CAN_ADD_BLOCK → SW_WRONG_DATA, no UI shown."""
+    alice = device.apdu(backend)
+    bob = device.software()
+
+    stream, tree = create_wallet_cli_ring_stream(alice, 0)
+
+    with pytest.raises(ExceptionRAPDU):
+        stream.edit().add_member("Bob", bob.get_public_key(), Permissions.CAN_ADD_BLOCK, False).issue(alice, tree)

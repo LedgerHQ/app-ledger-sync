@@ -216,9 +216,17 @@ class Device:
         with transport.exchange_async(
             Device.CLA, Device.INS_SIGN_BLOCK, Device.ParseStreamMode.Command, Device.OutputDataMode.none, command
         ):
+            # Nano: True — notification appears after last BOTH_CLICK, must wait to capture it
+            # Wallet: False — notification captured as snap before STATUS_DISMISS (last instruction)
+            screen_change = transport.device.is_nano
             automation.navigator.navigate_and_compare(
-                automation.root_path, automation.test_name, automation.instructions, screen_change_after_last_instruction=False
+                automation.root_path,
+                automation.test_name,
+                automation.instructions,
+                screen_change_after_last_instruction=screen_change,
             )
+            transport.wait_for_home_screen()
+
         response2 = transport.last_async_response
         assert response2
         return response2.data
@@ -432,6 +440,10 @@ class ApduDevice(device):
         self.transport = transport
         self.session_key_pair = Crypto.randomKeyPair()
         self.automation: Automation | None = None
+        # Trusted properties and session secret of the last signed block, for tests
+        # inspecting the trusted-property channel itself
+        self.last_trusted_properties: list = []
+        self.last_session_secret: bytes = b""
         if navigator:
             self.automation = Automation(navigator)
 
@@ -617,6 +629,9 @@ class ApduDevice(device):
 
         block_to_sign.issuer = issuer
         block_to_sign.signature = signature[0]
+
+        self.last_trusted_properties = trusted_properties
+        self.last_session_secret = secret
 
         return block_to_sign
 

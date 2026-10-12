@@ -54,7 +54,7 @@ int seed_id_callback(bool approve) {
 
 int handler_get_seed_id(buffer_t *buffer) {
     int error;
-    challenge_ctx_t challenge_ctx;
+    challenge_ctx_t challenge_ctx = {0};
     LEDGER_ASSERT(buffer != NULL, "Null pointer");
 
     PRINTF("Parsing buffer\n");
@@ -71,5 +71,6 @@ int handler_get_seed_id(buffer_t *buffer) {
         return io_send_sw(error);
     }
 
-    return ui_display_seed_id_command();
+    ui_display_seed_id_command();
+    return SWO_NO_RESPONSE;
 }

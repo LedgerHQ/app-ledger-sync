@@ -415,16 +415,171 @@ static void test_stream_parse(void **state) {
     free((void *) buffer.ptr);
 }
 
+/* Scratch buffer for the serialized structures the tests build. The largest one is a
+ * DERIVE command holding the longest accepted path plus one element, which still fits
+ * in a single-byte TLV length. */
+#define TEST_BUFFER_MAX_LEN 256
+#define DERIVE_PATH_MAX_LEN ((MAX_BIP32_PATH + 1) * sizeof(uint32_t))
+
+static size_t append_tlv(uint8_t *buffer,
+                         size_t offset,
+                         uint8_t type,
+                         const uint8_t *value,
+                         uint8_t length) {
+    buffer[offset++] = type;
+    buffer[offset++] = length;
+    memcpy(buffer + offset, value, length);
+    return offset + length;
+}
+
+static size_t build_derive_command(uint8_t *buffer, size_t path_byte_len) {
+    uint8_t path[DERIVE_PATH_MAX_LEN];
+    uint8_t public_key[MEMBER_KEY_LEN] = {0};
+    uint8_t initialization_vector[IV_LEN] = {0};
+    uint8_t encrypted_xpriv[MAX_ENCRYPTED_KEY_LEN] = {0};
+    uint8_t payload[TEST_BUFFER_MAX_LEN];
+    size_t offset = 0;
+
+    assert_true(path_byte_len <= sizeof(path));
+    // Hardened elements, the only ones the signer accepts
+    memset(path, 0x80, path_byte_len);
+
+    offset = append_tlv(payload, offset, TLV_TYPE_BYTES, path, path_byte_len);
+    offset = append_tlv(payload, offset, TLV_TYPE_PUBKEY, public_key, sizeof(public_key));
+    offset = append_tlv(payload,
+                        offset,
+                        TLV_TYPE_BYTES,
+                        initialization_vector,
+                        sizeof(initialization_vector));
+    offset = append_tlv(payload, offset, TLV_TYPE_BYTES, encrypted_xpriv, sizeof(encrypted_xpriv));
+    offset = append_tlv(payload, offset, TLV_TYPE_PUBKEY, public_key, sizeof(public_key));
+
+    return append_tlv(buffer, 0, COMMAND_DERIVE, payload, offset);
+}
+
+static int parse_derive_command_with_path_len(uint8_t *raw,
+                                              size_t path_byte_len,
+                                              block_command_t *command) {
+    buffer_t buffer = {.ptr = raw, .offset = 0, .size = build_derive_command(raw, path_byte_len)};
+
+    return parse_block_command(&buffer, command);
+}
+
+/* Serialized block header, built with arbitrary field lengths so that the fixed-size
+ * TLV readers can be exercised. */
+static size_t build_block_header(uint8_t *buffer, uint8_t parent_len, uint8_t issuer_len) {
+    uint8_t version = 1;
+    uint8_t command_count = 1;
+    uint8_t parent[HASH_LEN] = {0};
+    uint8_t issuer[MEMBER_KEY_LEN] = {0};
+    size_t offset = 0;
+
+    offset = append_tlv(buffer, offset, TLV_TYPE_VARINT, &version, sizeof(version));
+    offset = append_tlv(buffer, offset, TLV_TYPE_HASH, parent, parent_len);
+    offset = append_tlv(buffer, offset, TLV_TYPE_PUBKEY, issuer, issuer_len);
+    return append_tlv(buffer, offset, TLV_TYPE_VARINT, &command_count, sizeof(command_count));
+}
+
+static int parse_block_header_with_lengths(uint8_t *raw, uint8_t parent_len, uint8_t issuer_len) {
+    block_header_t header;
+    buffer_t buffer = {.ptr = raw,
+                       .offset = 0,
+                       .size = build_block_header(raw, parent_len, issuer_len)};
+
+    return parse_block_header(&buffer, &header);
+}
+
+static void test_parse_block_header_fixed_size_fields(void **state) {
+    (void) state;
+
+    uint8_t raw[TEST_BUFFER_MAX_LEN];
+
+    // Full-size fields are accepted
+    assert_true(parse_block_header_with_lengths(raw, HASH_LEN, MEMBER_KEY_LEN) > 0);
+
+    // Short fixed-size fields are rejected: they would leave trailing bytes unset
+    for (uint8_t parent_len = 0; parent_len < HASH_LEN; parent_len++) {
+        assert_true(parse_block_header_with_lengths(raw, parent_len, MEMBER_KEY_LEN) < 0);
+    }
+    for (uint8_t issuer_len = 0; issuer_len < MEMBER_KEY_LEN; issuer_len++) {
+        assert_true(parse_block_header_with_lengths(raw, HASH_LEN, issuer_len) < 0);
+    }
+}
+
+/* Serialized ADD_MEMBER command, built with an arbitrary TLV type for the member
+ * public key so that type validation can be exercised. */
+static size_t build_add_member_command(uint8_t *buffer, uint8_t public_key_type) {
+    const char *name = "Bob";
+    uint8_t public_key[MEMBER_KEY_LEN] = {0};
+    uint8_t permissions[sizeof(uint32_t)] = {0xFF, 0xFF, 0xFF, 0xFF};
+    uint8_t payload[TEST_BUFFER_MAX_LEN];
+    size_t offset = 0;
+
+    offset = append_tlv(payload, offset, TLV_TYPE_STRING, (const uint8_t *) name, strlen(name));
+    offset = append_tlv(payload, offset, public_key_type, public_key, sizeof(public_key));
+    offset = append_tlv(payload, offset, TLV_TYPE_VARINT, permissions, sizeof(permissions));
+
+    return append_tlv(buffer, 0, COMMAND_ADD_MEMBER, payload, offset);
+}
+
+static int parse_add_member_command_with_key_type(uint8_t *raw,
+                                                  uint8_t public_key_type,
+                                                  block_command_t *command) {
+    buffer_t buffer = {.ptr = raw,
+                       .offset = 0,
+                       .size = build_add_member_command(raw, public_key_type)};
+
+    return parse_block_command(&buffer, command);
+}
+
+static void test_parse_add_member_command(void **state) {
+    (void) state;
+
+    uint8_t raw[TEST_BUFFER_MAX_LEN];
+    block_command_t command;
+
+    // A well-formed public key TLV is accepted
+    assert_true(parse_add_member_command_with_key_type(raw, TLV_TYPE_PUBKEY, &command) >= 0);
+    assert_int_equal(command.type, COMMAND_ADD_MEMBER);
+
+    // A public key of the right size but of the wrong type is rejected
+    assert_true(parse_add_member_command_with_key_type(raw, TLV_TYPE_BYTES, &command) < 0);
+    assert_true(parse_add_member_command_with_key_type(raw, TLV_TYPE_HASH, &command) < 0);
+}
+
 static void test_parse_derive_command(void **state) {
     (void) state;
-    // TODO: implement
+
+    uint8_t raw[TEST_BUFFER_MAX_LEN];
+    block_command_t command;
+
+    // A path filling the destination array exactly is accepted
+    assert_true(
+        parse_derive_command_with_path_len(raw, MAX_BIP32_PATH * sizeof(uint32_t), &command) >= 0);
+    assert_int_equal(command.type, COMMAND_DERIVE);
+    assert_int_equal(command.command.derive.path_len, MAX_BIP32_PATH);
+
+    // One element more than the destination array holds is rejected
+    assert_true(parse_derive_command_with_path_len(raw,
+                                                   (MAX_BIP32_PATH + 1) * sizeof(uint32_t),
+                                                   &command) < 0);
+
+    // A path that is not a whole number of elements is rejected
+    assert_true(parse_derive_command_with_path_len(raw,
+                                                   MAX_BIP32_PATH * sizeof(uint32_t) - 1,
+                                                   &command) < 0);
+
+    // An empty path is rejected: it would leave the derived key uninitialized
+    assert_true(parse_derive_command_with_path_len(raw, 0, &command) < 0);
 }
 
 int main() {
     const struct CMUnitTest tests[] = {cmocka_unit_test(test_block_header_parse),
                                        cmocka_unit_test(test_block_commands_parse),
                                        cmocka_unit_test(test_stream_parse),
-                                       cmocka_unit_test(test_parse_derive_command)};
+                                       cmocka_unit_test(test_parse_derive_command),
+                                       cmocka_unit_test(test_parse_block_header_fixed_size_fields),
+                                       cmocka_unit_test(test_parse_add_member_command)};
 
     return cmocka_run_group_tests(tests, NULL, NULL);
 }
